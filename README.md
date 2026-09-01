@@ -229,7 +229,8 @@ node browser-test.mjs   # the real app in Chromium (needs playwright; skips if a
 
 `skills/priority-guide/` is a skill for [Claude Code](https://claude.com/claude-code).
 Copy it into `~/.claude/skills/` and Claude can draft a guides file from notes, a
-transcript or an existing prototype, validate it, and open it here.
+transcript or an existing prototype, validate it, and open it here. If you already
+have a skill by that name, rename one of them first — a second copy would replace it.
 
 The one rule it carries: **never guess.** An unknown is `??` plus an action item,
 not a plausible-sounding invention. A guide padded with confident fiction is worse
