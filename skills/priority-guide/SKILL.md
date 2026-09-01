@@ -64,20 +64,20 @@ one table row is one content block.
 
 *[Optional clarity — "likely a table", "filters on a left panel"]*
 
-| Content | Real data | Do | Link | Form | Note |
-| --- | --- | --- | --- | --- | --- |
-| Customer name | First Last | search, sort | | single line | |
-| Account number | 4471000123 — 4 to 20 digits | search | | | |
-| Status | New, Working, Won, Lost | filter, sort | | single select | |
-| Territory | many — likely a select | filter | | single select | |
-| [Visual] Coverage map | Counties shaded by rep | | | | ACTION: who owns an unassigned county? |
-| Log an attempt | | | modal → [[Log an attempt]] | | |
+| Content | Real data | Do | Link | Form | Note | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Customer name | First Last | search, sort | | single line | |  |
+| Account number | 4471000123 — 4 to 20 digits | search | | | |  |
+| Status | New, Working, Won, Lost | filter, sort | | single select | |  |
+| Territory | many — likely a select | filter | | single select | |  |
+| [Visual] Coverage map | Counties shaded by rep | | | | ACTION: who owns an unassigned county? |  |
+| Log an attempt | | | modal → [[Log an attempt]] | | |  |
 
 #### Actions
 
-| Content | Real data | Do | Link | Form | Note |
-| --- | --- | --- | --- | --- | --- |
-| Export | | | trigger | | Opens a format modal — see [[Export options]] |
+| Content | Real data | Do | Link | Form | Note | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Export | | | trigger | | Opens a format modal — see [[Export options]] |  |
 
 > See [[Opportunity Detail]] — the customer fields are specified there.
 
@@ -127,6 +127,11 @@ beginning `ACTION:` is an action item: **a follow-up or open question to circle
 back on, and nothing else.** Never use it to mark something merely important —
 that goes in an ordinary note. The goal is to clear every action item to zero,
 which only works if the marker means one thing.
+
+**Source** — optional, and only when the research is about *this one thing*.
+`[handle]` pointing at a definition in `## Sources`. If there is a study behind
+the account-number format specifically, it belongs on that row, not on the whole
+guide. Leave it blank otherwise.
 
 ## Sections, and how to group
 

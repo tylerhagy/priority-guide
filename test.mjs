@@ -287,8 +287,35 @@ t('a cited handle with no definition is reported', () => {
 });
 
 t('a source nothing cites is reported', () => {
-  const doc = P.parseDocument(FIXTURE.replace('| People on this floor that day | 14 booked, 9 checked in |  |  |  | Counts only, no names, by policy — [privacy] |', '| People on this floor that day | 14 booked, 9 checked in |  |  |  | Counts only, no names |'));
-  eq(P.sourceUsage(doc).unused.map((s) => s.handle), ['privacy']);
+  const stripped = FIXTURE
+    .replace('| People on this floor that day | 14 booked, 9 checked in |  |  |  | Counts only, no names, by policy — [privacy] |',
+      '| People on this floor that day | 14 booked, 9 checked in |  |  |  | Counts only, no names |')
+    .replace('| Who it is for | First Last | edit |  | single select | Office managers only | [privacy] |',
+      '| Who it is for | First Last | edit |  | single select | Office managers only |  |');
+  eq(P.sourceUsage(P.parseDocument(stripped)).unused.map((s) => s.handle), ['privacy']);
+});
+
+t('a source attached to one content block is a citation like any other', () => {
+  // Research about the reference format belongs on the reference field, not on
+  // the whole guide.
+  const doc = P.parseDocument(FIXTURE);
+  const { row } = P.rowsOf(P.findGuide(doc, 'Booking detail')).find((r) => r.row.content.text === 'Reference');
+  eq(row.source, '[refs]');
+  eq(row.refs, ['refs']);
+  const use = P.sourceUsage(doc).all.find((s) => s.handle === 'refs');
+  ok(use && use.def, '[refs] must resolve');
+  ok(use.cites.some((c) => c.where.includes('Reference')), 'the citation must name the block it came from');
+});
+
+t('a block source survives an edit elsewhere on the row', () => {
+  const doc = P.parseDocument(FIXTURE);
+  const hit = P.rowsOf(P.findGuide(doc, 'Booking detail')).find((r) => r.row.content.text === 'Reference');
+  hit.row.realData = 'DL-8841-2';
+  P.touchRow(hit.row, hit.table, hit.section);
+  const after = P.serializeDocument(doc);
+  ok(after.includes('| DL-8841-2 | search |  |  |  | [refs] |'), 'source cell lost:\n'
+    + after.split('\n').filter((l) => l.includes('DL-8841-2')).join('\n'));
+  ok(P.verifyRoundTrip(after).ok, 'must round-trip');
 });
 
 t('a destination with spaces is read and written in angle brackets', () => {

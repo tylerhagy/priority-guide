@@ -6,6 +6,12 @@ Content first: what data, what functionality, and what is still unknown.
 This is a small local tool for writing them. The file is markdown. The app is a
 render of the file, not a database that happens to export one.
 
+It renders the way a priority guide is meant to read: a narrow, stripped-back
+stack of what the screen needs, with notes annotating it from the left and
+functionality from the right, each on a leader to the one thing it describes.
+The stack stays scannable because everything that is not content has been moved
+off it.
+
 ![The guide view](screenshots/01-guide.png)
 
 ---
@@ -19,6 +25,7 @@ Priority guides are usually made in a design tool, and three things go wrong the
 | **Linking one guide to another** | A hyperlink pinned to an internal node id. It breaks when the target moves or gets duplicated, and the target has no idea it is linked. | `[[Guide name]]` resolves by name, and every guide shows **Referenced by**. Derived on every read, so it cannot go stale. |
 | **Attaching a brief, a synthesis, a decision record** | A notes lane sized for one sentence. | A **Sources** block. Write a doc down once, cite it by handle from any guide, section or row. |
 | **Working live in a room** | Reordering means dragging boxes inside an auto-layout column. | `Alt`+`↑`/`↓` moves a block. Drag works too. A capture box takes content as fast as someone can say it. |
+| **Knowing who a screen is for** | A line of prose. "Sales agent" and "Sales Agent" quietly become two groups. | User types are discrete, picked from the ones already in the file, and the **Users** view turns them around: pick a group, see only their screens, present those. |
 
 And one thing that matters more than any of them: **it is a text file.** It opens
 in Obsidian, it renders on GitHub, it reviews in a pull request, and a one-field
@@ -68,14 +75,15 @@ one table row is one content block.
 
 *Likely a table, one row per booking.*
 
-| Content | Real data | Do | Link | Form | Note |
-| --- | --- | --- | --- | --- | --- |
-| Date | Mon 8 Sep | filter, sort |  |  |  |
-| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  | single select | Set by the door reader |
-| Building | Riverside, Northgate, Depot | filter |  | single select |  |
-| [Visual] Coverage map | Counties shaded by rep |  |  |  | Roll-up was the top ask — [interviews] |
-| Open the booking |  |  | onsite page → [[Booking detail]] |  |  |
-| Export |  |  | download |  | ACTION: which formats does Finance need? |
+| Content | Real data | Do | Link | Form | Note | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| Date | Mon 8 Sep | filter, sort |  |  |  |  |
+| Reference | DL-8841-2 — 4 digits then a checksum | search |  |  |  | [refs] |
+| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  | single select | Set by the door reader |  |
+| Building | Riverside, Northgate, Depot | filter |  | single select |  |  |
+| [Visual] Coverage map | Counties shaded by rep |  |  |  | Roll-up was the top ask — [interviews] |  |
+| Open the booking |  |  | onsite page → [[Booking detail]] |  |  |  |
+| Export |  |  | download |  | ACTION: which formats does Finance need? |  |
 
 > See [[Booking detail]] — the full field list is specified there.
 
@@ -83,9 +91,13 @@ one table row is one content block.
 
 [brief]: https://example.com/wiki/spaces/DL/pages/41007 "Deskline brief"
 [interviews]: ./research/2026-08-20-synthesis.md "Nine people, three buildings"
+[refs]: <./research/Booking reference format.md> "Why references are 4 digits plus a checksum"
 ```
 
-### The six columns
+A destination containing a space must be wrapped in `<angle brackets>` — that is
+CommonMark, and it matters because most real folder paths have a space in them.
+
+### The columns
 
 Columns are matched **by name, never by position**, so you can reorder them, drop
 the ones you do not use, or add your own — an `Owner` column is left untouched.
@@ -97,7 +109,8 @@ the ones you do not use, or add your own — an `Owner` column is left untouched
 | **Do** | `search`, `filter`, `sort`, `edit` — what the user can do to this specific thing. |
 | **Link** | `type → [[Target]]`. One of `download`, `mailto`, `modal`, `offsite page`, `onsite page`, `trigger`, `upload`, `other`. |
 | **Form** | One of `date picker`, `single line`, `multi line`, `single select`, `multi select`, `other`, plus `required`. |
-| **Note** | Context. A note beginning `ACTION:` is an open item. |
+| **Note** | Context. A note beginning `ACTION:` is an open item. Shown in the left lane. |
+| **Source** | Optional. `[handle]` — research or a decision behind *this one thing*, rather than the whole guide. |
 
 ### Three conventions worth knowing
 
@@ -127,9 +140,18 @@ links in this app, in Obsidian and on GitHub, with no custom syntax to learn.
 [policy]: ./decisions.md#late-cancellation "Late cancellation — decided 2026-08-14"
 ```
 
-Write it once, cite it as `[brief]` from a guide's `**Sources:**` line, from a
-section, or from any Note. The rail beside the guide lists what is attached and
-how many places rely on it, and flags anything cited but never defined.
+Write it once, cite it from a guide, from a section, from any Note, or from a
+single content block's `Source` cell — because sometimes the research is about
+one field, not the whole screen.
+
+In the app a source is a **title and a link, and nothing else**. The key the file
+cites it by is derived from the title and never shown; nobody should have to
+invent a key to attach a document. The rail beside each guide lists what is
+attached, one click from adding, attaching or detaching, and flags anything cited
+but never defined.
+
+A local file path is shown as a path rather than a link, because a page served
+over http cannot open one — clicking copies it instead of failing.
 
 A `### Sources` block inside one guide works the same way and is a fine place to
 keep something only that guide uses — it still resolves from anywhere, because
@@ -143,6 +165,7 @@ that is how markdown reference definitions work.
 | --- | --- |
 | **Guide** | The priority stack, editable. What you project in a meeting. |
 | **Flow** | Every route in the file, drawn. What leads where, and what nothing leads to. |
+| **Users** | Every user type, and the guides each one needs. Pick a group to run a session through only their screens. |
 | **Open** | Every `ACTION:` and every `??`, with the block it came from. |
 | **Source** | The markdown. |
 
@@ -160,7 +183,7 @@ that is how markdown reference definitions work.
 | `Alt`+`Shift`+`↑`/`↓` | Move the block straight into the group above or below |
 | `C` | Capture — type a line, `Enter`, next line |
 | `P` | Present — big type, chrome out of the way |
-| `G` `F` `O` `S` | Guide · Flow · Open · Source |
+| `G` `F` `U` `O` `S` | Guide · Flow · Users · Open · Source |
 | `⌘S` | Save |
 
 ---

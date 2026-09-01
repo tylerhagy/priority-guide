@@ -58,7 +58,8 @@ const COLUMN_ALIASES = {
   capabilities: ['do', 'capabilities', 'search filter sort', 'sfse'],
   link: ['link', 'link type', 'links'],
   form: ['form', 'form type', 'input', 'input type'],
-  note: ['note', 'notes']
+  note: ['note', 'notes'],
+  source: ['source', 'sources', 'ref', 'reference']
 };
 
 const CANONICAL_COLUMNS = [
@@ -67,7 +68,8 @@ const CANONICAL_COLUMNS = [
   ['capabilities', 'Do'],
   ['link', 'Link'],
   ['form', 'Form'],
-  ['note', 'Note']
+  ['note', 'Note'],
+  ['source', 'Source']
 ];
 
 const ACTION_PREFIX = /^ACTION:\s*/i;
@@ -423,6 +425,7 @@ function parseBlockRow(line, cols) {
   row.link = parseLinkCell(at('link'));
   row.form = parseFormCell(at('form'));
   row.note = parseNoteCell(at('note'));
+  row.source = norm(at('source'));
   row.refs = rowRefs(row);
   return row;
 }
@@ -432,7 +435,7 @@ function parseBlockRow(line, cols) {
  * source line: an edit clears the raw line, and a citation must survive that.
  */
 function rowRefs(row) {
-  return refsIn(`${renderNoteCell(row.note)} ${row.realData}`);
+  return refsIn(`${renderNoteCell(row.note)} ${row.realData} ${row.source || ''}`);
 }
 
 /** Collect every source definition in the file, guide-local shadowing file-wide. */
@@ -468,6 +471,7 @@ function renderRow(row, cols) {
     else if (key === 'link') out.push(cellSafe(renderLinkCell(row.link)));
     else if (key === 'form') out.push(cellSafe(renderFormCell(row.form)));
     else if (key === 'note') out.push(cellSafe(renderNoteCell(row.note)));
+    else if (key === 'source') out.push(cellSafe(row.source || ''));
     else out.push(cellSafe(row.raw[i] || ''));   // a column we do not know: preserved
   }
   return `| ${out.join(' | ')} |`;
@@ -775,6 +779,76 @@ export function sourceUsage(doc) {
   };
 }
 
+/**
+ * Primary users, as discrete types rather than a sentence.
+ *
+ * Written `Sales manager (primary) · Sales agent` — one line in the file, so it
+ * stays hand-editable, but the app treats each as its own thing. That is what
+ * stops "Sales agent" and "Sales Agent" becoming two user types that are really
+ * one, which is the whole reason to pick from a list instead of typing.
+ */
+export function parseUsers(text) {
+  return String(text || '')
+    .split(/\s*[·|,;]\s*|\s+\u2022\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => {
+      const m = /^(.*?)\s*\((primary|secondary)\)\s*$/i.exec(x);
+      return m
+        ? { name: m[1].trim(), primary: m[2].toLowerCase() === 'primary' }
+        : { name: x, primary: false };
+    })
+    .filter((u) => u.name && u.name !== UNKNOWN);
+}
+
+export function renderUsers(list) {
+  return (list || [])
+    .filter((u) => u && u.name)
+    .map((u) => (u.primary ? `${u.name} (primary)` : u.name))
+    .join(' · ');
+}
+
+/** Every user type in the file, with the guides that name it. */
+export function userTypes(doc) {
+  const byKey = new Map();
+  for (const g of guides(doc)) {
+    for (const u of parseUsers(g.fields.primaryUsers)) {
+      const k = u.name.toLowerCase();
+      if (!byKey.has(k)) byKey.set(k, { name: u.name, guides: [] });
+      const e = byKey.get(k);
+      if (!e.guides.some((x) => x.guide === g)) e.guides.push({ guide: g, primary: u.primary });
+    }
+  }
+  return [...byKey.values()].sort((a, b) => b.guides.length - a.guides.length || a.name.localeCompare(b.name));
+}
+
+/**
+ * A handle nobody has to think about. The user gives a source a title; the file
+ * needs a short key to cite it by, so derive one and keep it unique.
+ */
+export function handleFor(title, doc) {
+  const base = String(title || 'source')
+    .toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '')
+    .trim().split(/[\s_-]+/).filter(Boolean).slice(0, 3).join('-') || 'source';
+  const taken = new Set(Object.keys(doc && doc.sources ? doc.sources : {}));
+  for (const seg of (doc && doc.segments) || []) {
+    if (seg.kind !== 'guide' || !seg.localSources) continue;
+    for (const h of Object.keys(seg.localSources)) taken.add(h);
+  }
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
+
+/**
+ * A destination a browser can actually open. Local paths cannot be followed from
+ * a page served over http, so saying so beats handing over a link that 404s.
+ */
+export function isWebUrl(url) {
+  return /^(https?|mailto|obsidian):/i.test(String(url || '').trim());
+}
+
 // ---------------------------------------------------------------- the referee
 
 /**
@@ -832,6 +906,7 @@ export function addRow(table, section, fields = {}) {
     link: parseLinkCell(fields.link || ''),
     form: parseFormCell(fields.form || ''),
     note: parseNoteCell(fields.note || ''),
+    source: String(fields.source || '').trim(),
     refs: []
   };
   row.refs = rowRefs(row);

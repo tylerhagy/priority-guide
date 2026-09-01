@@ -61,17 +61,17 @@ These guides capture what each screen needs before anything is laid out.
 
 ### The booking
 
-| Content | Real data | Do | Link | Form | Note |
-| --- | --- | --- | --- | --- | --- |
-| Reference | DL-8841-2 — always 4 digits then a checksum digit | search |  |  |  |
-| Space | Desk 4-118 |  | onsite page → [[Space detail]] |  |  |
-| Date | Mon 8 Sep 2026 | edit |  | date picker, required |  |
-| Time | 09:00–17:30, or All day | edit |  | single select, required | Half-day options were cut in review |
-| Who it is for | First Last | edit |  | single select | Office managers only |
-| Notes for the desk host | Up to 200 characters. Usually blank. | edit |  | multi line |  |
-| Status | Booked, Checked in, No-show, Cancelled |  |  |  |  |
-| Check in |  |  | trigger |  | Only inside a 30-minute window either side of the start |
-| Cancel |  |  | modal → [[Cancel a booking]] |  |  |
+| Content | Real data | Do | Link | Form | Note | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| Reference | DL-8841-2 — always 4 digits then a checksum digit | search |  |  |  | [refs] |
+| Space | Desk 4-118 |  | onsite page → [[Space detail]] |  |  |  |
+| Date | Mon 8 Sep 2026 | edit |  | date picker, required |  |  |
+| Time | 09:00–17:30, or All day | edit |  | single select, required | Half-day options were cut in review |  |
+| Who it is for | First Last | edit |  | single select | Office managers only | [privacy] |
+| Notes for the desk host | Up to 200 characters. Usually blank. | edit |  | multi line |  |  |
+| Status | Booked, Checked in, No-show, Cancelled |  |  |  |  |  |
+| Check in |  |  | trigger |  | Only inside a 30-minute window either side of the start |  |
+| Cancel |  |  | modal → [[Cancel a booking]] |  |  | [policy] |
 
 ### Who else is in
 
@@ -180,3 +180,4 @@ These guides capture what each screen needs before anything is laid out.
 [interviews]: ./research/2026-08-20-booking-interviews-synthesis.md "Nine people, three buildings, August 2026"
 [privacy]: https://example.com/wiki/spaces/DL/pages/43880 "What we show about other people"
 [policy]: ./decisions.md#late-cancellation "Late cancellation — decided 2026-08-14"
+[refs]: <./research/Booking reference format.md> "Why references are 4 digits plus a checksum"
