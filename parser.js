@@ -890,11 +890,6 @@ export function lintRow(row) {
   if (row.link.type && !LINK_TYPES.includes(row.link.type)) {
     issues.push({ kind: 'unknown-link', word: row.link.type });
   }
-  // The secondary line is where the real data goes. A block with a link or a
-  // form is a control, not a data point, so it is not expected to carry one.
-  if (row.content.type === 'Text' && !row.realData && !row.link.type && !row.form.type) {
-    issues.push({ kind: 'no-real-data', ask: 'What does this actually look like? An example, or the values.' });
-  }
   return issues;
 }
 

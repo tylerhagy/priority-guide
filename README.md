@@ -109,7 +109,7 @@ the ones you do not use, or add your own — an `Owner` column is left untouched
 | Column | What goes in it |
 | --- | --- |
 | **Content** | What the thing is called. Prefix `[Visual]` for an image, chart or map. |
-| **Real data** | The example, shown under the name in the middle: the actual format (`123 N Main St, Clio, MI 48420`), or the values when there are under ten. If there are many, say so — the count is what drives the design. |
+| **Real data** | The example, shown under the name in the middle: the actual format (`123 N Main St, Clio, MI 48420`), or the values when there are under ten. If there are many, say so — the count is what drives the design. **Optional**, and its absence is never flagged. |
 | **Do** | `search`, `filter`, `sort`, `edit` — what the user can do to this specific thing. |
 | **Link** | `type → [[Target]]`. One of `download`, `mailto`, `modal`, `offsite page`, `onsite page`, `trigger`, `upload`, `other`. |
 | **Form** | One of `date picker`, `single line`, `multi line`, `single select`, `multi select`, `other`, plus `required`. |
@@ -128,6 +128,9 @@ note becomes one — and stops being one — in a click.
 **Functionality, never a visual solution.** `single select`, not `dropdown`. If
 you type a visual answer the app says so and asks the question you skipped —
 it never blocks you and never rewrites what you wrote.
+
+That is the only thing it ever flags. A block with no example, no note and no
+functionality is a perfectly normal block, and the app says nothing about it.
 
 ---
 
@@ -183,7 +186,8 @@ that is how markdown reference definitions work.
 | --- | --- |
 | `↑` `↓` | Move the selection |
 | Click | Edit whatever you clicked — a name, an example, a note, a heading |
-| `Enter` | Edit the selected block |
+| `Tab` | From a name, start its example |
+| `Enter` | Add a block right after the selected one |
 | `Alt`+`↑`/`↓` | **Move the block**, crossing into the next group when it runs out |
 | `Alt`+`Shift`+`↑`/`↓` | Move the block straight into the group above or below |
 | `C` | Capture — type a line, `Enter`, next line |

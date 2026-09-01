@@ -60,7 +60,6 @@ const lint = [];
 for (const g of gs) {
   for (const { row, section } of P.rowsOf(g)) {
     for (const issue of P.lintRow(row)) {
-      if (issue.kind === 'no-real-data') continue;   // a hint in the app, not a defect
       lint.push({ guide: g.name, where: `${section.title} · ${P.renderContentCell(row.content)}`, ...issue });
     }
   }

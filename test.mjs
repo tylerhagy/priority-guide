@@ -394,11 +394,13 @@ t('functionality language is not flagged', () => {
   eq(P.lintRow(row).length, 0, 'clean row should be silent');
 });
 
-t('a data point with no real data is flagged, a control is not', () => {
+t('a missing example is never a finding — it is optional', () => {
+  // Most rows on a real guide are controls and actions with nothing to show.
+  // Flagging them would turn the normal state into a wall of warnings.
   const data = { content: P.parseContentCell('Account number'), form: P.parseFormCell(''), realData: '', link: P.parseLinkCell('') };
-  ok(P.lintRow(data).some((i) => i.kind === 'no-real-data'), 'data point should be flagged');
+  eq(P.lintRow(data), [], 'a data point with no example is fine');
   const control = { content: P.parseContentCell('Export'), form: P.parseFormCell(''), realData: '', link: P.parseLinkCell('trigger') };
-  ok(!P.lintRow(control).some((i) => i.kind === 'no-real-data'), 'a control has no data to show');
+  eq(P.lintRow(control), [], 'so is a control');
 });
 
 t('the whole fixture is clean of visual answers', () => {

@@ -348,6 +348,66 @@ await page.evaluate(() => {
 await page.waitForTimeout(300);
 eq('and a section can be deleted again', await count('.sec-title'), secBefore);
 
+// ---------------------------------------------------------------- adding inside a section
+await pick('Time');
+await page.waitForTimeout(200);
+ok('a selected block offers a way to add one right after it',
+  await page.$('.rowsel .rowtools') !== null);
+const posBefore = await page.evaluate(() =>
+  [...document.querySelectorAll('.item .lbl')].map((n) => n.textContent.trim()).indexOf('Time'));
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .rowtools button')]
+  .find((b) => b.textContent.includes('below')).click());
+await page.waitForTimeout(300);
+await typeInto('.rowsel .lbl', 'Room or desk');
+const posAfter = await page.evaluate(() =>
+  [...document.querySelectorAll('.item .lbl')].map((n) => n.textContent.trim()).indexOf('Room or desk'));
+eq('and it lands right there, not at the end of the section', posAfter, posBefore + 1);
+await save();
+ok('which the file records in that position',
+  (await current()).includes('| Room or desk |'));
+
+await pick('Room or desk');
+await page.waitForTimeout(150);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(300);
+ok('Enter does the same thing, the way an outliner would',
+  await page.evaluate(() => document.activeElement.className.includes('lbl')
+    && document.activeElement.textContent.trim() === ''));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+
+// ---------------------------------------------------------------- an example is optional
+ok('a block with no example says nothing about it',
+  await page.evaluate(() => {
+    const it = [...document.querySelectorAll('.item')].find((n) => n.querySelector('.lbl').textContent.trim() === 'Room or desk');
+    return !!it && !it.querySelector('.eg');
+  }));
+eq('and nothing on the guide is flagged for missing one', await count('.flag'), 0);
+await pick('Room or desk');
+await page.waitForTimeout(200);
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .rowtools button')]
+  .find((b) => b.textContent.includes('example')).click());
+await page.waitForTimeout(250);
+ok('but there is a quiet way to add one', await page.$('.rowsel .eg') !== null);
+await typeInto('.rowsel .eg', 'Desk 4-118');
+await save();
+ok('and it lands in the file', (await current()).includes('| Room or desk | Desk 4-118 |'));
+
+// ---------------------------------------------------------------- note tools do not move the page
+await pick('Status');
+await page.waitForTimeout(200);
+ok('the tools on a note sit outside it, so hovering shifts nothing',
+  await page.evaluate(() => {
+    const note = document.querySelector('.lane-l .note');
+    const before = note.getBoundingClientRect();
+    const tools = note.querySelector('.tools');
+    if (!tools) return false;
+    if (getComputedStyle(tools).position !== 'absolute') return false;
+    tools.style.opacity = '1';
+    const after = note.getBoundingClientRect();
+    return Math.abs(after.width - before.width) < 0.5 && Math.abs(after.height - before.height) < 0.5;
+  }));
+
 // ---------------------------------------------------------------- capture
 await page.keyboard.press('c');
 await page.waitForSelector('#cap:not([hidden])');
@@ -522,7 +582,9 @@ await page.waitForSelector('.item');
 const dragged = await page.evaluate(() => {
   const items = [...document.querySelectorAll('.item')];
   const from = items[1], to = items[3];
-  const label = from.textContent.trim();
+  // Compare on the name alone: a selected row grows its own tools, so its full
+  // text is not stable across the move.
+  const label = from.querySelector('.lbl').textContent.trim();
   const dt = new DataTransfer();
   from.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
   const r = to.getBoundingClientRect();
@@ -530,7 +592,7 @@ const dragged = await page.evaluate(() => {
   cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
   cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
   from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
-  const after = [...document.querySelectorAll('.item')].map((b) => b.textContent.trim());
+  const after = [...document.querySelectorAll('.item')].map((b) => b.querySelector('.lbl').textContent.trim());
   return { label, index: after.indexOf(label) };
 });
 eq('dragging a block lands it where it was dropped', dragged.index, 3);

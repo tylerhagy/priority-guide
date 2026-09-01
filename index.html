@@ -182,11 +182,17 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .note .k{flex:none;font-size:9px;font-weight:700;letter-spacing:.07em;color:var(--act);margin-top:1px}
 .note .gl{flex:none;color:var(--faint);margin-top:1px}
 .note.act .gl{color:var(--act)}
-.note .tools{display:none;gap:2px;flex:none;margin-left:2px}
-.note:hover .tools{display:flex}
+.note{position:relative}
+/* Outside the card, so revealing them cannot reflow the note or the row. */
+.note .tools{position:absolute;right:100%;top:1px;margin-right:5px;display:flex;gap:1px;
+  opacity:0;pointer-events:none;transition:opacity .1s var(--ease)}
+.note:hover .tools,.note:focus-within .tools{opacity:1;pointer-events:auto}
 .note .tools button{color:var(--faint);font-size:11px;line-height:1;padding:1px 3px;border-radius:4px}
 .note .tools button:hover{color:var(--ink);background:var(--hover)}
 .note a{color:var(--accent)}
+.rowtools{display:flex;gap:10px;margin-top:3px;padding-left:2px}
+.rowtools button{font-size:11px;color:var(--faint);padding:1px 0}
+.rowtools button:hover{color:var(--ink);text-decoration:underline}
 .addnote{opacity:0;font-size:11px;color:var(--faint);padding:2px 6px;border-radius:6px;
   border:1px dashed var(--line);transition:opacity .12s var(--ease)}
 .lane-l:hover .addnote,.rowsel .addnote{opacity:1}
@@ -1034,10 +1040,11 @@ function renderTools() {
     let tab = tableOf(sec);
     if (!sec) { banner('warn', '<b>Add a section first.</b> Content lives inside one.'); return; }
     if (!tab) { addSection(g, sec.title); tab = tableOf(sec); }
-    const row = addRow(tab, sec, {});
+    const here = S.sel && tab.rows.includes(S.sel) ? tab.rows.indexOf(S.sel) + 1 : tab.rows.length;
+    const row = addRow(tab, sec, { at: here });
     S.sel = row; mark(); render();
     focusSoon('.rowsel .lbl');
-  }, 'A data point, a control, or an action');
+  }, 'A data point, a control, or an action — after the selected block');
 
   tool('lineN', 'Section', () => {
     const sec = addSection(g, 'New section');
@@ -1255,18 +1262,46 @@ function paintRow(row, g, sec, table, rw) {
   // The example is what the data really looks like, so it belongs under the
   // name it belongs to — not off in another lane.
   const cur = rw.realData;
-  if (cur || rw === S.sel) {
+  const makeExample = (value) => {
     const eg = el('div', 'eg');
-    if (isUnknown(cur)) { eg.classList.add('unk'); eg.textContent = cur; }
-    else if (cur) setLinked(eg, cur, g);
-    else blankable(eg, '', 'An example — the real format, or the values');
-    editable(eg, cur, (v) => { rw.realData = v; touchRow(rw, table, sec); });
-    item.appendChild(eg);
+    if (isUnknown(value)) { eg.classList.add('unk'); eg.textContent = value; }
+    else if (value) setLinked(eg, value, g);
+    editable(eg, value, (v) => { rw.realData = v; touchRow(rw, table, sec); });
+    return eg;
+  };
+  if (cur) item.appendChild(makeExample(cur));
+
+  // An example is optional, so its absence says nothing at all. Getting to one
+  // is a quiet offer on the row you have selected, and Tab from the name.
+  const openExample = () => {
+    if (item.querySelector('.eg')) { focusSoon(item.querySelector('.eg')); return; }
+    const eg = makeExample('');
+    const tools = item.querySelector('.rowtools');
+    item.insertBefore(eg, tools || null);
+    focusSoon(eg);
+  };
+  lbl.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); lbl.blur(); openExample(); }
+  });
+
+  if (rw === S.sel && !S.readOnly && !S.present) {
+    const tools = el('div', 'rowtools');
+    if (!cur) {
+      const b = el('button', null, '+ example');
+      b.title = 'What the data really looks like. Optional.';
+      b.onclick = (e) => { e.stopPropagation(); openExample(); };
+      tools.appendChild(b);
+    }
+    const below = el('button', null, '+ block below');
+    below.title = 'Add a block here, not at the end of the section';
+    below.onclick = (e) => { e.stopPropagation(); insertBelow(g, sec, table, rw); };
+    tools.appendChild(below);
+    item.appendChild(tools);
   }
 
-  // Clicking the row opens it: the example line and the add-a-note button
-  // appear. Clicking straight onto text edits that text instead, without a
-  // re-render that would steal the caret.
+  // Clicking the row opens it: its own tools and the add-a-note button appear.
+  // Clicking straight onto text edits that text instead, without a re-render
+  // that would steal the caret.
   if (!S.readOnly && !S.present) {
     const lightSelect = () => {
       if (S.sel === rw) return;
@@ -1607,6 +1642,15 @@ function dropRow(g, row, table, sec, at) {
 /** Nothing is held in a draft any more, but the picker can be open. */
 function commitEditor() { closePop(); }
 function focusEditor() { focusSoon('.rowsel .lbl'); }
+
+/** A new block right after this one, which is what "add here" has to mean. */
+function insertBelow(g, sec, table, rw) {
+  const at = table.rows.indexOf(rw) + 1;
+  const row = addRow(table, sec, { at });
+  S.sel = row; mark(); render();
+  focusSoon('.rowsel .lbl');
+  return row;
+}
 
 // ---------------------------------------------------------------- right panel
 /**
@@ -2348,7 +2392,8 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Enter' && S.sel && S.view === 'guide' && !S.readOnly && !S.present) {
     e.preventDefault();
-    S.editing = S.sel; render(); focusEditor();
+    const w = whereIs(S.guide, S.sel);
+    if (w) insertBelow(S.guide, w.tables[w.ti].section, w.tables[w.ti].table, S.sel);
     return;
   }
 
