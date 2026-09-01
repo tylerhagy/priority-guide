@@ -172,7 +172,7 @@ that is how markdown reference definitions work.
 | --- | --- |
 | **Guide** | The priority stack, edited in place. What you project in a meeting. Context, sources and links live in the side panel beside it. |
 | **Flow** | Every route in the file, drawn. What leads where, and what nothing leads to. |
-| **Users** | Every user type, and the guides each one needs. Pick a group to run a session through only their screens. |
+| **Users** | Every user type, and the guides each one needs. Pick a group and the whole app narrows to their screens — present from there, and the arrow keys walk the set. |
 | **Open** | Every `ACTION:` and every `??`, with the block it came from. |
 | **Source** | The markdown. |
 
@@ -188,6 +188,7 @@ that is how markdown reference definitions work.
 | Click | Edit whatever you clicked — a name, an example, a note, a heading |
 | `Tab` | From a name, start its example |
 | `Enter` | Add a block right after the selected one |
+| `←` `→` | In present mode, the previous and next screen |
 | `Alt`+`↑`/`↓` | **Move the block**, crossing into the next group when it runs out |
 | `Alt`+`Shift`+`↑`/`↓` | Move the block straight into the group above or below |
 | `C` | Capture — type a line, `Enter`, next line |

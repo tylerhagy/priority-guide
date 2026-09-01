@@ -1061,6 +1061,32 @@ export function addGuide(doc, name) {
   return guide;
 }
 
+/** Reorder the guides in the file. */
+export function moveGuide(doc, guide, dir) {
+  const idx = doc.segments.map((s, i) => (s === guide ? i : -1)).find((i) => i !== -1);
+  if (idx === undefined) return false;
+  const others = doc.segments
+    .map((s, i) => (s.kind === 'guide' ? i : -1))
+    .filter((i) => i !== -1);
+  const at = others.indexOf(idx);
+  const to = others[at + dir];
+  if (to === undefined) return false;
+  const a = doc.segments[idx];
+  doc.segments[idx] = doc.segments[to];
+  doc.segments[to] = a;
+  a.dirty = true;
+  doc.segments[idx].dirty = true;
+  return true;
+}
+
+/** Remove a guide. Anything routing to it becomes a dangling route, and says so. */
+export function removeGuide(doc, guide) {
+  const i = doc.segments.indexOf(guide);
+  if (i === -1) return false;
+  doc.segments.splice(i, 1);
+  return true;
+}
+
 /**
  * Write a source down once. Defined at file level by default, because the whole
  * point is that one Confluence page can be cited from twenty rows across five

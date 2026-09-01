@@ -25,8 +25,11 @@ a:hover{text-decoration:underline}
 #bar{display:flex;align-items:center;gap:12px;height:52px;padding:0 14px;
   background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:6}
 #bar .brand{font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-#bar .file{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:26ch;
-  cursor:pointer;padding:4px 7px;border-radius:7px}
+#bar .file{color:var(--dim);white-space:nowrap;max-width:28ch;cursor:pointer;padding:4px 8px;
+  border-radius:7px;display:flex;align-items:center;gap:6px}
+#bar .file span{overflow:hidden;text-overflow:ellipsis}
+#bar .file svg{color:var(--faint);flex:none}
+#bar .file:hover svg{color:var(--ink)}
 #bar .file:hover{background:var(--hover);color:var(--ink)}
 #bar .spacer{flex:1}
 .tabs{display:flex;gap:2px;background:var(--hover);padding:3px;border-radius:9px}
@@ -69,8 +72,13 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
 /* ---------- page header: which guide, always ---------- */
 #pagehead{flex:none;padding:16px 30px 12px;border-bottom:1px solid var(--line);
   background:var(--panel)}
+#pagehead .headline{display:flex;align-items:center;gap:8px}
 #pagehead h1{font-size:21px;font-weight:600;letter-spacing:-.02em;margin:0;line-height:1.25;
-  padding:2px 6px;margin-left:-6px;border-radius:7px;display:inline-block;min-width:2ch}
+  padding:2px 6px;margin-left:-6px;border-radius:7px;min-width:2ch}
+#pagehead .nav{color:var(--dim);padding:4px;border-radius:8px;display:flex}
+#pagehead .nav:hover{background:var(--hover);color:var(--ink)}
+#pagehead .nav[disabled]{opacity:.25;pointer-events:none}
+#pagehead .count{color:var(--faint);font-size:12.5px;font-variant-numeric:tabular-nums;margin-left:2px}
 #pagehead h1:hover{background:var(--hover)}
 #pagehead h1:focus{outline:none;background:var(--accent-soft)}
 #pagehead .sub{margin-top:4px;font-size:12.5px;color:var(--dim);display:flex;gap:8px;
@@ -103,10 +111,18 @@ body.present .sec-title{font-size:15.5px}
 .rail-h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:0 8px 7px}
 .g-item{display:block;width:100%;text-align:left;padding:7px 9px;border-radius:8px;
-  color:var(--dim);line-height:1.35}
+  color:var(--dim);line-height:1.35;position:relative;cursor:pointer}
 .g-item:hover{background:var(--hover);color:var(--ink)}
 .g-item.on{background:var(--accent-soft);color:var(--ink)}
-.g-item .n{font-weight:500;display:block}
+.g-item .n{font-weight:500;display:block;padding:1px 3px;margin-left:-3px;border-radius:4px}
+.g-item .n:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
+.gtools{position:absolute;right:5px;top:4px;display:flex;gap:1px;opacity:0;padding-left:14px;
+  transition:opacity .1s var(--ease);
+  background:linear-gradient(90deg,transparent,var(--panel) 45%)}
+.g-item.on .gtools{background:linear-gradient(90deg,transparent,#e7edfb 45%)}
+.g-item:hover .gtools{opacity:1}
+.gtools button{color:var(--faint);padding:2px;border-radius:4px;display:flex}
+.gtools button:hover{color:var(--ink);background:rgba(16,18,22,.08)}
 .g-item .m{font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
 .g-item.on .m{color:var(--dim)}
 .g-item .m .o{color:var(--flag);font-weight:600}
@@ -177,22 +193,33 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
   padding:3px 7px;font-size:11px;line-height:1.4;color:var(--dim);
   display:flex;gap:6px;align-items:flex-start;max-width:100%}
 .note.act{border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.05);color:var(--act)}
-.note .t{min-width:0;flex:1;padding:0 2px;border-radius:3px}
+.nbody{min-width:0;flex:1;padding-right:2px}
+.note .t{min-width:0;padding:0 2px;border-radius:3px}
 .note .t:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
-.note .k{flex:none;font-size:9px;font-weight:700;letter-spacing:.07em;color:var(--act);margin-top:1px}
+.note .k{font-size:9px;font-weight:700;letter-spacing:.07em;color:var(--act);margin-bottom:1px}
 .note .gl{flex:none;color:var(--faint);margin-top:1px}
 .note.act .gl{color:var(--act)}
 .note{position:relative}
-/* Outside the card, so revealing them cannot reflow the note or the row. */
-.note .tools{position:absolute;right:100%;top:1px;margin-right:5px;display:flex;gap:1px;
-  opacity:0;pointer-events:none;transition:opacity .1s var(--ease)}
+/* Inside the card and out of flow: reachable without crossing a gap, and
+   revealing them still cannot reflow the note or the row. */
+.note .tools{position:absolute;right:2px;top:2px;display:flex;gap:1px;padding-left:10px;
+  opacity:0;pointer-events:none;transition:opacity .1s var(--ease);
+  background:linear-gradient(90deg,transparent,var(--panel) 40%)}
+.note.act .tools{background:linear-gradient(90deg,transparent,#fdf3f2 40%)}
 .note:hover .tools,.note:focus-within .tools{opacity:1;pointer-events:auto}
 .note .tools button{color:var(--faint);font-size:11px;line-height:1;padding:1px 3px;border-radius:4px}
 .note .tools button:hover{color:var(--ink);background:var(--hover)}
 .note a{color:var(--accent)}
-.rowtools{display:flex;gap:10px;margin-top:3px;padding-left:2px}
-.rowtools button{font-size:11px;color:var(--faint);padding:1px 0}
-.rowtools button:hover{color:var(--ink);text-decoration:underline}
+/* Out of flow, so hovering a row cannot move the row below it. */
+.item{position:relative}
+.rowtools{position:absolute;right:0;bottom:-10px;z-index:2;display:flex;gap:1px;
+  background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:1px;
+  opacity:0;pointer-events:none;transition:opacity .1s var(--ease);
+  box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.item:hover .rowtools,.rowsel .rowtools,.rowtools:hover{opacity:1;pointer-events:auto}
+.rowtools button{font-size:10.5px;color:var(--dim);padding:2px 7px;border-radius:5px;white-space:nowrap}
+.rowtools button:hover{color:var(--ink);background:var(--hover)}
+.rowtools button:before{content:"+ "}
 .addnote{opacity:0;font-size:11px;color:var(--faint);padding:2px 6px;border-radius:6px;
   border:1px dashed var(--line);transition:opacity .12s var(--ease)}
 .lane-l:hover .addnote,.rowsel .addnote{opacity:1}
@@ -239,6 +266,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .sec-title:focus{outline:none;background:var(--accent-soft)}
 .sec-note{font-size:11px;color:var(--dim);text-align:center;font-style:italic;line-height:1.4;
   padding:2px 6px;border-radius:5px}
+.blurb{font-size:12.5px;color:var(--dim);line-height:1.5;margin-top:3px}
 .sec-note:hover{background:rgba(16,18,22,.06)}
 .sec-note:focus{outline:none;background:var(--accent-soft);font-style:normal;color:var(--ink)}
 .sec-note.none{color:var(--faint)}
@@ -264,7 +292,27 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 #railR .ptabs button:hover{color:var(--ink)}
 #railR .ptabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
 #railR .pbody{flex:1;overflow-y:auto;padding:14px 14px 40px}
-.ctx{margin-bottom:14px}
+.ctx{margin-bottom:15px}
+.ctx-h{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.ctx-h .lb{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint)}
+.ctx-h .info{color:var(--faint);display:flex;padding:1px;border-radius:4px}
+.ctx-h .info:hover{color:var(--ink);background:var(--hover)}
+.ctx-add{margin-left:auto;font-size:11.5px;color:var(--faint);padding:1px 5px;border-radius:5px}
+.ctx-add:hover{color:var(--ink);background:var(--hover)}
+.means{font-size:11.5px;line-height:1.5;color:var(--dim);background:var(--hover);
+  border-radius:7px;padding:7px 9px;margin-bottom:5px}
+.ctx-empty{font-size:12.5px;color:var(--faint);font-style:italic;line-height:1.5;padding:3px 0}
+.ctx-empty.unknown{color:var(--flag);font-style:normal;font-weight:500}
+.gnotes{display:flex;flex-direction:column;gap:4px}
+.gnote{position:relative;background:var(--hover);border-radius:8px;padding:6px 24px 6px 9px;
+  font-size:12.5px;line-height:1.5}
+.gnote .t{border-radius:4px}
+.gnote .t:focus{outline:none;background:var(--accent-soft)}
+.gnote .x{position:absolute;right:5px;top:4px;color:var(--faint);font-size:13px;line-height:1;
+  padding:1px 3px;border-radius:4px;opacity:0;transition:opacity .1s var(--ease)}
+.gnote:hover .x{opacity:1}
+.gnote .x:hover{color:var(--act);background:rgba(179,38,30,.1)}
 .ctx dt{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
   color:var(--faint);margin-bottom:2px}
 .ctx dd{margin:0;font-size:12.5px;line-height:1.5;padding:3px 6px;margin-left:-6px;border-radius:7px}
@@ -376,7 +424,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 
 <div id="bar">
   <span class="brand">priority&nbsp;guide</span>
-  <span class="file" id="file" title="Open a different folder"></span>
+  <button class="file" id="file" title="Open a different folder"></button>
   <div class="spacer"></div>
   <div class="tabs" id="tabs"></div>
   <span class="count" id="open"></span>
@@ -412,7 +460,7 @@ import {
   parseContentCell, renderContentCell, parseCapabilities, renderCapabilities,
   parseLinkCell, renderLinkCell, parseFormCell, renderFormCell,
   parseNoteCell, renderNoteCell,
-  parseUsers, renderUsers, userTypes, handleFor, isWebUrl, refsIn, hasAction,
+  parseUsers, renderUsers, userTypes, handleFor, isWebUrl, refsIn, hasAction, moveGuide, removeGuide,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -674,7 +722,10 @@ function renderUserBar() {
 }
 
 function renderBar() {
-  $('file').textContent = S.file ? S.file.name : (S.dir ? S.dir.name : '');
+  const f = $('file');
+  f.innerHTML = '';
+  f.appendChild(icon('folder', 13));
+  f.appendChild(el('span', null, S.file ? S.file.name : (S.dir ? S.dir.name : '')));
   $('file').style.display = S.dir ? '' : 'none';
   $('save').disabled = !S.dirty || S.readOnly;
   $('save').className = 'btn' + (S.dirty && !S.readOnly ? ' primary' : '');
@@ -737,18 +788,58 @@ function renderHello() {
 function renderRailLeft() {
   const r = $('railL');
   r.innerHTML = '';
+  // Which guide you are reading is a Guide-view question. Beside the flow map
+  // or the open list it is just a second navigation arguing with the first.
+  if (S.view !== 'guide') { r.style.display = 'none'; return; }
+  r.style.display = '';
   const filtered = S.userFilter
     ? (userTypes(S.doc).find((u) => u.name === S.userFilter) || { guides: [] }).guides.map((x) => x.guide)
     : null;
   r.appendChild(el('div', 'rail-h', filtered ? S.userFilter : 'Guides'));
-  for (const g of (filtered || guides(S.doc))) {
-    const b = el('button', 'g-item' + (g === S.guide ? ' on' : ''));
+  const all = guides(S.doc);
+  for (const g of (filtered || all)) {
+    const b = el('div', 'g-item' + (g === S.guide ? ' on' : ''));
+    const nm = el('div', 'n');
+    nm.textContent = g.name;
+    if (!S.readOnly) {
+      editable(nm, g.name, (v) => { if (v) { g.name = v; g.dirtyHeading = true; } });
+      nm.onfocus = () => { S.guide = g; };
+    }
+    b.appendChild(nm);
     const n = rowsOf(g).length;
     const o = guideOpenCount(g);
-    b.innerHTML = `<span class="n">${esc(g.name)}</span>`
-      + `<span class="m">${n} block${n === 1 ? '' : 's'}`
-      + (o ? ` · <span class="o">${o} open</span>` : '') + '</span>';
-    b.onclick = () => { commitEditor(); S.guide = g; S.sel = null; S.shownField = null; S.view = 'guide'; render(); };
+    const m = el('div', 'm');
+    m.innerHTML = `${n} block${n === 1 ? '' : 's'}` + (o ? ` · <span class="o">${o} open</span>` : '');
+    b.appendChild(m);
+    b.onclick = (e) => {
+      if (e.target.closest('.n,.gtools')) return;
+      commitEditor(); S.guide = g; S.sel = null; S.shownField = null; S.view = 'guide'; render();
+    };
+    if (!S.readOnly && !filtered) {
+      const tools = el('div', 'gtools');
+      const mv = (dir, glyph, title) => {
+        const t = el('button');
+        t.appendChild(icon(glyph, 12));
+        t.title = title;
+        t.onclick = () => { if (moveGuide(S.doc, g, dir)) { mark(); render(); } };
+        return t;
+      };
+      tools.appendChild(mv(-1, 'up', 'Move up'));
+      tools.appendChild(mv(1, 'down', 'Move down'));
+      const del = el('button');
+      del.appendChild(icon('trash', 12));
+      del.title = 'Delete this guide';
+      del.onclick = () => {
+        const blocks = rowsOf(g).length;
+        if (!confirm(`Delete “${g.name}”${blocks ? ` and its ${blocks} block${blocks === 1 ? '' : 's'}` : ''}?`
+          + '\n\nAnything routing to it will be reported as pointing nowhere.')) return;
+        removeGuide(S.doc, g);
+        if (S.guide === g) S.guide = guides(S.doc)[0] || null;
+        S.sel = null; mark(); render();
+      };
+      tools.appendChild(del);
+      b.appendChild(tools);
+    }
     r.appendChild(b);
   }
   if (filtered) {
@@ -794,7 +885,13 @@ const GLYPH = {
   visual: 'M2.5 3h11v10h-11zM5.6 6.6h.01M2.5 11.5l3.4-3.4 2.6 2.6 2-2 3 3',
   note: 'M3.5 2h9v12h-9zM6 5.5h4.5M6 8h4.5M6 10.5h3',
   source: 'M9 7.2a3.4 3.4 0 010 4.8l-1.6 1.6a3.4 3.4 0 01-4.8-4.8l1-1M7 8.8a3.4 3.4 0 010-4.8l1.6-1.6a3.4 3.4 0 014.8 4.8l-1 1',
-  chev: 'M4.5 6.5L8 10l3.5-3.5'
+  chev: 'M4.5 6.5L8 10l3.5-3.5',
+  folder: 'M1.5 3.5h4.2l1.4 2h7.4v7.5a1 1 0 01-1 1H2.5a1 1 0 01-1-1z',
+  plus: 'M8 3.5v9M3.5 8h9',
+  info: 'M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2zM8 7.2v4M8 5.1v.01',
+  up: 'M8 12.5v-9M4.5 7L8 3.5 11.5 7',
+  down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
+  trash: 'M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9M6.5 7v4M9.5 7v4'
 };
 // Which dots are filled tells you one-from-a-list from several-from-a-list
 // without ever naming a control.
@@ -963,6 +1060,35 @@ const focusSoon = (sel) => setTimeout(() => {
 
 // ---------------------------------------------------------------- page header
 /** Which guide you are on, always, without spending the guide's own width on it. */
+/** The guides currently in play: a user's set when one is chosen, else all. */
+function guidesInScope() {
+  if (!S.userFilter) return guides(S.doc);
+  const t = userTypes(S.doc).find((u) => u.name === S.userFilter);
+  return t ? t.guides.map((x) => x.guide) : guides(S.doc);
+}
+
+function stepGuide(dir) {
+  const scope = guidesInScope();
+  const at = scope.indexOf(S.guide);
+  const next = scope[at + dir];
+  if (!next) return false;
+  commitEditor();
+  S.guide = next; S.sel = null; S.shownField = null;
+  render();
+  $('stage').scrollTop = 0;
+  return true;
+}
+
+function navBtn(glyph, dir, enabled, title) {
+  const b = el('button', 'nav');
+  b.appendChild(icon(glyph, 15));
+  b.style.transform = dir < 0 ? 'rotate(90deg)' : 'rotate(-90deg)';
+  b.title = title;
+  b.disabled = !enabled;
+  b.onclick = () => stepGuide(dir);
+  return b;
+}
+
 function renderPageHead() {
   const h = $('pagehead');
   h.innerHTML = '';
@@ -970,10 +1096,24 @@ function renderPageHead() {
   h.style.display = '';
   const g = S.guide;
 
+  const scope = guidesInScope();
+  const at = scope.indexOf(g);
+
+  const line = el('div', 'headline');
+  if (S.present && scope.length > 1) {
+    line.appendChild(navBtn('up', -1, at > 0, 'Previous screen'));
+  }
   const t = el('h1');
   t.textContent = g.name;
-  editable(t, g.name, (v) => { if (v) { g.name = v; g.dirtyHeading = true; } });
-  h.appendChild(t);
+  if (!S.present) editable(t, g.name, (v) => { if (v) { g.name = v; g.dirtyHeading = true; } });
+  line.appendChild(t);
+  if (S.present && scope.length > 1) {
+    line.appendChild(navBtn('down', 1, at < scope.length - 1, 'Next screen'));
+    const c = el('span', 'count');
+    c.textContent = `${at + 1} of ${scope.length}`;
+    line.appendChild(c);
+  }
+  h.appendChild(line);
 
   const sub = el('div', 'sub');
   const users = parseUsers(g.fields.primaryUsers);
@@ -1284,16 +1424,16 @@ function paintRow(row, g, sec, table, rw) {
     if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); lbl.blur(); openExample(); }
   });
 
-  if (rw === S.sel && !S.readOnly && !S.present) {
+  if (!S.readOnly && !S.present) {
     const tools = el('div', 'rowtools');
     if (!cur) {
-      const b = el('button', null, '+ example');
+      const b = el('button', null, 'example');
       b.title = 'What the data really looks like. Optional.';
       b.onclick = (e) => { e.stopPropagation(); openExample(); };
       tools.appendChild(b);
     }
-    const below = el('button', null, '+ block below');
-    below.title = 'Add a block here, not at the end of the section';
+    const below = el('button', null, 'block below');
+    below.title = 'Add a block right here, not at the end of the section';
     below.onclick = (e) => { e.stopPropagation(); insertBelow(g, sec, table, rw); };
     tools.appendChild(below);
     item.appendChild(tools);
@@ -1364,8 +1504,9 @@ function noteCard(ctx, n, i) {
   const gl = icon(only ? 'source' : 'note', 12);
   gl.classList.add('gl');
   card.appendChild(gl);
-  if (n.action) card.appendChild(el('span', 'k', 'ACTION'));
 
+  const body = el('div', 'nbody');
+  if (n.action) body.appendChild(el('div', 'k', 'ACTION'));
   const t = el('div', 't');
   setLinked(t, n.text, g);
   if (!n.text) blankable(t, '', 'Note');
@@ -1374,7 +1515,8 @@ function noteCard(ctx, n, i) {
     else n.text = v;
     touchRow(rw, table, sec);
   }, { multiline: true });
-  card.appendChild(t);
+  body.appendChild(t);
+  card.appendChild(body);
 
   if (!S.readOnly && !S.present) {
     const tools = el('div', 'tools');
@@ -1692,31 +1834,66 @@ function links_out(g) {
 }
 
 // ---------------------------------------------------------------- context tab
+/**
+ * What the guide is for. Each field says what it means on request, because
+ * "Business goal" is only obvious to the person who wrote the method down.
+ */
+const FIELD_MEANS = {
+  type: 'Screen, or Reference section. A Screen is any contained experience — a page, a dialog, a modal, a side panel. What matters is that it is contained, not what shape it is.',
+  userGoal: 'What someone is trying to get done on this screen, and how they go about it. One or two sentences.',
+  businessGoal: 'Why the business wants this screen to work — tie it back to the brief. If nobody has said, leave it ?? rather than reasoning one out.'
+};
+
+// Type sits last: it is the field you set once and rarely look at again.
+const CONTEXT_ORDER = ['userGoal', 'businessGoal', 'primaryUsers', 'notes', 'type'];
+
 function panelContext(body) {
   const g = S.guide;
-  const OPTIONAL = ['type', 'notes'];
+  const OPTIONAL = ['type'];
   const missing = [];
-  for (const key of GUIDE_FIELDS) {
-    if (key === 'sources') continue;   // its own tab
+
+  for (const key of CONTEXT_ORDER) {
     const val = (g.fields[key] || '').trim();
     if (!val && OPTIONAL.includes(key) && S.shownField !== key) { missing.push(key); continue; }
+
     const box = el('div', 'ctx');
-    box.appendChild(el('dt', null, FIELD_LABELS[key]));
-    box.appendChild(key === 'primaryUsers' ? usersField(g) : textField(g, key, val));
+    const head = el('div', 'ctx-h');
+    head.appendChild(el('span', 'lb', FIELD_LABELS[key]));
+
+    if (FIELD_MEANS[key]) {
+      const i = el('button', 'info');
+      i.appendChild(icon('info', 12));
+      i.title = FIELD_MEANS[key];
+      i.onclick = () => { S.explain = S.explain === key ? null : key; render(); };
+      head.appendChild(i);
+    }
+    if (key === 'primaryUsers' && !S.readOnly) head.appendChild(addBtn('+ user', () => startUser(g)));
+    if (key === 'notes' && !S.readOnly) head.appendChild(addBtn('+ note', () => addGuideNote()));
+    box.appendChild(head);
+
+    if (S.explain === key) box.appendChild(el('div', 'means', FIELD_MEANS[key]));
+
+    if (key === 'primaryUsers') box.appendChild(usersField(g));
+    else if (key === 'notes') box.appendChild(notesField(g));
+    else box.appendChild(textField(g, key, val));
     body.appendChild(box);
   }
+
   if (missing.length && !S.readOnly) {
     const add = el('div', 'addfield');
     for (const key of missing) {
       const b = el('button', null, '+ ' + FIELD_LABELS[key].toLowerCase());
-      b.onclick = () => {
-        S.shownField = key; render();
-        focusSoon(`.ctx dd[data-key="${key}"]`);
-      };
+      b.onclick = () => { S.shownField = key; render(); focusSoon(`.ctx dd[data-key="${key}"]`); };
       add.appendChild(b);
     }
     body.appendChild(add);
   }
+}
+
+function addBtn(label, fn) {
+  const b = el('button', 'ctx-add', label);
+  b.onclick = fn;
+  return b;
 }
 
 function textField(g, key, val) {
@@ -1733,20 +1910,65 @@ function textField(g, key, val) {
 }
 
 /**
+ * Notes on the guide are separate blocks, the same as notes on a row. Nobody
+ * should have to think about how to get two paragraphs into one field.
+ */
+function notesField(g) {
+  const wrap = el('div', 'gnotes');
+  const list = parseNoteCell(g.fields.notes);
+  if (S.newNote) list.push({ text: '', action: false });
+  const commit = () => { S.newNote = false; setField(g, 'notes', renderNoteCell(list)); mark(); };
+  if (!list.length) {
+    const p = el('div', 'ctx-empty', S.readOnly ? '' : 'Screen-wide context only — scope, phase, why it exists.');
+    wrap.appendChild(p);
+    return wrap;
+  }
+  list.forEach((n, i) => {
+    const card = el('div', 'gnote');
+    const t = el('div', 't');
+    setLinked(t, n.text, g);
+    if (!n.text) blankable(t, '', 'Note');
+    editable(t, n.text, (v) => {
+      if (!v) list.splice(i, 1); else n.text = v;
+      commit();
+    }, { multiline: true });
+    if (!n.text) t.addEventListener('blur', () => { if (S.newNote) { S.newNote = false; render(); } });
+    card.appendChild(t);
+    if (!S.readOnly) {
+      const x = el('button', 'x', '×');
+      x.title = 'Delete this note';
+      x.onclick = () => { list.splice(i, 1); commit(); render(); };
+      card.appendChild(x);
+    }
+    wrap.appendChild(card);
+  });
+  return wrap;
+}
+
+function addGuideNote() {
+  S.newNote = true;
+  render();
+  focusSoon('.gnotes .gnote:last-of-type .t');
+}
+
+/**
  * A user type is a thing, not a phrase. Picking from what the file already uses
  * is what stops "Sales agent" and "Sales Agent" becoming two groups that are
  * really one.
  */
 function usersField(g) {
-  const dd = el('dd');
+  const dd = el('dd', 'nofocus');
   dd.dataset.key = 'primaryUsers';
   const raw = (g.fields.primaryUsers || '').trim();
   const list = parseUsers(raw);
   const commit = (next) => { setField(g, 'primaryUsers', renderUsers(next)); mark(); render(); };
 
-  if (!list.length && isUnknown(raw)) {
-    dd.className = 'unknown';
-    dd.textContent = raw;
+  if (!list.length) {
+    dd.appendChild(el('div', 'ctx-empty',
+      isUnknown(raw) ? '?? nobody has been asked' : (S.readOnly ? '' : 'Who uses this screen, and who uses it most.')));
+    if (isUnknown(raw)) dd.firstChild.classList.add('unknown');
+    if (S.startUser) dd.appendChild(userInput(list, commit));
+    return dd;
   }
   const wrap = el('div', 'chips');
   list.forEach((u, i) => {
@@ -1766,16 +1988,15 @@ function usersField(g) {
     }
     wrap.appendChild(c);
   });
-  if (!S.readOnly) {
-    const add = el('button', 'chip add', '+ user');
-    add.onclick = () => {
-      add.replaceWith(userInput(list, commit));
-      focusSoon('.chip input');
-    };
-    wrap.appendChild(add);
-  }
+  if (S.startUser) wrap.appendChild(userInput(list, commit));
   dd.appendChild(wrap);
   return dd;
+}
+
+function startUser(g) {
+  S.startUser = true;
+  render();
+  focusSoon('.chip input');
 }
 
 function userInput(list, commit) {
@@ -1783,16 +2004,18 @@ function userInput(list, commit) {
   const inp = el('input');
   inp.setAttribute('list', 'usertypes');
   inp.placeholder = 'user type';
+  const done = () => { S.startUser = false; };
   inp.onkeydown = (e) => {
     e.stopPropagation();
     if (e.key === 'Enter') {
       const v = inp.value.trim();
+      done();
       if (!v) { render(); return; }
       const known = userTypes(S.doc).find((u) => u.name.toLowerCase() === v.toLowerCase());
       commit([...list, { name: known ? known.name : v, primary: false }]);
-    } else if (e.key === 'Escape') render();
+    } else if (e.key === 'Escape') { done(); render(); }
   };
-  inp.onblur = () => setTimeout(() => { if (document.activeElement !== inp) render(); }, 120);
+  inp.onblur = () => setTimeout(() => { if (document.activeElement !== inp) { done(); render(); } }, 120);
   c.appendChild(inp);
   return c;
 }
@@ -2000,7 +2223,7 @@ function renderUsersView() {
   const head = el('div');
   head.style.cssText = 'margin-bottom:22px';
   head.appendChild(el('h1', 'g-title', types.length + ' user type' + (types.length === 1 ? '' : 's')));
-  head.appendChild(el('div', 'sec-note',
+  head.appendChild(el('div', 'blurb',
     'What each group actually needs to look at. Pick one to walk a session through only their screens.'));
   w.appendChild(head);
 
@@ -2010,12 +2233,12 @@ function renderUsersView() {
     h.appendChild(el('span', 'n', t.name));
     const n = t.guides.length;
     h.appendChild(el('span', 'm', n + ' guide' + (n === 1 ? '' : 's')));
-    const pres = el('button', 'btn', 'Present these');
-    pres.title = 'Show only this group’s guides, in present mode';
+    const pres = el('button', 'btn', 'Show only these');
+    pres.title = 'Narrow the whole app to this group’s screens. Present from there if you want to.';
     pres.onclick = () => {
       S.userFilter = t.name;
       S.guide = t.guides[0].guide;
-      S.view = 'guide'; S.present = true; S.editing = null;
+      S.view = 'guide'; S.sel = null;
       render();
     };
     h.appendChild(pres);
@@ -2212,7 +2435,7 @@ function renderOpen() {
   const n = items.filter((i) => i.kind === 'action').length;
   const u = items.length - n;
   head.appendChild(el('h1', 'g-title', items.length + ' open'));
-  head.appendChild(el('div', 'sec-note',
+  head.appendChild(el('div', 'blurb',
     n + ' action item' + (n === 1 ? '' : 's') + ' to circle back on, '
     + u + ' thing' + (u === 1 ? '' : 's') + ' nobody has been asked.'));
   w.appendChild(head);
@@ -2384,6 +2607,11 @@ document.addEventListener('keydown', (e) => {
 
   if (typing(e)) return;
 
+  if (S.present && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    stepGuide(e.key === 'ArrowRight' ? 1 : -1);
+    return;
+  }
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
     if (S.view !== 'guide') return;
     e.preventDefault();

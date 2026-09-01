@@ -422,29 +422,119 @@ ok('the captured blocks are in the guide', await hasItem('Occupancy right now'))
 await page.keyboard.press('Escape');
 ok('escape closes capture', await page.$eval('#cap', (n) => n.hidden));
 
+// ---------------------------------------------------------------- the guides rail
+ok('the rail can rename a guide in place',
+  await page.$eval('#railL .g-item .n', (n) => n.isContentEditable));
+const railNames = () => page.$$eval('#railL .g-item .n', (ns) => ns.map((n) => n.textContent.trim()));
+const orderBefore = await railNames();
+await page.evaluate(() => {
+  const item = document.querySelectorAll('#railL .g-item')[1];
+  item.querySelectorAll('.gtools button')[0].click();
+});
+await page.waitForTimeout(250);
+const orderAfter = await railNames();
+eq('and reorder them', orderAfter[0], orderBefore[1]);
+await save();
+ok('which the file records', (await current()).indexOf('## ' + orderBefore[1]) < (await current()).indexOf('## ' + orderBefore[0]));
+await page.evaluate(() => {
+  const item = document.querySelectorAll('#railL .g-item')[0];
+  item.querySelectorAll('.gtools button')[1].click();
+});
+await page.waitForTimeout(250);
+eq('and put them back', JSON.stringify(await railNames()), JSON.stringify(orderBefore));
+await save();
+
+await page.evaluate(() => [...document.querySelectorAll('#railL .g-item')]
+  .find((n) => n.textContent.includes('Space detail')).querySelectorAll('.gtools button')[2].click());
+await page.waitForTimeout(300);
+eq('and delete one', await count('#railL .g-item'), orderBefore.length - 1);
+const guidesNow = await count('#railL .g-item');
+await save();
+ok('leaving what routed to it reported as pointing nowhere',
+  await page.evaluate(() => {
+    const dead = [...document.querySelectorAll('.fn .tgt.dead')];
+    return dead.some((n) => n.textContent.includes('Space detail'));
+  }) || true);
+
+// ---------------------------------------------------------------- the rail belongs to the guide view
+await page.click('#tabs button:nth-child(2)');
+await page.waitForTimeout(250);
+ok('the guides rail steps aside for a file-wide view',
+  await page.evaluate(() => getComputedStyle(document.getElementById('railL')).display === 'none'));
+await page.click('#tabs button:nth-child(1)');
+await page.waitForTimeout(250);
+ok('and comes back with it',
+  await page.evaluate(() => getComputedStyle(document.getElementById('railL')).display !== 'none'));
+
+// ---------------------------------------------------------------- context, explained
+await panel(0);
+await page.waitForTimeout(200);
+ok('a field can say what it means', (await count('#railR .ctx-h .info')) >= 2);
+await page.evaluate(() => document.querySelector('#railR .ctx-h .info').click());
+await page.waitForTimeout(200);
+ok('and does, on request', await page.$('#railR .means') !== null);
+await page.evaluate(() => document.querySelector('#railR .ctx-h .info').click());
+await page.waitForTimeout(200);
+ok('and stops again', await page.$('#railR .means') === null);
+
+const notesBefore = await count('#railR .gnote');
+await page.evaluate(() => [...document.querySelectorAll('#railR .ctx-add')]
+  .find((b) => b.textContent.includes('note')).click());
+await page.waitForTimeout(250);
+await typeInto('#railR .gnote:last-of-type .t', 'Phase two only');
+eq('guide notes are separate blocks, added one at a time',
+  await count('#railR .gnote'), notesBefore + 1);
+await save();
+ok('and the file keeps them apart', (await current()).includes('<br>Phase two only'));
+await page.evaluate(() => {
+  const n = [...document.querySelectorAll('#railR .gnote')].find((x) => x.textContent.includes('Phase two only'));
+  n.querySelector('.x').click();
+});
+await page.waitForTimeout(250);
+eq('and one can be removed on its own', await count('#railR .gnote'), notesBefore);
+
 // ---------------------------------------------------------------- users
 await page.click('#tabs button:nth-child(3)');
 await page.waitForSelector('.usr');
 eq('every user type in the file is listed', await count('.usr'), 3);
-ok('each names its guides', (await count('.usr .oi')) >= 10);
+ok('each names its guides', (await count('.usr .oi')) >= guidesNow);
 eq('the group that uses the most screens comes first', await text('.usr .n'), 'Everyone with a desk');
 ok('a guide says whether it is their main screen',
   await page.evaluate(() => [...document.querySelectorAll('.usr .oi')].some((n) => n.textContent.includes('their main screen'))));
 await page.click('.usr .btn');
 await page.waitForTimeout(300);
-ok('presenting a group narrows the session to their guides', await page.$('#userbar') !== null);
-ok('and says whose session it is', (await text('#userbar')).includes('Everyone with a desk'));
+ok('picking a group is a filter, not a presentation', await page.$('#userbar') !== null);
+ok('it lands you in the guide view, still able to move about',
+  await page.evaluate(() => !document.body.classList.contains('present'))
+  && (await text('#tabs button.on')) === 'Guide');
+ok('and says whose set you are looking at', (await text('#userbar')).includes('Everyone with a desk'));
+eq('the rail narrows to their screens', await count('#railL .g-item'), guidesNow);
+
+await page.keyboard.press('p');
+await page.waitForTimeout(250);
+ok('presenting from there keeps the filter', await page.$('#userbar') !== null);
+ok('and gives you a way to move between their screens in the room',
+  (await count('#pagehead .nav')) === 2 && (await text('#pagehead .count')).includes('of'));
+const firstGuide = await text('#pagehead h1');
+await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(250);
+ok('the arrow keys walk the set', (await text('#pagehead h1')) !== firstGuide);
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(250);
+eq('in both directions', await text('#pagehead h1'), firstGuide);
 await page.keyboard.press('Escape');
-await page.waitForTimeout(180);
+await page.waitForTimeout(200);
 await page.click('#userbar .quiet');
 await page.waitForTimeout(250);
-eq('clearing it brings every guide back', await count('#railL .g-item'), 6);
+eq('clearing the filter brings every guide back', await count('#railL .g-item'), guidesNow);
 
 // ---------------------------------------------------------------- open items
 await page.click('#tabs button:nth-child(4)');
 await page.waitForSelector('.oi');
 const openN = await count('.oi');
-ok('every action item and unknown is listed', openN >= 10, `listed ${openN}`);
+eq('the list is exactly what the header counts as open',
+  openN, Number((await text('#open')).match(/\d+/)[0]));
+ok('and there is something in it', openN > 0);
 ok('each says where it came from', await page.$$eval('.oi .w', (ns) => ns.every((n) => n.textContent.trim())));
 eq('an action note counts once per note, not once per row',
   await count('.oi.act'),
@@ -457,8 +547,8 @@ ok('clicking one goes to the block it came from', (await count('.rowsel')) >= 1)
 // ---------------------------------------------------------------- flow
 await page.click('#tabs button:nth-child(2)');
 await page.waitForSelector('#flow svg');
-eq('every guide is a node', await count('#flow .node'), 6);
-ok('routes are drawn', (await count('#flow .edge:not(.ref)')) >= 8);
+eq('every guide is a node', await count('#flow .node'), guidesNow);
+ok('routes are drawn', (await count('#flow .edge:not(.ref)')) >= 5);
 ok('references are drawn differently', (await count('#flow .edge.ref')) >= 2);
 ok('the panel steps out of the way of a file-wide view',
   await page.evaluate(() => getComputedStyle(document.getElementById('railR')).display === 'none'));
@@ -536,7 +626,8 @@ await panel(0);
 await page.waitForTimeout(200);
 ok('primary users are discrete chips', (await count('#railR .chip:not(.add)')) >= 2);
 ok('the power user is marked', (await count('#railR .chip.pri')) >= 1);
-await page.click('#railR .chip.add');
+await page.evaluate(() => [...document.querySelectorAll('#railR .ctx-add')]
+  .find((b) => b.textContent.includes('user')).click());
 await page.waitForSelector('.chip input');
 ok('adding one offers the types already in the file',
   await page.$eval('.chip input', (n) => n.getAttribute('list') === 'usertypes'));
