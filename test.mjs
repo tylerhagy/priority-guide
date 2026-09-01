@@ -122,7 +122,7 @@ t('moving a row within a table moves only that row', () => {
   const d = diffLines(FIXTURE, after);
   eq(d.n, 2, `a swap is two lines, changed ${d.n}`);
   // The moved line must be the ORIGINAL text, not a re-render.
-  ok(after.includes('| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  |  | No-show is set by the door reader, never by a person |'),
+  ok(after.includes('| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  |  | No-show is set by the door reader, never by a person<br>Cancelled bookings stay on the list for the rest of the day |'),
     'row was re-rendered instead of moved verbatim');
 });
 
@@ -189,10 +189,33 @@ t('a form reads its type and whether it is required', () => {
 });
 
 t('ACTION: is the only thing that makes a note an action item', () => {
-  eq(P.parseNoteCell('ACTION: ask facilities').action, true);
-  eq(P.parseNoteCell('ACTION: ask facilities').text, 'ask facilities');
-  eq(P.parseNoteCell('This is important').action, false);
-  eq(P.renderNoteCell({ action: true, text: 'ask facilities' }), 'ACTION: ask facilities');
+  eq(P.parseNoteCell('ACTION: ask facilities'), [{ action: true, text: 'ask facilities' }]);
+  eq(P.parseNoteCell('This is important'), [{ action: false, text: 'This is important' }]);
+  eq(P.renderNoteCell([{ action: true, text: 'ask facilities' }]), 'ACTION: ask facilities');
+});
+
+t('a block can carry several notes, and each stands on its own', () => {
+  // A rule, a citation and a follow-up are three different things about one
+  // field. <br> is how a markdown table cell holds more than one line.
+  const notes = P.parseNoteCell('Always 7 characters<br>ACTION: confirm the format<br>[refs]');
+  eq(notes.length, 3);
+  eq(notes.map((n) => n.action), [false, true, false]);
+  eq(notes[2].text, '[refs]');
+  eq(P.renderNoteCell(notes), 'Always 7 characters<br>ACTION: confirm the format<br>[refs]');
+  eq(P.hasAction(notes), true);
+  eq(P.hasAction(P.parseNoteCell('just a rule')), false);
+  eq(P.parseNoteCell(''), []);
+  eq(P.renderNoteCell([{ text: '', action: false }]), '', 'an empty note is not written out');
+});
+
+t('a note that is only a citation still counts as one', () => {
+  const doc = P.parseDocument(FIXTURE);
+  const { row } = P.rowsOf(P.findGuide(doc, 'Booking detail')).find((r) => r.row.content.text === 'Reference');
+  eq(row.note.length, 2, 'a rule and a citation');
+  eq(row.refs, ['refs']);
+  const use = P.sourceUsage(doc).all.find((s) => s.handle === 'refs');
+  ok(use && use.def, '[refs] must resolve');
+  ok(use.cites.some((c) => c.where.includes('Reference')), 'the citation must name the block it came from');
 });
 
 t('source handles are found, and wikilinks and inline links are not mistaken for them', () => {
@@ -235,7 +258,7 @@ t('open items count both action items and unanswered questions', () => {
   const items = P.openItems(doc);
   const actions = items.filter((i) => i.kind === 'action');
   const unknowns = items.filter((i) => i.kind === 'unknown');
-  eq(actions.length, 6, `expected 6 action items, got ${actions.length}`);
+  eq(actions.length, 7, `expected 7 action items, got ${actions.length}`);
   ok(unknowns.length >= 3, `expected the ?? business goals, got ${unknowns.length}`);
   ok(items.every((i) => i.guide && i.where && i.text), 'every item must say where it came from');
 });
@@ -244,7 +267,7 @@ t('clearing an action item takes the count down', () => {
   const doc = P.parseDocument(FIXTURE);
   const before = P.openItems(doc).filter((i) => i.kind === 'action').length;
   const { row, table, section } = P.rowsOf(P.findGuide(doc, 'Bookings — My Week'))
-    .find((r) => r.row.note.action);
+    .find((r) => P.hasAction(r.row.note));
   row.note = P.parseNoteCell('CSV and XLSX. Confirmed with Finance.');
   P.touchRow(row, table, section);
   eq(P.openItems(doc).filter((i) => i.kind === 'action').length, before - 1, 'count did not fall');
@@ -290,32 +313,37 @@ t('a source nothing cites is reported', () => {
   const stripped = FIXTURE
     .replace('| People on this floor that day | 14 booked, 9 checked in |  |  |  | Counts only, no names, by policy — [privacy] |',
       '| People on this floor that day | 14 booked, 9 checked in |  |  |  | Counts only, no names |')
-    .replace('| Who it is for | First Last | edit |  | single select | Office managers only | [privacy] |',
-      '| Who it is for | First Last | edit |  | single select | Office managers only |  |');
+    .replace('| Who it is for | First Last | edit |  | single select | Office managers only<br>[privacy] |',
+      '| Who it is for | First Last | edit |  | single select | Office managers only |');
   eq(P.sourceUsage(P.parseDocument(stripped)).unused.map((s) => s.handle), ['privacy']);
 });
 
-t('a source attached to one content block is a citation like any other', () => {
-  // Research about the reference format belongs on the reference field, not on
-  // the whole guide.
-  const doc = P.parseDocument(FIXTURE);
-  const { row } = P.rowsOf(P.findGuide(doc, 'Booking detail')).find((r) => r.row.content.text === 'Reference');
-  eq(row.source, '[refs]');
-  eq(row.refs, ['refs']);
-  const use = P.sourceUsage(doc).all.find((s) => s.handle === 'refs');
-  ok(use && use.def, '[refs] must resolve');
-  ok(use.cites.some((c) => c.where.includes('Reference')), 'the citation must name the block it came from');
-});
-
-t('a block source survives an edit elsewhere on the row', () => {
+t('notes survive an edit elsewhere on the row', () => {
   const doc = P.parseDocument(FIXTURE);
   const hit = P.rowsOf(P.findGuide(doc, 'Booking detail')).find((r) => r.row.content.text === 'Reference');
   hit.row.realData = 'DL-8841-2';
   P.touchRow(hit.row, hit.table, hit.section);
   const after = P.serializeDocument(doc);
-  ok(after.includes('| DL-8841-2 | search |  |  |  | [refs] |'), 'source cell lost:\n'
-    + after.split('\n').filter((l) => l.includes('DL-8841-2')).join('\n'));
+  ok(after.includes('| Reference | DL-8841-2 | search |  |  | Never reused, even after a cancellation<br>[refs] |'),
+    'notes lost:\n' + after.split('\n').filter((l) => l.includes('DL-8841-2')).join('\n'));
   ok(P.verifyRoundTrip(after).ok, 'must round-trip');
+});
+
+t('the line of prose under a heading is editable, and rewrites only its own lines', () => {
+  const doc = P.parseDocument(FIXTURE);
+  const g = P.findGuide(doc, 'Bookings — My Week');
+  const sec = g.sections[0];
+  const chunk = sec.chunks.find((c) => c.kind === 'raw' && P.proseOf(c));
+  ok(chunk, 'the fixture has a line of prose');
+  eq(P.proseOf(chunk).startsWith('Likely a table'), true);
+  P.setProse(chunk, sec, 'Likely a table. One row per booking.');
+  const after = P.serializeDocument(doc);
+  ok(after.includes('*Likely a table. One row per booking.*'), 'not written');
+  ok(P.verifyRoundTrip(after).ok, 'must round-trip');
+  eq(after.split('\n').length, FIXTURE.split('\n').length,
+    'one line replaced by one line leaves the blank lines around it alone');
+  const d = after.split('\n').filter((l, i) => FIXTURE.split('\n')[i] !== l);
+  eq(d.length, 1, `changed ${d.length} lines: ${JSON.stringify(d)}`);
 });
 
 t('a destination with spaces is read and written in angle brackets', () => {
@@ -415,7 +443,7 @@ t('a row added in session survives a save and reload unchanged', () => {
   const back = P.rowsOf(P.findGuide(re, 'Floor plan')).find((r) => r.row.content.text === 'Fire exits');
   ok(back, 'row not found after reload');
   eq(back.row.content.type, 'Visual');
-  eq(back.row.note.action, true);
+  eq(P.hasAction(back.row.note), true);
 });
 
 t('a row moved into a differently-shaped table is rewritten, not carried over wrong', () => {

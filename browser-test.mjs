@@ -45,6 +45,7 @@ const eq = (n, a, b) => ok(n, a === b, `expected ${JSON.stringify(b)}, got ${JSO
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const errors = [];
+page.on('dialog', (d) => d.accept());
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
@@ -93,6 +94,24 @@ const pick = (needle) => page.evaluate((s) => {
 }, needle);
 const hasItem = (needle) => page.evaluate((s) =>
   [...document.querySelectorAll('.item')].some((n) => n.textContent.includes(s)), needle);
+/** Type into the inline-editable node of the selected row. */
+const typeInto = async (sel, value) => {
+  await page.$eval(sel, (n, v) => {
+    n.focus();
+    n.textContent = v;
+    n.blur();
+  }, value);
+  await page.waitForTimeout(200);
+};
+const panel = (i) => page.evaluate((k) => document.querySelectorAll('#railR .ptabs button')[k].click(), i);
+const openFn = (needle) => page.evaluate((s) => {
+  const it = [...document.querySelectorAll('.item')].find((n) => n.textContent.includes(s));
+  const row = it && it.closest('.cell');
+  const fn = row && row.nextElementSibling && row.nextElementSibling.querySelector('.fn');
+  if (!fn) return false;
+  fn.click();
+  return true;
+}, needle);
 
 function diffCount(after) {
   const a = FILE.split('\n');
@@ -105,21 +124,27 @@ function diffCount(after) {
 // ---------------------------------------------------------------- opening
 ok('the file opens without a read-only banner', (await count('.banner.err')) === 0);
 eq('every guide is listed', await count('#railL .g-item'), 6);
-eq('the first guide is selected', await text('.ghead h1'), 'Bookings — My Week');
+eq('the page header says which guide you are on', await text('#pagehead h1'), 'Bookings — My Week');
+ok('and who it is for, without spending the guide\'s width on it',
+  (await text('#pagehead .sub')).includes('Everyone with a desk (primary)'));
+ok('the guide itself carries no context block', await page.$('.guide .ghead') === null);
 eq('its blocks render as items in the stack', await count('.item'), 13);
-ok('the open count is shown', (await text('#open')).includes('10 open'));
+ok('the open count is shown', (await text('#open')).includes('11 open'));
 
 // ---------------------------------------------------------------- the three lanes
 ok('the guide is a three-lane grid',
   await page.$eval('.guide', (n) => getComputedStyle(n).gridTemplateColumns.split(' ').length === 3));
 ok('the stack sits in the middle lane',
   await page.$eval('.cell', (n) => getComputedStyle(n).gridColumnStart === '2'));
-ok('notes annotate from the left', (await count('.lane-l .ann')) >= 3);
-ok('functionality annotates from the right', (await count('.lane-r .ann')) >= 8);
+ok('notes annotate from the left', (await count('.lane-l .note')) >= 3);
+ok('functionality annotates from the right', (await count('.lane-r .fn:not(.empty)')) >= 8);
 ok('each annotation is joined to its row by a leader', (await count('.lead')) >= 10);
-ok('an action item is styled as one', (await count('.lane-l .ann.act')) >= 1);
+ok('an action item is styled as one', (await count('.lane-l .note.act')) >= 1);
+ok('a row can carry more than one note',
+  await page.evaluate(() => [...document.querySelectorAll('.notes')].some((n) => n.querySelectorAll('.note').length > 1)));
 ok('a tall annotation does not tear a hole in the section panel',
   await page.evaluate(() => [...document.querySelectorAll('.band')]
+    .filter((b) => !b.parentElement.classList.contains('top') && !b.parentElement.classList.contains('bot'))
     .every((b) => Math.abs(b.getBoundingClientRect().height - b.parentElement.getBoundingClientRect().height) < 2)));
 
 // ---------------------------------------------------------------- the stack itself
@@ -129,23 +154,35 @@ ok('a field with a form type renders as a control',
 ok('a link renders as a link', (await count('.item.linky')) >= 2);
 ok('a visual is marked as one', (await count('.item.visual')) >= 1);
 ok('a select shows it has more behind it', (await count('.item .chev')) >= 1);
+ok('the example sits under the name it belongs to, in the middle',
+  await page.evaluate(() => {
+    const it = [...document.querySelectorAll('.item')].find((n) => n.textContent.includes('Riverside, Northgate, Depot'));
+    return !!it && !!it.querySelector('.lbl') && !!it.querySelector('.eg')
+      && it.querySelector('.lbl').textContent.trim() === 'Building';
+  }));
+ok('and never in the functionality lane',
+  await page.evaluate(() => ![...document.querySelectorAll('.lane-r')]
+    .some((n) => n.textContent.includes('Riverside, Northgate, Depot'))));
 
 // ---------------------------------------------------------------- icons
-ok('functionality is shown as an icon, not only a word', (await count('.lane-r .ann > svg')) >= 8);
-ok('capabilities are icons too', (await count('.ann .caps svg')) >= 4);
-ok('every functionality icon carries its name for a tooltip and a screen reader',
-  await page.$$eval('.lane-r .ann > svg title', (ns) => ns.length > 0 && ns.every((n) => n.textContent.trim())));
+ok('functionality carries an icon', (await count('.fn .l svg')) >= 8);
+ok('and says in plain words what the thing does',
+  await page.evaluate(() => [...document.querySelectorAll('.fn')].some((n) => n.textContent.includes('Opens'))
+    && [...document.querySelectorAll('.fn')].some((n) => n.textContent.includes('Takes one from a list'))
+    && [...document.querySelectorAll('.fn')].some((n) => n.textContent.includes('Downloads a file'))));
+ok('capabilities stay as words, which read faster than four unlearned glyphs',
+  await page.evaluate(() => [...document.querySelectorAll('.fn .caps')].some((n) => n.textContent.includes('filter'))));
 
 // ---------------------------------------------------------------- routes
 ok('a route renders as a link to the guide it goes to',
-  await page.$('.ann a.tgt[data-goto="Booking detail"]') !== null);
-await page.click('.ann a.tgt[data-goto="Booking detail"]');
+  await page.$('.fn a.tgt[data-goto="Booking detail"]') !== null);
+await page.click('.fn a.tgt[data-goto="Booking detail"]');
 await page.waitForTimeout(250);
-eq('following a route opens that guide', await text('.ghead h1'), 'Booking detail');
+eq('following a route opens that guide', await text('#pagehead h1'), 'Booking detail');
 
 // ---------------------------------------------------------------- a source on one block
-ok('a source attached to one block shows on that block',
-  await page.evaluate(() => [...document.querySelectorAll('.lane-r .ann')]
+ok('a source cited from one block shows as a note on that block',
+  await page.evaluate(() => [...document.querySelectorAll('.lane-l .note')]
     .some((n) => n.textContent.includes('Why references are 4 digits'))));
 
 await page.evaluate(() => {
@@ -165,7 +202,7 @@ let out = await current();
 eq('moving a block one place changes two lines', out ? diffCount(out) : -1, 2);
 eq('the line count does not change', out.split('\n').length, FILE.split('\n').length);
 ok('the moved line is the original text, not a re-render',
-  out.includes('| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  |  | No-show is set by the door reader, never by a person |'));
+  out.includes('| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  |  | No-show is set by the door reader, never by a person<br>Cancelled bookings stay on the list for the rest of the day |'));
 
 await page.keyboard.press('Alt+ArrowDown');
 await page.waitForTimeout(180);
@@ -193,39 +230,123 @@ ok('the moved block survived the reload', await hasItem('Nothing booked this wee
 
 // ---------------------------------------------------------------- editing one cell
 await pick('Building');
-await page.waitForSelector('.ed', { timeout: 4000 });
-eq('the editor carries every lane plus a source', await count('.ed label'), 7);
-ok('the form types offered are functionality, never a visual solution',
-  await page.$$eval('.ed select', (ns) => {
-    const opts = [...ns[1].options].map((o) => o.value);
-    return opts.includes('single select') && !opts.includes('dropdown');
-  }));
+await page.waitForTimeout(200);
+ok('there is no form to open — the row is edited where it sits',
+  await page.$('.ed') === null);
 const beforeEdit = await current();
-await page.$$eval('.ed input[type=text]', (ns) => {
-  ns[1].value = 'Riverside, Northgate, Depot, Kilmore';
-  ns[1].dispatchEvent(new Event('input', { bubbles: true }));
-});
-await page.keyboard.press('Escape');
-await page.waitForTimeout(180);
+await typeInto('.rowsel .eg', 'Riverside, Northgate, Depot, Kilmore');
 await save();
 const afterEdit = await current();
-eq('editing one cell changes exactly one line',
+eq('editing the example changes exactly one line',
   afterEdit.split('\n').filter((l, i) => beforeEdit.split('\n')[i] !== l).length, 1);
 ok('the edit is in the file', afterEdit.includes('Riverside, Northgate, Depot, Kilmore'));
 
+const beforeName = await current();
+await pick('Building');
+await page.waitForTimeout(150);
+await typeInto('.rowsel .lbl', 'Building or site');
+await save();
+eq('renaming a block changes exactly one line',
+  (await current()).split('\n').filter((l, i) => beforeName.split('\n')[i] !== l).length, 1);
+await pick('Building or site');
+await page.waitForTimeout(150);
+await typeInto('.rowsel .lbl', 'Building');
+await save();
+
 // ---------------------------------------------------------------- the referee, live
 await pick('Building');
-await page.waitForSelector('.ed', { timeout: 4000 });
-await page.$$eval('.ed input[type=text]', (ns) => {
-  ns[0].value = 'Building dropdown';
-  ns[0].dispatchEvent(new Event('input', { bubbles: true }));
-});
-await page.keyboard.press('Escape');
-await page.waitForTimeout(200);
+await page.waitForTimeout(150);
+await typeInto('.rowsel .lbl', 'Building dropdown');
 const flagText = await page.$$eval('.flag', (ns) => ns.map((n) => n.textContent).join(' | '));
 ok('the referee flags a visual answer', flagText.includes('dropdown') && flagText.includes('visual answer'));
 ok('and says what to ask instead', flagText.includes('one from a list'));
 ok('but does not rewrite it', await hasItem('Building dropdown'));
+await pick('Building dropdown');
+await page.waitForTimeout(150);
+await typeInto('.rowsel .lbl', 'Building');
+
+// ---------------------------------------------------------------- the functionality picker
+ok('clicking functionality opens a picker, not a form', await openFn('Status'));
+await page.waitForSelector('.pop', { timeout: 4000 });
+eq('it asks the three things functionality is', await count('.pop label'), 3);
+ok('the form types offered are behaviour, never a visual solution',
+  await page.$$eval('.pop select', (ns) => {
+    const opts = [...ns[1].options].map((o) => o.value);
+    return opts.includes('single select') && !opts.includes('dropdown');
+  }));
+ok('there is nothing to save', await page.$eval('.pop', (n) => !/save/i.test(n.textContent)));
+const beforeFn = await current();
+await page.$$eval('.pop .tog', (ns) => { ns.find((n) => n.textContent === 'edit').click(); });
+await page.waitForTimeout(300);
+await save();
+eq('a change applies the moment it is made', (await current()).split('\n')
+  .filter((l, i) => beforeFn.split('\n')[i] !== l).length, 1);
+ok('and lands in the file', (await current()).includes('| Status | Booked, Checked in, No-show, Cancelled | filter, sort, edit |'));
+ok('and saving does not dismiss the picker you are working in', await page.$('.pop') !== null);
+await page.$$eval('.pop .tog', (ns) => { ns.find((n) => n.textContent === 'edit').click(); });
+await page.waitForTimeout(300);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
+ok('escape closes the picker', await page.$('.pop') === null);
+
+// ---------------------------------------------------------------- notes
+const noteRows = await count('.note');
+await pick('Status');
+await page.waitForTimeout(150);
+await page.click('.rowsel .addnote');
+await page.waitForTimeout(200);
+await typeInto('.rowsel .note:last-of-type .t', 'Half-days were cut in review');
+eq('a note can be added to any row', await count('.note'), noteRows + 1);
+await page.evaluate(() => {
+  const n = [...document.querySelectorAll('.note')].find((x) => x.textContent.includes('Half-days were cut in review'));
+  n.querySelector('.tools button').click();
+});
+await page.waitForTimeout(250);
+ok('and turned into a follow-up in one click',
+  await page.evaluate(() => [...document.querySelectorAll('.note.act')]
+    .some((n) => n.textContent.includes('Half-days were cut in review'))));
+await save();
+ok('which the file records as an action item',
+  (await current()).includes('ACTION: Half-days were cut in review'));
+ok('several notes on one row are kept apart by a line break, not run together',
+  (await current()).includes('the rest of the day<br>ACTION: Half-days were cut in review'));
+await page.evaluate(() => {
+  const n = [...document.querySelectorAll('.note')].find((x) => x.textContent.includes('Half-days were cut in review'));
+  n.querySelectorAll('.tools button')[1].click();
+});
+await page.waitForTimeout(250);
+eq('and deleted again', await count('.note'), noteRows);
+
+// ---------------------------------------------------------------- the prose under a heading
+await save();
+const beforeProse = await current();
+await page.$eval('.sec-note', (n) => { n.focus(); n.textContent = 'Likely a table. One row per booking.'; n.blur(); });
+await page.waitForTimeout(250);
+await save();
+eq('the line under a section heading is editable like everything else',
+  (await current()).split('\n').filter((l, i) => beforeProse.split('\n')[i] !== l).length, 1);
+ok('and it is written back as the line it was',
+  (await current()).includes('*Likely a table. One row per booking.*'));
+
+// ---------------------------------------------------------------- the toolbar
+const secBefore = await count('.sec-title');
+await page.evaluate(() => [...document.querySelectorAll('#tools .tool')].find((b) => b.textContent.includes('Section')).click());
+await page.waitForTimeout(300);
+eq('the toolbar adds a section', await count('.sec-title'), secBefore + 1);
+const blocksBefore = await count('.item');
+await page.evaluate(() => [...document.querySelectorAll('#tools .tool')].find((b) => b.textContent.includes('Content')).click());
+await page.waitForTimeout(300);
+eq('and content into it', await count('.item'), blocksBefore + 1);
+ok('naming the new block starts focused', await page.evaluate(() => document.activeElement.className.includes('lbl')));
+await typeInto('.rowsel .lbl', 'A new thing');
+await save();
+ok('which lands in the file', (await current()).includes('| A new thing |'));
+await page.evaluate(() => {
+  const t = [...document.querySelectorAll('.sec-title')].find((n) => n.textContent === 'New section');
+  t.closest('.cell').previousElementSibling.querySelectorAll('.sectools button')[2].click();
+});
+await page.waitForTimeout(300);
+eq('and a section can be deleted again', await count('.sec-title'), secBefore);
 
 // ---------------------------------------------------------------- capture
 await page.keyboard.press('c');
@@ -265,6 +386,10 @@ await page.waitForSelector('.oi');
 const openN = await count('.oi');
 ok('every action item and unknown is listed', openN >= 10, `listed ${openN}`);
 ok('each says where it came from', await page.$$eval('.oi .w', (ns) => ns.every((n) => n.textContent.trim())));
+eq('an action note counts once per note, not once per row',
+  await count('.oi.act'),
+  (await current()).split('\n').filter((l) => l.startsWith('|'))
+    .reduce((n, l) => n + (l.match(/ACTION:/g) || []).length, 0));
 await page.click('.oi');
 await page.waitForTimeout(250);
 ok('clicking one goes to the block it came from', (await count('.rowsel')) >= 1);
@@ -275,12 +400,19 @@ await page.waitForSelector('#flow svg');
 eq('every guide is a node', await count('#flow .node'), 6);
 ok('routes are drawn', (await count('#flow .edge:not(.ref)')) >= 8);
 ok('references are drawn differently', (await count('#flow .edge.ref')) >= 2);
-ok('the sources rail steps out of the way of a file-wide view',
+ok('the panel steps out of the way of a file-wide view',
   await page.evaluate(() => getComputedStyle(document.getElementById('railR')).display === 'none'));
 
 // ---------------------------------------------------------------- sources
 await page.click('#tabs button:nth-child(1)');
 await page.waitForTimeout(250);
+eq('the panel has three tabs, all at the guide\'s own altitude', await count('#railR .ptabs button'), 3);
+ok('context opens first, because it is what you need to read the guide',
+  (await text('#railR .ptabs button.on')).startsWith('Context'));
+ok('and it holds the goals, the users and the notes',
+  (await text('#railR .pbody')).includes('User goal') && (await text('#railR .pbody')).includes('Primary users'));
+await panel(1);
+await page.waitForTimeout(200);
 ok('the rail lists what is attached here', (await count('#railR .src')) >= 2);
 ok('a source is a title you can click', (await count('#railR .src .title')) >= 2);
 eq('and carries no number anyone has to interpret', await count('#railR .src .n'), 0);
@@ -318,10 +450,33 @@ ok('detaching takes it off the guide', !(await line('**Sources:**')).includes('d
 ok('but leaves the source in the file for anything else to use',
   (await current()).includes('[door-reader-spec]: https://example.com/doors'));
 
+// ---------------------------------------------------------------- links tab
+await page.evaluate(() => {
+  const b = [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Booking detail'));
+  b.click();
+});
+await page.waitForTimeout(250);
+await panel(2);
+await page.waitForTimeout(200);
+ok('the links tab says what this guide leads to', (await text('#railR .pbody')).includes('Goes to'));
+ok('and what leads here — the thing a design tool cannot tell you',
+  (await text('#railR .pbody')).includes('Referenced by') || (await text('#railR .pbody')).includes('Mentioned by'));
+ok('each one is a way to get there', (await count('#railR .linkrow')) >= 2);
+await page.click('#railR .linkrow');
+await page.waitForTimeout(250);
+ok('and following one moves the guide', (await text('#pagehead h1')).length > 0);
+await page.evaluate(() => {
+  const b = [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings'));
+  b.click();
+});
+await page.waitForTimeout(250);
+
 // ---------------------------------------------------------------- primary users
-ok('primary users are discrete chips', (await count('.ghead .chip:not(.add)')) >= 2);
-ok('the power user is marked', (await count('.ghead .chip.pri')) >= 1);
-await page.click('.ghead .chip.add');
+await panel(0);
+await page.waitForTimeout(200);
+ok('primary users are discrete chips', (await count('#railR .chip:not(.add)')) >= 2);
+ok('the power user is marked', (await count('#railR .chip.pri')) >= 1);
+await page.click('#railR .chip.add');
 await page.waitForSelector('.chip input');
 ok('adding one offers the types already in the file',
   await page.$eval('.chip input', (n) => n.getAttribute('list') === 'usertypes'));
@@ -336,6 +491,8 @@ ok('a case-different match reuses the existing type instead of making a second o
   await line('**Primary users:**'));
 
 // ---------------------------------------------------------------- present
+await page.mouse.click(700, 300);
+await page.waitForTimeout(150);
 await page.keyboard.press('p');
 await page.waitForTimeout(250);
 eq('the present button becomes the way out', await text('#present'), 'Exit');
@@ -343,8 +500,12 @@ ok('present mode hides both rails',
   await page.evaluate(() => getComputedStyle(document.getElementById('railL')).display === 'none'));
 ok('and the tabs, which are not for the room',
   await page.evaluate(() => getComputedStyle(document.getElementById('tabs')).display === 'none'));
+ok('and the creator toolbar, which is not either',
+  await page.evaluate(() => getComputedStyle(document.getElementById('tools')).display === 'none'));
+ok('but the page header stays, so the room knows which screen this is',
+  await page.evaluate(() => getComputedStyle(document.getElementById('pagehead')).display !== 'none'));
 ok('the stack gets wider for a shared screen',
-  await page.evaluate(() => document.querySelector('.cell').getBoundingClientRect().width > 340));
+  await page.evaluate(() => document.querySelector('.cell').getBoundingClientRect().width > 360));
 ok('the content is still all there', (await count('.item')) > 5);
 await page.click('#present');
 await page.waitForTimeout(250);

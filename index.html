@@ -58,20 +58,46 @@ a:hover{text-decoration:underline}
 
 /* ---------- layout ---------- */
 main{height:calc(100% - 52px);display:flex;overflow:hidden}
-#railL{width:224px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+#railL{width:214px;flex:none;border-right:1px solid var(--line);background:var(--panel);
   overflow-y:auto;padding:14px 10px 40px}
-#railR{width:264px;flex:none;border-left:1px solid var(--line);background:var(--panel);
-  overflow-y:auto;padding:16px 14px 40px}
-#stage{flex:1;overflow-y:auto;padding:26px 30px 120px;min-width:0}
+#railR{width:296px;flex:none;border-left:1px solid var(--line);background:var(--panel);
+  display:flex;flex-direction:column;min-height:0}
+#mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+#stage{flex:1;overflow-y:auto;padding:22px 30px 40px;min-width:0}
 .wrap{max-width:760px;margin:0 auto}
-body.present #railL,body.present #railR{display:none}
-body.present #stage{padding:44px 30px 140px}
-body.present .wrap{max-width:900px}
-body.present{font-size:16px}
-body.present .blk-name{font-size:19px}
-body.present .blk-data{font-size:15.5px}
-body.present .sec-title{font-size:22px}
-body.present .g-title{font-size:30px}
+
+/* ---------- page header: which guide, always ---------- */
+#pagehead{flex:none;padding:16px 30px 12px;border-bottom:1px solid var(--line);
+  background:var(--panel)}
+#pagehead h1{font-size:21px;font-weight:600;letter-spacing:-.02em;margin:0;line-height:1.25;
+  padding:2px 6px;margin-left:-6px;border-radius:7px;display:inline-block;min-width:2ch}
+#pagehead h1:hover{background:var(--hover)}
+#pagehead h1:focus{outline:none;background:var(--accent-soft)}
+#pagehead .sub{margin-top:4px;font-size:12.5px;color:var(--dim);display:flex;gap:8px;
+  align-items:center;flex-wrap:wrap}
+#pagehead .sub .who{color:var(--ink)}
+#pagehead .sub .dot{color:var(--faint)}
+#pagehead .sub .open{color:var(--flag);font-weight:500}
+
+/* ---------- bottom toolbar: the creator tools ---------- */
+#tools{flex:none;display:flex;align-items:center;gap:6px;padding:9px 30px;
+  border-top:1px solid var(--line);background:var(--panel);font-size:12.5px}
+#tools .lbl{color:var(--faint);margin-right:2px}
+#tools .into{margin-left:auto;color:var(--faint);display:flex;align-items:center;gap:6px}
+#tools .into select{border:1px solid var(--line);border-radius:7px;padding:3px 6px;
+  background:var(--panel);max-width:22ch}
+.tool{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;
+  color:var(--dim);font-weight:500}
+.tool:hover{background:var(--hover);color:var(--ink)}
+.tool svg{color:var(--faint)}
+.tool:hover svg{color:var(--ink)}
+
+body.present #railL,body.present #railR,body.present #tools{display:none}
+body.present #pagehead{padding:22px 30px 16px}
+body.present #pagehead h1{font-size:28px}
+body.present #stage{padding:30px 30px 90px}
+body.present{font-size:15px}
+body.present .sec-title{font-size:15.5px}
 
 /* ---------- left rail: guides ---------- */
 .rail-h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
@@ -94,20 +120,17 @@ body.present .g-title{font-size:30px}
 .pill.dead{background:rgba(184,84,31,.12);color:var(--flag)}
 
 /* ---------- the guide: three lanes ----------
-   The middle is the guide itself — a narrow, stripped-back stack of what the
-   screen needs. Notes annotate it from the left, functionality from the right,
-   each on a dotted leader. That is the whole idea: the stack stays readable
-   because everything that is not content has been moved off it. */
-/* No align-items here: cells must stretch to the row height or a tall
-   annotation tears a white gap through the section panel beside it. */
-.guide{--lane-l:250px; --stack:320px; --lane-r:272px;
+   The middle is the guide itself — what each thing is called, and what its data
+   actually looks like. Notes annotate it from the left, functionality from the
+   right, each on a dotted leader to the one row it describes. */
+.guide{--lane-l:264px; --stack:340px; --lane-r:270px;
   display:grid;grid-template-columns:var(--lane-l) var(--stack) var(--lane-r);
-  column-gap:0;margin:0 auto;width:max-content;max-width:100%}
-body.present .guide{--lane-l:290px; --stack:400px; --lane-r:340px}
+  margin:0 auto;width:max-content;max-width:100%}
+body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 
-/* Every row is a grid row so an annotation can line up with the one item it
-   annotates. The stack reads as one continuous outlined column because each
-   middle cell carries the side borders and the ends carry the caps. */
+/* Every row is a grid row so an annotation lines up with the one item it
+   annotates. The stack reads as one continuous column because each middle cell
+   carries the side borders and the ends carry the caps. */
 .cell{grid-column:2;border-left:1.5px solid var(--ink);border-right:1.5px solid var(--ink);
   background:var(--panel);padding:0 10px;display:flex;flex-direction:column}
 .cell.top{border-top:1.5px solid var(--ink);padding-top:10px}
@@ -116,130 +139,153 @@ body.present .guide{--lane-l:290px; --stack:400px; --lane-r:340px}
 .band{background:var(--hover);padding:0 12px;flex:1;display:flex;flex-direction:column}
 .band.open{padding-top:9px;border-radius:2px 2px 0 0}
 .band.close{padding-bottom:9px;border-radius:0 0 2px 2px}
-.band > *{margin-bottom:5px}
-.band.close > *{margin-bottom:0}
-.lane{display:flex;align-items:flex-start;min-height:1px}
+.band > *{margin-bottom:6px}
+.band.close > *:last-child{margin-bottom:0}
+.lane{display:flex;align-items:flex-start;min-height:1px;position:relative}
 .lane-l{grid-column:1;justify-content:flex-end}
 .lane-r{grid-column:3}
-.lead{flex:none;width:24px;border-top:1px dotted var(--faint);margin-top:11px}
-.lane-r .lead{width:26px}
-.ann{border:1px solid var(--line);background:var(--panel);border-radius:6px;
-  padding:4px 7px;font-size:11px;line-height:1.4;color:var(--dim);
-  display:flex;gap:7px;align-items:flex-start;min-width:0;max-width:100%}
-.ann.act{border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.05);color:var(--act)}
-.ann .body{min-width:0;flex:1}
-.ann .req{color:var(--act);font-weight:700;flex:none;margin-left:2px}
-.ann .gl{flex:none;color:var(--faint);margin-top:1px}
-.ann.act .gl{color:var(--act)}
-.ann .val{color:var(--ink)}
-.ann .val.unk{color:var(--flag);font-weight:500}
-.ann .caps{display:flex;gap:3px;flex:none;margin-top:1px}
-.ann .caps svg{color:var(--faint)}
-.ann a{color:var(--accent)}
-.ann .tgt{color:var(--accent);font-weight:500}
-.ann .tgt.dead{color:var(--flag)}
-.ann.empty{border-style:dashed;color:var(--faint)}
+.lead{flex:none;width:20px;border-top:1px dotted var(--faint);margin-top:12px}
 
-/* ---------- the guide header block ---------- */
-.ghead{background:var(--ink);color:#fff;padding:11px 13px;border-radius:2px}
-.ghead h1{font-size:15px;font-weight:600;margin:0 0 9px;text-align:center;letter-spacing:-.01em;
-  line-height:1.3}
-.ghead h1[contenteditable]:focus{outline:none;background:rgba(255,255,255,.14);border-radius:4px}
-.ghead dl{margin:0;display:block}
-.ghead dt{font-size:10.5px;color:rgba(255,255,255,.55);letter-spacing:.02em;margin-top:7px}
-.ghead dt:first-child{margin-top:0}
-.ghead dd{margin:0;font-size:12.5px;line-height:1.4;color:#fff;
-  padding:1px 4px;margin-left:-4px;border-radius:4px}
-.ghead dd:hover{background:rgba(255,255,255,.1)}
-.ghead dd:focus{outline:none;background:rgba(255,255,255,.16)}
-.ghead dd.unknown{color:#ffb4ad;font-weight:500}
-.ghead dd.empty{color:rgba(255,255,255,.4);font-style:italic}
-.ghead a{color:#9dc0ff}
-.ghead .add{color:rgba(255,255,255,.45);font-size:11px;margin-top:8px;display:block}
-.ghead .add button{color:rgba(255,255,255,.55);font-size:11px;margin-right:11px}
-.ghead .add button:hover{color:#fff;text-decoration:underline}
-.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
-.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;
-  background:rgba(255,255,255,.14);border-radius:5px;padding:2px 5px 2px 7px;color:#fff}
-.chip.pri{background:rgba(255,255,255,.28);font-weight:500}
-.chip .x{color:rgba(255,255,255,.55);font-size:13px;line-height:1;padding:0 1px}
-.chip .x:hover{color:#fff}
-.chip.add{background:transparent;border:1px dashed rgba(255,255,255,.3);color:rgba(255,255,255,.6);
-  padding:2px 7px}
-.chip.add:hover{color:#fff;border-color:rgba(255,255,255,.6)}
-.chip input{background:transparent;border:0;color:#fff;width:14ch;outline:none;font-size:11.5px}
-
-/* ---------- sections in the stack ---------- */
-.sec{background:var(--hover);border-radius:2px;padding:11px 12px;
-  display:flex;flex-direction:column;gap:7px}
-.sec-title{font-size:12.5px;font-weight:500;text-align:center;margin:0;padding:1px 4px;border-radius:4px}
-.sec-title:focus{outline:none;background:var(--accent-soft)}
-.sec-note{font-size:11px;color:var(--dim);text-align:center;font-style:italic;line-height:1.4;margin:-2px 0 0}
-.sub{border-top:1px solid var(--line);margin-top:4px;padding-top:9px}
-.sub-t{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--dim);text-align:center}
-.ref{border:1px dashed var(--line);border-radius:2px;padding:8px 10px;font-size:11.5px;
-  color:var(--dim);text-align:center;line-height:1.45}
-.raw-table{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-  color:var(--faint);background:var(--panel);border-radius:4px;padding:6px 8px}
-
-/* ---------- one content block, in the stack ---------- */
-.item{border:1px solid var(--ink);background:var(--panel);border-radius:2px;
-  padding:3px 8px;font-size:12.5px;line-height:1.4;display:flex;align-items:center;gap:6px;
-  cursor:default;min-height:24px}
-.item.plain{border-color:transparent;background:transparent;padding-left:2px}
-.item.linky{border-color:transparent;background:transparent;padding-left:2px}
+/* ---------- one row in the stack ---------- */
+.item{padding:2px 0}
+.item .box{border:1px solid var(--ink);background:var(--panel);border-radius:2px;
+  padding:3px 8px;display:flex;align-items:center;gap:6px;min-height:24px}
+.item.plain .box,.item.linky .box{border-color:transparent;background:transparent;padding-left:2px}
 .item.linky .lbl{text-decoration:underline;text-underline-offset:2px}
-.item.visual{border-style:dashed;color:var(--dim)}
-.item .lbl{flex:1;min-width:0;overflow-wrap:anywhere}
-.item .unk{color:var(--flag);font-weight:500}
+.item.visual .box{border-style:dashed;color:var(--dim)}
+.lbl{flex:1;min-width:0;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere;
+  padding:1px 3px;margin-left:-3px;border-radius:4px}
+.lbl:hover{background:rgba(16,18,22,.06)}
+.lbl:focus{outline:none;background:var(--accent-soft)}
+.lbl .unk{color:var(--flag);font-weight:500}
+.eg{font-size:11.5px;color:var(--dim);line-height:1.4;margin-top:2px;padding:1px 4px;
+  margin-left:-1px;border-radius:4px;overflow-wrap:anywhere}
+.eg:hover{background:rgba(16,18,22,.06)}
+.eg:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
+.eg.none{color:var(--faint);font-style:italic}
+.eg.unk{color:var(--flag);font-weight:500;font-style:normal}
 .item .chev{flex:none;color:var(--dim)}
-.row{display:contents}
-.rowsel .item{outline:2px solid var(--accent);outline-offset:1px}
-.rowsel .ann{border-color:var(--accent)}
-.item:hover{background:var(--hover)}
-.item.plain:hover,.item.linky:hover{background:var(--hover)}
+.rowsel .box{outline:2px solid var(--accent);outline-offset:1px}
 .drag .item{opacity:.35}
 .over .item{box-shadow:0 -2px 0 var(--accent)}
 .over-b .item{box-shadow:0 2px 0 var(--accent)}
-.flag{font-size:10.5px;color:var(--flag);line-height:1.4;margin-top:3px}
-.blk-add{font-size:11px;color:var(--faint);text-align:center;padding:3px;border-radius:4px}
-.blk-add:hover{background:var(--hover);color:var(--ink)}
+.flag{font-size:10.5px;color:var(--flag);line-height:1.4;margin-top:3px;padding-left:2px}
 
-/* ---------- guide footer: what points here ---------- */
-.backs{grid-column:2;margin-top:16px;font-size:11.5px;color:var(--dim);line-height:1.6}
-.backs .h{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--faint);margin-bottom:3px}
+/* ---------- notes, on the left ---------- */
+.notes{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:1;min-width:0}
+.note{border:1px solid var(--line);background:var(--panel);border-radius:6px;
+  padding:3px 7px;font-size:11px;line-height:1.4;color:var(--dim);
+  display:flex;gap:6px;align-items:flex-start;max-width:100%}
+.note.act{border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.05);color:var(--act)}
+.note .t{min-width:0;flex:1;padding:0 2px;border-radius:3px}
+.note .t:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
+.note .k{flex:none;font-size:9px;font-weight:700;letter-spacing:.07em;color:var(--act);margin-top:1px}
+.note .gl{flex:none;color:var(--faint);margin-top:1px}
+.note.act .gl{color:var(--act)}
+.note .tools{display:none;gap:2px;flex:none;margin-left:2px}
+.note:hover .tools{display:flex}
+.note .tools button{color:var(--faint);font-size:11px;line-height:1;padding:1px 3px;border-radius:4px}
+.note .tools button:hover{color:var(--ink);background:var(--hover)}
+.note a{color:var(--accent)}
+.addnote{opacity:0;font-size:11px;color:var(--faint);padding:2px 6px;border-radius:6px;
+  border:1px dashed var(--line);transition:opacity .12s var(--ease)}
+.lane-l:hover .addnote,.rowsel .addnote{opacity:1}
+.addnote:hover{color:var(--ink);border-color:var(--dim)}
 
-.pathlink{color:var(--accent);text-align:left;padding:0;font:inherit;
-  border-bottom:1px dashed rgba(37,99,235,.45)}
-.pathlink:hover{border-bottom-style:solid}
-.sectools{display:flex;gap:1px;opacity:0;transition:opacity .12s var(--ease);margin-top:2px}
-.guide:hover .sectools{opacity:.7}
-.sectools:hover{opacity:1}
-.sectools .btn{padding:2px 6px;font-size:11px}
+/* ---------- functionality, on the right ---------- */
+.fn{border:1px solid var(--line);background:var(--panel);border-radius:6px;
+  padding:4px 8px;font-size:11.5px;line-height:1.45;color:var(--ink);
+  display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;max-width:100%}
+.fn{cursor:pointer}
+.fn:hover{border-color:var(--dim)}
+.fn a.tgt:hover{text-decoration:underline}
+.fn .l{display:flex;gap:6px;align-items:flex-start}
+.fn .l svg{flex:none;color:var(--dim);margin-top:1px}
+.fn .l b{font-weight:500}
+.fn .tgt{color:var(--accent)}
+.fn .tgt.dead{color:var(--flag)}
+.fn .req{color:var(--act);font-weight:600}
+.fn .caps{color:var(--dim);font-size:11px;letter-spacing:.01em}
+.fn.empty{border-style:dashed;color:var(--faint);opacity:0;transition:opacity .12s var(--ease)}
+.lane-r:hover .fn.empty,.rowsel .fn.empty{opacity:1}
 
-/* ---------- block editor ---------- */
-.ed{display:grid;grid-template-columns:78px minmax(0,1fr);gap:6px 12px;align-items:center;padding:4px 0}
-.ed > *{min-width:0}
-.cell.editing{border-right:1.5px solid var(--ink)}
-.blk.editing{background:var(--accent-soft);padding-top:12px;padding-bottom:12px}
-.ed label{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
-.ed input[type=text],.ed textarea,.ed select{width:100%;padding:5px 8px;border:1px solid var(--line);
-  border-radius:7px;background:var(--panel)}
-.ed textarea{resize:vertical;min-height:34px;line-height:1.45}
-.ed .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.ed .row input[type=text]{flex:1;min-width:120px}
-.ed .row textarea{flex:1;min-width:200px}
-.ed .row select{width:auto;min-width:120px}
-.tog{padding:3px 9px;border-radius:7px;font-size:11.5px;font-weight:500;color:var(--dim);
+/* ---------- functionality popover ---------- */
+.pop{position:fixed;z-index:20;background:var(--panel);border:1px solid var(--line);
+  border-radius:11px;box-shadow:0 8px 30px rgba(0,0,0,.14);padding:12px;width:266px;
+  display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px 9px;align-items:center}
+.pop label{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--faint)}
+.pop select,.pop input{width:100%;padding:4px 7px;border:1px solid var(--line);border-radius:7px;
+  background:var(--panel);font-size:12.5px}
+.pop .row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.pop .hint{grid-column:2;font-size:10.5px;color:var(--faint);line-height:1.35}
+.pop .foot{grid-column:1/-1;display:flex;justify-content:flex-end;padding-top:2px}
+.tog{padding:3px 8px;border-radius:7px;font-size:11px;font-weight:500;color:var(--dim);
   background:var(--hover)}
 .tog:hover{color:var(--ink)}
 .tog.on{background:var(--ink);color:var(--panel)}
 .tog.act.on{background:var(--act)}
-.ed-foot{grid-column:1/-1;display:flex;gap:8px;align-items:center;padding-top:2px}
-.ed-foot .spacer{flex:1}
-.hint{font-size:11.5px;color:var(--faint);grid-column:2;min-height:17px;line-height:1.35}
+
+/* ---------- sections in the stack ---------- */
+.sec-title{font-size:12.5px;font-weight:500;text-align:center;margin:0;padding:2px 6px;
+  border-radius:5px}
+.sec-title:hover{background:rgba(16,18,22,.06)}
+.sec-title:focus{outline:none;background:var(--accent-soft)}
+.sec-note{font-size:11px;color:var(--dim);text-align:center;font-style:italic;line-height:1.4;
+  padding:2px 6px;border-radius:5px}
+.sec-note:hover{background:rgba(16,18,22,.06)}
+.sec-note:focus{outline:none;background:var(--accent-soft);font-style:normal;color:var(--ink)}
+.sec-note.none{color:var(--faint)}
+.sub{border-top:1px solid var(--line);margin-top:3px;padding-top:8px}
+.sub-t{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--dim);text-align:center;padding:1px 4px;border-radius:4px}
+.sub-t:focus{outline:none;background:var(--accent-soft)}
+.ref{border:1px dashed var(--line);border-radius:2px;padding:7px 10px;font-size:11.5px;
+  color:var(--dim);text-align:center;line-height:1.45}
+.ref:focus{outline:none;background:var(--accent-soft)}
+.raw-table{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--faint);background:var(--panel);border-radius:4px;padding:6px 8px}
+.sectools{display:flex;gap:1px;opacity:0;transition:opacity .12s var(--ease);margin-top:1px}
+.lane-l:hover .sectools{opacity:.75}
+.sectools:hover{opacity:1}
+.sectools button{color:var(--faint);font-size:12px;padding:2px 5px;border-radius:5px}
+.sectools button:hover{color:var(--ink);background:var(--hover)}
+
+/* ---------- right panel ---------- */
+#railR .ptabs{flex:none;display:flex;gap:2px;padding:10px 12px 0;border-bottom:1px solid var(--line)}
+#railR .ptabs button{padding:6px 10px;border-radius:7px 7px 0 0;color:var(--dim);font-size:12.5px;
+  font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+#railR .ptabs button:hover{color:var(--ink)}
+#railR .ptabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+#railR .pbody{flex:1;overflow-y:auto;padding:14px 14px 40px}
+.ctx{margin-bottom:14px}
+.ctx dt{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:2px}
+.ctx dd{margin:0;font-size:12.5px;line-height:1.5;padding:3px 6px;margin-left:-6px;border-radius:7px}
+.ctx dd:hover{background:var(--hover)}
+.ctx dd:focus{outline:none;background:var(--accent-soft)}
+.ctx dd.unknown{color:var(--flag);font-weight:500}
+.ctx dd.empty{color:var(--faint);font-style:italic}
+.ctx dd a{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;background:var(--hover);
+  border-radius:6px;padding:2px 5px 2px 8px;color:var(--ink)}
+.chip.pri{background:var(--ink);color:var(--panel);font-weight:500}
+.chip .x{color:var(--faint);font-size:13px;line-height:1;padding:0 1px}
+.chip.pri .x{color:rgba(255,255,255,.6)}
+.chip .x:hover{color:var(--act)}
+.chip.pri .x:hover{color:#fff}
+.chip.add{background:transparent;border:1px dashed var(--line);color:var(--faint);padding:2px 8px}
+.chip.add:hover{color:var(--ink);border-color:var(--dim)}
+.chip input{background:transparent;border:0;color:inherit;width:13ch;outline:none;font-size:11.5px}
+.addfield{margin-top:8px;font-size:11.5px}
+.addfield button{color:var(--faint);margin-right:12px}
+.addfield button:hover{color:var(--ink);text-decoration:underline}
+.linkrow{display:block;width:100%;text-align:left;padding:7px 8px;border-radius:8px;
+  font-size:12.5px;line-height:1.45}
+.linkrow:hover{background:var(--hover)}
+.linkrow .n{font-weight:500;color:var(--accent)}
+.linkrow .m{color:var(--faint);font-size:11.5px;display:block;margin-top:1px}
 
 /* ---------- capture ---------- */
 #cap{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--panel);
@@ -334,7 +380,11 @@ body.present .guide{--lane-l:290px; --stack:400px; --lane-r:340px}
 <div id="banners"></div>
 <main>
   <div id="railL"></div>
-  <div id="stage"></div>
+  <div id="mid">
+    <div id="pagehead"></div>
+    <div id="stage"></div>
+    <div id="tools"></div>
+  </div>
   <div id="railR"></div>
 </main>
 <div id="cap" hidden>
@@ -356,7 +406,8 @@ import {
   parseContentCell, renderContentCell, parseCapabilities, renderCapabilities,
   parseLinkCell, renderLinkCell, parseFormCell, renderFormCell,
   parseNoteCell, renderNoteCell,
-  parseUsers, renderUsers, userTypes, handleFor, isWebUrl, refsIn,
+  parseUsers, renderUsers, userTypes, handleFor, isWebUrl, refsIn, hasAction,
+  proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
 
@@ -523,7 +574,9 @@ async function openFile(f) {
 // ---------------------------------------------------------------- save
 async function save() {
   if (!S.file || S.readOnly) return;
-  commitEditor();
+  // Flush an inline edit that is still focused; leave any open picker alone.
+  const a = document.activeElement;
+  if (a && a.isContentEditable) a.blur();
   if (!(await ensureWritable(S.file.handle))) {
     banner('err', '<b>Write permission was declined.</b> Chrome needs <b>Edit files</b> for this folder.');
     return;
@@ -582,6 +635,8 @@ function render() {
   document.body.classList.toggle('present', S.present);
   renderBar();
   renderUserBar();
+  renderPageHead();
+  renderTools();
   if (!S.doc) { renderHello(); return; }
   renderRailLeft();
   $('stage').innerHTML = '';
@@ -843,6 +898,199 @@ function setLinked(node, text, guide) {
   return node;
 }
 
+// ---------------------------------------------------------------- inline editing
+/**
+ * Everything on a guide is edited where it sits. No forms, no Save — you click
+ * the thing and type. Escape puts it back.
+ */
+function editable(node, current, commit, opts = {}) {
+  if (S.readOnly) return node;
+  node.contentEditable = 'plaintext-only';
+  node.spellcheck = false;
+  node.tabIndex = 0;
+  node.onfocus = () => {
+    if (node.dataset.blank === '1') { node.textContent = ''; node.classList.remove('none', 'empty'); }
+  };
+  node.onblur = () => {
+    const v = node.textContent.trim();
+    if (v === current) {
+      if (node.dataset.ph && !v) {
+        node.textContent = node.dataset.ph;
+        node.classList.add(node.dataset.phcls || 'none');
+        node.dataset.blank = '1';
+      }
+      return;
+    }
+    commit(v);
+    mark();
+    render();
+  };
+  node.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Escape') { e.preventDefault(); node.textContent = current; node.blur(); }
+    else if (e.key === 'Enter' && !opts.multiline) { e.preventDefault(); node.blur(); }
+  };
+  return node;
+}
+
+/** Text that reads as a prompt until someone types in it. */
+function blankable(node, value, placeholder, cls) {
+  node.dataset.ph = placeholder;
+  node.dataset.phcls = cls || 'none';
+  if (value) { node.textContent = value; return node; }
+  node.dataset.blank = '1';
+  node.classList.add(cls || 'none');
+  node.textContent = S.readOnly || S.present ? '' : placeholder;
+  return node;
+}
+
+const focusSoon = (sel) => setTimeout(() => {
+  const n = typeof sel === 'string' ? document.querySelector(sel) : sel;
+  if (!n) return;
+  n.focus();
+  const r = document.createRange();
+  r.selectNodeContents(n);
+  r.collapse(false);
+  const s = getSelection();
+  s.removeAllRanges(); s.addRange(r);
+}, 0);
+
+// ---------------------------------------------------------------- page header
+/** Which guide you are on, always, without spending the guide's own width on it. */
+function renderPageHead() {
+  const h = $('pagehead');
+  h.innerHTML = '';
+  if (!S.doc || !S.guide || S.view !== 'guide') { h.style.display = 'none'; return; }
+  h.style.display = '';
+  const g = S.guide;
+
+  const t = el('h1');
+  t.textContent = g.name;
+  editable(t, g.name, (v) => { if (v) { g.name = v; g.dirtyHeading = true; } });
+  h.appendChild(t);
+
+  const sub = el('div', 'sub');
+  const users = parseUsers(g.fields.primaryUsers);
+  if (users.length) {
+    const w = el('span', 'who');
+    w.textContent = users.map((u) => u.name + (u.primary ? ' (primary)' : '')).join(' · ');
+    sub.appendChild(w);
+  }
+  const n = rowsOf(g).length;
+  const add = (txt, cls) => {
+    if (sub.children.length) sub.appendChild(el('span', 'dot', '·'));
+    sub.appendChild(el('span', cls || '', txt));
+  };
+  add(`${n} block${n === 1 ? '' : 's'}`);
+  const open = guideOpenCount(g);
+  if (open) add(`${open} open`, 'open');
+  const goal = (g.fields.userGoal || '').trim();
+  if (goal && !isUnknown(goal)) {
+    const b = el('button', 'quiet', 'context');
+    b.onclick = () => { S.panel = 'context'; render(); };
+    if (sub.children.length) sub.appendChild(el('span', 'dot', '·'));
+    sub.appendChild(b);
+  }
+  h.appendChild(sub);
+}
+
+// ---------------------------------------------------------------- toolbar
+/** The creator tools, always to hand, never in the way of the guide. */
+function renderTools() {
+  const t = $('tools');
+  t.innerHTML = '';
+  if (!S.doc || !S.guide || S.view !== 'guide' || S.readOnly || S.present) {
+    t.style.display = 'none'; return;
+  }
+  t.style.display = '';
+  const g = S.guide;
+  const secs = g.sections.filter((s) => s.kind === 'section');
+
+  const target = () => {
+    const chosen = secs.find((s) => s.title === S.intoSection);
+    if (chosen) return chosen;
+    if (S.sel) { const w = whereIs(g, S.sel); if (w) return w.tables[w.ti].section; }
+    return secs[secs.length - 1] || null;
+  };
+  const tableOf = (sec) => {
+    if (!sec) return null;
+    const ts = sec.chunks.filter((c) => c.kind === 'table');
+    return ts[ts.length - 1] || null;
+  };
+
+  t.appendChild(el('span', 'lbl', 'Add'));
+
+  const tool = (glyph, label, fn, title) => {
+    const b = el('button', 'tool');
+    b.appendChild(icon(glyph, 14));
+    b.appendChild(el('span', null, label));
+    if (title) b.title = title;
+    b.onclick = fn;
+    t.appendChild(b);
+  };
+
+  tool('line1', 'Content', () => {
+    const sec = target();
+    let tab = tableOf(sec);
+    if (!sec) { banner('warn', '<b>Add a section first.</b> Content lives inside one.'); return; }
+    if (!tab) { addSection(g, sec.title); tab = tableOf(sec); }
+    const row = addRow(tab, sec, {});
+    S.sel = row; mark(); render();
+    focusSoon('.rowsel .lbl');
+  }, 'A data point, a control, or an action');
+
+  tool('lineN', 'Section', () => {
+    const sec = addSection(g, 'New section');
+    S.intoSection = sec.title; mark(); render();
+    focusSoon('.guide .sec-title:last-of-type');
+  }, 'A group of content, usually about one thing');
+
+  tool('other', 'Subsection', () => {
+    const sec = target();
+    if (!sec) return;
+    const at = sec.chunks.length;
+    sec.chunks.splice(at, 0, { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true });
+    sec.chunks.splice(at + 1, 0, blankTable());
+    sec.dirty = true; mark(); render();
+  }, 'A split inside a section — often the per-row actions');
+
+  tool('source', 'Reference', () => {
+    const sec = target();
+    if (!sec) return;
+    const other = guides(S.doc).find((x) => x !== g);
+    const name = other ? other.name : 'Another guide';
+    sec.chunks.push({ kind: 'ref', src: [`> See [[${name}]] — why`], target: name,
+      text: `See [[${name}]] — why`, refs: [], dirty: true });
+    sec.dirty = true; mark(); render();
+  }, 'Point at another guide instead of repeating its content');
+
+  const into = el('div', 'into');
+  into.appendChild(el('span', null, 'into'));
+  const sel = el('select');
+  for (const s of secs) {
+    const o = el('option', null, s.title);
+    o.value = s.title;
+    if (target() === s) o.selected = true;
+    sel.appendChild(o);
+  }
+  if (!secs.length) { const o = el('option', null, 'no sections yet'); o.disabled = true; sel.appendChild(o); }
+  sel.onchange = () => { S.intoSection = sel.value; render(); };
+  into.appendChild(sel);
+  t.appendChild(into);
+}
+
+function blankTable() {
+  const names = ['Content', 'Real data', 'Do', 'Link', 'Form', 'Note'];
+  const keys = ['content', 'realData', 'capabilities', 'link', 'form', 'note'];
+  return {
+    kind: 'table',
+    headerSrc: [`| ${names.join(' | ')} |`],
+    dividerSrc: [`| ${names.map(() => '---').join(' | ')} |`],
+    cols: { keyAt: keys, byKey: Object.fromEntries(keys.map((k, i) => [k, i])), names },
+    rows: [], dirty: true
+  };
+}
+
 // ---------------------------------------------------------------- guide view
 function renderGuide() {
   const stage = $('stage');
@@ -851,7 +1099,6 @@ function renderGuide() {
   const grid = el('div', 'guide');
   const cells = [];
 
-  /** One grid row: an annotation lane, the stack cell, an annotation lane. */
   const gridRow = (bandCls) => {
     const l = el('div', 'lane lane-l');
     const c = el('div', 'cell');
@@ -865,53 +1112,56 @@ function renderGuide() {
   };
   const gap = () => { const { c } = gridRow(); c.classList.add('gap'); };
 
-  // ---- the header block
-  gridRow().host.appendChild(headerBlock(g));
-  gap();
-
-  // ---- sections
   for (const sec of g.sections) {
-    if (sec.kind === 'sources') continue;   // the rail owns sources
+    if (sec.kind === 'sources') continue;
     const mine = [];
     const title = gridRow('open');
     mine.push(title.band);
     title.host.appendChild(sectionTitle(g, sec));
     if (!S.present && !S.readOnly) title.l.appendChild(sectionTools(g, sec));
 
+    // The line of prose under a heading is part of the guide, so it is editable
+    // like everything else — and it exists even when the file has no line yet.
+    const prose = sec.chunks.find((c) => c.kind === 'raw' && !/^\s*\|/m.test(c.src.join('\n')));
+    if (!S.present || (prose && proseOf(prose))) {
+      const pRow = gridRow(''); mine.push(pRow.band);
+      pRow.host.appendChild(sectionProse(g, sec, prose));
+    }
+
     for (const chunk of sec.chunks) {
       if (chunk.kind === 'raw') {
+        if (chunk === prose) continue;
         const text = chunk.src.join('\n').trim();
         if (!text) continue;
         const row = gridRow(''); mine.push(row.band);
-        if (/^\s*\|/m.test(text)) {
-          const t = el('div', 'raw-table');
-          t.textContent = text;
-          t.title = 'This table has no Content column, so priority guide leaves it alone.';
-          row.host.appendChild(t);
-        } else {
-          row.host.appendChild(setLinked(el('div', 'sec-note'), text.replace(/^\*|\*$/g, ''), g));
-        }
+        const t = el('div', 'raw-table');
+        t.textContent = text;
+        t.title = 'This table has no Content column, so priority guide leaves it alone.';
+        row.host.appendChild(t);
       } else if (chunk.kind === 'sub') {
         const row = gridRow(''); mine.push(row.band);
         const w = el('div', 'sub');
-        w.appendChild(el('div', 'sub-t', chunk.title));
+        const h = el('div', 'sub-t');
+        h.textContent = chunk.title;
+        editable(h, chunk.title, (v) => { chunk.title = v || 'Untitled'; chunk.dirty = true; sec.dirty = true; });
+        w.appendChild(h);
         row.host.appendChild(w);
       } else if (chunk.kind === 'ref') {
         const row = gridRow(''); mine.push(row.band);
-        row.host.appendChild(setLinked(el('div', 'ref'), chunk.text, g));
+        const p = el('div', 'ref');
+        setLinked(p, chunk.text, g);
+        editable(p, chunk.text, (v) => {
+          chunk.text = v;
+          const m = /\[\[([^\]]+)\]\]/.exec(v);
+          chunk.target = m ? m[1].trim() : '';
+          chunk.refs = refsIn(v);
+          chunk.dirty = true; sec.dirty = true;
+        });
+        row.host.appendChild(p);
       } else if (chunk.kind === 'table') {
         for (const rw of chunk.rows) {
           const row = gridRow(''); mine.push(row.band);
-          paintBlock(row, g, sec, chunk, rw);
-        }
-        if (!S.readOnly && !S.present) {
-          const row = gridRow(''); mine.push(row.band);
-          const add = el('button', 'blk-add', '+  content');
-          add.onclick = () => {
-            const nr = addRow(chunk, sec, {});
-            S.sel = nr; S.editing = nr; mark(); render(); focusEditor();
-          };
-          row.host.appendChild(add);
+          paintRow(row, g, sec, chunk, rw);
         }
       }
     }
@@ -919,343 +1169,400 @@ function renderGuide() {
     gap();
   }
 
-  if (!S.readOnly && !S.present) {
-    const row = gridRow();
-    const add = el('button', 'blk-add', '+  section');
-    add.onclick = () => {
-      const name = prompt('What is this group of content called?\n\nGroup by what is intuitive — usually by the thing it is about.');
-      if (!name) return;
-      addSection(g, name); mark(); render();
-    };
-    row.host.appendChild(add);
-  }
-
   if (cells.length) {
     cells[0].classList.add('top');
     cells[cells.length - 1].classList.add('bot');
   }
-
-  // ---- who points here, below the stack
-  const back = backlinks(S.doc, g.name);
-  if (back.routes.length || back.references.length) {
-    const l = el('div', 'lane'); const b = el('div', 'backs'); const r = el('div', 'lane');
-    grid.append(l, b, r);
-    b.appendChild(el('div', 'h', 'Referenced by'));
-    for (const x of back.routes) {
-      const p = el('div');
-      p.innerHTML = `${guideLink(x.from)} &middot; ${esc(x.type)} from &ldquo;${esc(x.via)}&rdquo;`;
-      b.appendChild(p);
-    }
-    for (const x of back.references) {
-      const p = el('div');
-      p.innerHTML = `${guideLink(x.from)} &middot; ${esc(x.text)}`;
-      b.appendChild(p);
-    }
+  if (!g.sections.some((s) => s.kind === 'section')) {
+    stage.appendChild(el('div', 'rail-empty', 'Nothing here yet. Add a section from the toolbar below.'));
+    return;
   }
   stage.appendChild(grid);
-}
-
-// ---------------------------------------------------------------- header block
-function headerBlock(g) {
-  const box = el('div', 'ghead');
-  const h = el('h1');
-  h.textContent = g.name;
-  if (!S.readOnly) {
-    h.contentEditable = 'plaintext-only'; h.spellcheck = false;
-    h.onblur = () => {
-      const v = h.textContent.trim();
-      if (v && v !== g.name) { g.name = v; g.dirtyHeading = true; mark(); render(); }
-      else h.textContent = g.name;
-    };
-    h.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); h.blur(); } };
-  }
-  box.appendChild(h);
-
-  const dl = el('dl');
-  const OPTIONAL = ['type', 'notes', 'sources'];
-  const missing = [];
-  for (const key of GUIDE_FIELDS) {
-    const val = (g.fields[key] || '').trim();
-    if (!val && OPTIONAL.includes(key) && S.shownField !== key) { missing.push(key); continue; }
-    if (key === 'sources' && !S.present) continue;   // the rail owns these
-    dl.appendChild(el('dt', null, FIELD_LABELS[key] + ':'));
-    dl.appendChild(key === 'primaryUsers' ? usersField(g) : textField(g, key, val));
-  }
-  box.appendChild(dl);
-
-  if (missing.length && !S.readOnly && !S.present) {
-    const add = el('div', 'add');
-    for (const key of missing) {
-      const b = el('button', null, '+ ' + FIELD_LABELS[key].toLowerCase());
-      b.onclick = () => {
-        S.shownField = key; render();
-        setTimeout(() => {
-          const dd = document.querySelector(`.ghead dd[data-key="${key}"]`);
-          if (dd) dd.focus();
-        }, 0);
-      };
-      add.appendChild(b);
-    }
-    box.appendChild(add);
-  }
-  return box;
-}
-
-function textField(g, key, val) {
-  const dd = el('dd');
-  dd.dataset.key = key;
-  if (isUnknown(val)) { dd.className = 'unknown'; dd.textContent = val; dd.title = 'Nobody has been asked yet'; }
-  else if (!val) { dd.className = 'empty'; dd.textContent = S.readOnly ? '' : FIELD_PLACEHOLDER[key]; }
-  else setLinked(dd, val, g);
-  if (S.readOnly) return dd;
-  dd.contentEditable = 'plaintext-only';
-  dd.spellcheck = false;
-  dd.onfocus = () => { if (!val) dd.textContent = ''; dd.className = ''; };
-  dd.onblur = () => {
-    const v = dd.textContent.trim();
-    if (v !== val) { setField(g, key, v); mark(); }
-    if (S.shownField === key && v) S.shownField = null;
-    render();
-  };
-  dd.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); dd.blur(); } };
-  return dd;
-}
-
-/**
- * A user type is a thing, not a phrase. Picking from what the file already uses
- * is what stops "Sales agent" and "Sales Agent" turning into two groups that are
- * really one — which is the whole point of the Users view downstream.
- */
-function usersField(g) {
-  const dd = el('dd');
-  dd.dataset.key = 'primaryUsers';
-  const raw = (g.fields.primaryUsers || '').trim();
-  const list = parseUsers(raw);
-  if (!list.length) {
-    if (isUnknown(raw)) { dd.className = 'unknown'; dd.textContent = raw; }
-    else { dd.className = 'empty'; dd.textContent = S.readOnly ? '' : FIELD_PLACEHOLDER.primaryUsers; }
-    if (S.readOnly) return dd;
-  }
-  const wrap = el('div', 'chips');
-  const commit = (next) => { setField(g, 'primaryUsers', renderUsers(next)); mark(); render(); };
-  list.forEach((u, i) => {
-    const c = el('span', 'chip' + (u.primary ? ' pri' : ''));
-    const t = el('span', null, u.name);
-    t.title = u.primary ? 'The power user of this screen' : 'Click to mark as the primary user';
-    if (!S.readOnly) {
-      t.style.cursor = 'pointer';
-      t.onclick = () => {
-        const next = list.map((x, j) => ({ ...x, primary: j === i ? !x.primary : false }));
-        commit(next);
-      };
-    }
-    c.appendChild(t);
-    if (!S.readOnly && !S.present) {
-      const x = el('button', 'x', '×');
-      x.title = 'Remove';
-      x.onclick = () => commit(list.filter((_, j) => j !== i));
-      c.appendChild(x);
-    }
-    wrap.appendChild(c);
-  });
-  if (!S.readOnly && !S.present) {
-    const add = el('button', 'chip add', '+ user');
-    add.onclick = () => {
-      add.replaceWith(userInput(g, list, commit));
-      const i = document.querySelector('.chip input');
-      if (i) i.focus();
-    };
-    wrap.appendChild(add);
-  }
-  if (list.length) { dd.className = ''; dd.textContent = ''; }
-  dd.appendChild(wrap);
-  return dd;
-}
-
-function userInput(g, list, commit) {
-  const c = el('span', 'chip');
-  const inp = el('input');
-  inp.setAttribute('list', 'usertypes');
-  inp.placeholder = 'user type';
-  inp.onkeydown = (e) => {
-    if (e.key === 'Enter') {
-      const v = inp.value.trim();
-      if (!v) { render(); return; }
-      // Match an existing type case-insensitively so a capitalisation slip does
-      // not create a second group.
-      const known = userTypes(S.doc).find((u) => u.name.toLowerCase() === v.toLowerCase());
-      commit([...list, { name: known ? known.name : v, primary: false }]);
-    } else if (e.key === 'Escape') render();
-  };
-  inp.onblur = () => setTimeout(() => { if (document.activeElement !== inp) render(); }, 120);
-  c.appendChild(inp);
-  return c;
 }
 
 function sectionTitle(g, sec) {
   const t = el('h2', 'sec-title');
   t.textContent = sec.title;
-  if (!S.readOnly) {
-    t.contentEditable = 'plaintext-only'; t.spellcheck = false;
-    t.onblur = () => {
-      const v = t.textContent.trim();
-      if (v && v !== sec.title) { sec.title = v; sec.dirtyHeading = true; mark(); render(); }
-      else t.textContent = sec.title;
-    };
-    t.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); t.blur(); } };
-  }
+  editable(t, sec.title, (v) => { sec.title = v || 'Untitled'; sec.dirtyHeading = true; });
   return t;
+}
+
+function sectionProse(g, sec, chunk) {
+  const p = el('div', 'sec-note');
+  const cur = chunk ? proseOf(chunk) : '';
+  if (cur) setLinked(p, cur, g);
+  else blankable(p, '', 'Add a line of clarity — “likely a table”, “filters above the results”');
+  editable(p, cur, (v) => {
+    if (chunk) { setProse(chunk, sec, v); return; }
+    if (!v) return;
+    const c = { kind: 'raw', src: ['', `*${v}*`, ''], dirty: true };
+    sec.chunks.unshift(c);
+    sec.dirty = true;
+  });
+  return p;
 }
 
 function sectionTools(g, sec) {
   const tools = el('div', 'sectools');
-  for (const [label, dir] of [['↑', -1], ['↓', 1]]) {
-    const b = el('button', 'btn', label);
-    b.title = 'Move this section';
+  for (const [label, dir, title] of [['↑', -1, 'Move this section up'], ['↓', 1, 'Move this section down']]) {
+    const b = el('button', null, label);
+    b.title = title;
     b.onclick = () => { if (moveSection(g, sec, dir)) { mark(); render(); } };
     tools.appendChild(b);
   }
+  const del = el('button', null, '×');
+  del.title = 'Delete this section and everything in it';
+  del.onclick = () => {
+    const n = sec.chunks.filter((c) => c.kind === 'table').reduce((a, c) => a + c.rows.length, 0);
+    if (!confirm(`Delete “${sec.title}”${n ? ` and its ${n} block${n === 1 ? '' : 's'}` : ''}?`)) return;
+    g.sections.splice(g.sections.indexOf(sec), 1);
+    g.dirty = true; S.sel = null; mark(); render();
+  };
+  tools.appendChild(del);
   return tools;
 }
 
-// ---------------------------------------------------------------- one block
+// ---------------------------------------------------------------- one row
 /**
- * Three lanes. The middle is the guide — a label, and the shape of the control
- * if it has one. Everything else moves out to an annotation, which is why the
- * stack stays readable at a glance.
+ * The middle says what the thing is called and what its data actually looks
+ * like. The right says what it does. The left holds everything else — a rule, a
+ * link, something someone said, a follow-up.
  */
-function paintBlock(row, g, sec, table, rw) {
-  const sel = rw === S.sel;
-  if (sel) { row.l.classList.add('rowsel'); row.c.classList.add('rowsel'); row.r.classList.add('rowsel'); }
+function paintRow(row, g, sec, table, rw) {
+  const ctx = { g, sec, table, rw };
+  if (rw === S.sel) [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
 
-  if (rw === S.editing) {
-    row.c.style.gridColumn = '2 / 4';
-    row.c.classList.add('editing');
-    row.r.style.display = 'none';
-    row.host.appendChild(buildEditor(g, sec, table, rw));
-    return;
-  }
-
-  // ---- middle: the item itself
+  // ---- middle
   const hasForm = !!rw.form.type;
   const hasLink = !!rw.link.type;
   const isVisual = rw.content.type === 'Visual';
-  const item = el('div', 'item'
-    + (isVisual ? ' visual' : hasForm ? '' : hasLink ? ' linky' : ' plain'));
-  const label = rw.content.text.trim();
+  const item = el('div', 'item' + (isVisual ? ' visual' : hasForm ? '' : hasLink ? ' linky' : ' plain'));
+  const box = el('div', 'box');
   const lbl = el('div', 'lbl');
-  if (isUnknown(label)) lbl.innerHTML = '<span class="unk">?? not known</span>';
-  else if (!label) lbl.innerHTML = '<span class="unk">unnamed</span>';
-  else lbl.textContent = label;
-  item.appendChild(lbl);
+  const label = rw.content.text.trim();
+  if (isUnknown(label)) { lbl.innerHTML = '<span class="unk">?? not known</span>'; }
+  else blankable(lbl, label, 'What is it called?');
+  editable(lbl, label, (v) => {
+    rw.content = { type: rw.content.type, text: v };
+    touchRow(rw, table, sec);
+  });
+  box.appendChild(lbl);
   if (rw.form.type === 'single select' || rw.form.type === 'multi select') {
-    const ch = icon('chev', 13); ch.classList.add('chev'); item.appendChild(ch);
+    const ch = icon('chev', 13); ch.classList.add('chev'); box.appendChild(ch);
   }
+  item.appendChild(box);
+
+  // The example is what the data really looks like, so it belongs under the
+  // name it belongs to — not off in another lane.
+  const cur = rw.realData;
+  if (cur || rw === S.sel) {
+    const eg = el('div', 'eg');
+    if (isUnknown(cur)) { eg.classList.add('unk'); eg.textContent = cur; }
+    else if (cur) setLinked(eg, cur, g);
+    else blankable(eg, '', 'An example — the real format, or the values');
+    editable(eg, cur, (v) => { rw.realData = v; touchRow(rw, table, sec); });
+    item.appendChild(eg);
+  }
+
+  // Clicking the row opens it: the example line and the add-a-note button
+  // appear. Clicking straight onto text edits that text instead, without a
+  // re-render that would steal the caret.
+  if (!S.readOnly && !S.present) {
+    const lightSelect = () => {
+      if (S.sel === rw) return;
+      S.sel = rw;
+      document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
+      [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
+    };
+    item.onmousedown = (e) => { if (e.target.closest('.lbl,.eg')) lightSelect(); };
+    item.onclick = (e) => {
+      if (e.target.closest('.lbl,.eg,a,button')) return;
+      if (S.sel !== rw) { S.sel = rw; render(); }
+    };
+  } else {
+    item.onclick = () => { S.sel = rw; render(); };
+  }
+
   row.host.appendChild(item);
 
-  const flags = S.present ? [] : lintRow(rw);
-  for (const f of flags) {
-    const n = el('div', 'flag');
-    if (f.kind === 'visual-answer') n.innerHTML = '<b>&ldquo;' + esc(f.word) + '&rdquo;</b> is a visual answer. ' + esc(f.ask);
-    else if (f.kind === 'no-real-data') n.innerHTML = '<b>No real data.</b> ' + esc(f.ask);
-    else if (f.kind === 'unknown-form') n.textContent = '"' + f.word + '" is not one of the form types.';
-    else if (f.kind === 'unknown-link') n.textContent = '"' + f.word + '" is not one of the link types.';
-    row.host.appendChild(n);
+  if (!S.present) {
+    for (const f of lintRow(rw)) {
+      const n = el('div', 'flag');
+      if (f.kind === 'visual-answer') n.innerHTML = '<b>&ldquo;' + esc(f.word) + '&rdquo;</b> is a visual answer. ' + esc(f.ask);
+      else if (f.kind === 'no-real-data') n.innerHTML = '<b>No example.</b> ' + esc(f.ask);
+      else if (f.kind === 'unknown-form') n.textContent = '"' + f.word + '" is not one of the form types.';
+      else if (f.kind === 'unknown-link') n.textContent = '"' + f.word + '" is not one of the link types.';
+      row.host.appendChild(n);
+    }
   }
 
-  // ---- left: the note
-  if (rw.note.text) {
-    const card = el('div', 'ann' + (rw.note.action ? ' act' : ''));
-    const gl = icon('note', 13); gl.classList.add('gl'); card.appendChild(gl);
-    const body = el('div', 'body');
-    if (rw.note.action) {
-      const t = el('div');
-      t.style.cssText = 'font-size:9.5px;font-weight:700;letter-spacing:.07em';
-      t.textContent = 'ACTION';
-      body.appendChild(t);
-    }
-    body.appendChild(setLinked(el('div'), rw.note.text, g));
-    card.appendChild(body);
-    row.l.appendChild(card);
-    row.l.appendChild(el('div', 'lead'));
+  // ---- left: notes
+  const notes = el('div', 'notes');
+  rw.note.forEach((n, i) => notes.appendChild(noteCard(ctx, n, i)));
+  if (!S.readOnly && !S.present) {
+    const add = el('button', 'addnote', rw.note.length ? '+ note' : '+ note');
+    add.title = 'A rule, a link, something said in a session, or a follow-up';
+    add.onclick = () => {
+      rw.note.push({ text: '', action: false });
+      S.sel = rw; render();
+      focusSoon('.rowsel .note:last-of-type .t');
+    };
+    notes.appendChild(add);
   }
+  row.l.appendChild(notes);
+  if (rw.note.length) row.l.appendChild(el('div', 'lead'));
 
-  // ---- right: what it is and what it holds
-  const bits = [];
-  if (rw.realData) bits.push('data');
-  if (hasLink) bits.push('link');
-  if (hasForm) bits.push('form');
-  if (rw.capabilities.length) bits.push('caps');
-  if (rw.source) bits.push('src');
-  if (bits.length) {
-    row.r.appendChild(el('div', 'lead'));
-    const card = el('div', 'ann');
-    const glyph = hasForm ? FORM_GLYPH[rw.form.type] : hasLink ? LINK_GLYPH[rw.link.type] : (isVisual ? 'visual' : 'line1');
-    const gl = icon(glyph || 'other', 14); gl.classList.add('gl');
-    gl.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'title'))
-      .textContent = hasForm ? rw.form.type : hasLink ? rw.link.type : (isVisual ? 'visual' : 'text');
-    card.appendChild(gl);
+  // ---- right: functionality only
+  const hasFn = !!(rw.link.type || rw.form.type || rw.capabilities.length);
+  if (hasFn) row.r.appendChild(el('div', 'lead'));
+  else row.r.appendChild(Object.assign(el('div', 'lead'), { style: 'border-color:transparent' }));
+  row.r.appendChild(fnCard(ctx));
 
-    const body = el('div', 'body');
-    if (rw.realData) {
-      const v = el('div', 'val' + (isUnknown(rw.realData) ? ' unk' : ''));
-      if (isUnknown(rw.realData)) v.textContent = '?? not known';
-      else setLinked(v, rw.realData, g);
-      body.appendChild(v);
-    }
-    if (hasLink && rw.link.target) {
-      const known = !!findGuide(S.doc, rw.link.target);
-      const a = el(known ? 'a' : 'span', 'tgt' + (known ? '' : ' dead'), '→ ' + rw.link.target);
-      if (known) { a.href = '#'; a.dataset.goto = rw.link.target; }
-      else a.title = 'No guide in this file has that name';
-      body.appendChild(a);
-    } else if (hasLink && !rw.realData) {
-      body.appendChild(el('div', null, rw.link.type));
-    }
-    if (rw.source) {
-      const line = el('div');
-      const gs = icon('source', 12); gs.style.cssText = 'display:inline-block;vertical-align:-2px;margin-right:4px';
-      line.appendChild(gs);
-      line.appendChild(linkify(rw.source, g));
-      body.appendChild(line);
-    }
-    if (!body.children.length && hasForm) body.appendChild(el('div', null, rw.form.type));
-    card.appendChild(body);
+  if (S.readOnly || S.present) return;
+  wireDrag(row, ctx);
+}
 
-    if (rw.capabilities.length) {
-      const caps = el('div', 'caps');
-      for (const c of rw.capabilities) {
-        const i = icon(CAP_GLYPH[c], 12);
-        i.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'title')).textContent = c;
-        caps.appendChild(i);
+function noteCard(ctx, n, i) {
+  const { g, sec, table, rw } = ctx;
+  const card = el('div', 'note' + (n.action ? ' act' : ''));
+  const only = /^\s*\[[^\[\]]+\]\s*$/.test(n.text);
+  const gl = icon(only ? 'source' : 'note', 12);
+  gl.classList.add('gl');
+  card.appendChild(gl);
+  if (n.action) card.appendChild(el('span', 'k', 'ACTION'));
+
+  const t = el('div', 't');
+  setLinked(t, n.text, g);
+  if (!n.text) blankable(t, '', 'Note');
+  editable(t, n.text, (v) => {
+    if (!v) rw.note.splice(i, 1);
+    else n.text = v;
+    touchRow(rw, table, sec);
+  }, { multiline: true });
+  card.appendChild(t);
+
+  if (!S.readOnly && !S.present) {
+    const tools = el('div', 'tools');
+    const a = el('button', null, n.action ? '↩' : '!');
+    a.title = n.action ? 'This is settled — stop treating it as a follow-up' : 'Make this a follow-up to circle back on';
+    a.onclick = () => { n.action = !n.action; touchRow(rw, table, sec); mark(); render(); };
+    tools.appendChild(a);
+    const x = el('button', null, '×');
+    x.title = 'Delete this note';
+    x.onclick = () => { rw.note.splice(i, 1); touchRow(rw, table, sec); mark(); render(); };
+    tools.appendChild(x);
+    card.appendChild(tools);
+  }
+  return card;
+}
+
+const LINK_SAYS = {
+  'onsite page': (t) => t ? ['Opens ', t] : ['Opens another page in the app'],
+  'offsite page': (t) => t ? ['Opens ', t, ', outside the app'] : ['Opens a page outside the app'],
+  modal: (t) => t ? ['Opens ', t, ' in a modal'] : ['Opens a modal'],
+  download: () => ['Downloads a file'],
+  upload: () => ['Uploads a file'],
+  mailto: () => ['Starts an email'],
+  trigger: () => ['Triggers an action in place'],
+  other: (t) => t ? ['Goes to ', t] : ['Does something else']
+};
+
+function fnCard(ctx) {
+  const { g, rw } = ctx;
+  const hasAny = rw.link.type || rw.form.type || rw.capabilities.length;
+  const card = el('div', 'fn' + (hasAny ? '' : ' empty'));
+  card.setAttribute('role', 'button');
+  card.tabIndex = S.readOnly || S.present ? -1 : 0;
+
+  if (!hasAny) {
+    card.textContent = S.readOnly ? '' : '+ functionality';
+    card.title = 'What does this do — go somewhere, take input, or let someone search it?';
+  } else {
+    if (rw.link.type) {
+      const l = el('div', 'l');
+      l.appendChild(icon(LINK_GLYPH[rw.link.type] || 'other', 13));
+      const say = (LINK_SAYS[rw.link.type] || (() => [rw.link.type]))(rw.link.target);
+      const b = el('div');
+      say.forEach((part, i) => {
+        if (i === 1 && rw.link.target) {
+          const known = !!findGuide(S.doc, rw.link.target);
+          const t = el(known ? 'a' : 'span', 'tgt' + (known ? '' : ' dead'), rw.link.target);
+          if (known) { t.href = '#'; t.dataset.goto = rw.link.target; t.title = 'Go to this guide'; }
+          else t.title = 'No guide in this file has that name';
+          b.appendChild(t);
+        } else b.appendChild(document.createTextNode(part));
+      });
+      l.appendChild(b);
+      card.appendChild(l);
+    }
+    if (rw.form.type) {
+      const l = el('div', 'l');
+      l.appendChild(icon(FORM_GLYPH[rw.form.type] || 'other', 13));
+      const b = el('div');
+      b.appendChild(document.createTextNode(FORM_SAYS[rw.form.type] || rw.form.type));
+      if (rw.form.required) {
+        b.appendChild(document.createTextNode(' · '));
+        b.appendChild(el('span', 'req', 'required'));
       }
-      card.appendChild(caps);
+      l.appendChild(b);
+      card.appendChild(l);
     }
-    if (rw.form.required) {
-      const r = el('span', 'req', '*');
-      r.title = 'Required';
-      card.appendChild(r);
+    if (rw.capabilities.length) {
+      // Words, not icons. Four short labels are read faster than four glyphs
+      // nobody has learned yet.
+      const l = el('div', 'l');
+      if (!rw.link.type && !rw.form.type) l.appendChild(icon('search', 13));
+      l.appendChild(el('div', 'caps', rw.capabilities.join(' · ')));
+      card.appendChild(l);
     }
-    row.r.appendChild(card);
   }
 
-  if (S.readOnly || S.present) {
-    item.onclick = () => { S.sel = rw; render(); };
-    return;
-  }
+  card._ctx = ctx;
+  if (S.readOnly || S.present) return card;
+  card.onclick = (e) => {
+    if (e.target.closest('a')) return;   // a route takes you there instead
+    e.stopPropagation(); S.sel = rw; render(); reopenPop();
+  };
+  card.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); S.sel = rw; render(); reopenPop(); }
+  };
+  return card;
+}
 
-  item.onclick = (e) => {
-    if (e.target.closest('a,button')) return;
-    commitEditor();
-    S.sel = rw; S.editing = rw; render(); focusEditor();
+const FORM_SAYS = {
+  'date picker': 'Takes a date',
+  'single line': 'Takes a short line of text',
+  'multi line': 'Takes several lines of text',
+  'single select': 'Takes one from a list',
+  'multi select': 'Takes several from a list',
+  other: 'Takes input'
+};
+
+// ---------------------------------------------------------------- functionality popover
+/**
+ * Enumerated values need a picker, but a picker is not a form: every change
+ * applies the moment it is made, and there is nothing to save.
+ */
+function openFnPopover(anchor, ctx) {
+  closePop();
+  const { g, sec, table, rw } = ctx;
+  const pop = el('div', 'pop');
+  const apply = () => { touchRow(rw, table, sec); mark(); };
+
+  const field = (label, node, hint) => {
+    pop.appendChild(el('label', null, label));
+    pop.appendChild(node);
+    if (hint) pop.appendChild(el('div', 'hint', hint));
   };
 
-  // Drag, for a trackpad in a meeting. Same outcome as the keyboard.
+  const lRow = el('div', 'row');
+  const lSel = el('select');
+  for (const t of LINK_TYPES) {
+    const o = el('option', null, t === 'none' ? '—' : t);
+    o.value = t === 'none' ? '' : t;
+    if ((rw.link.type || '') === o.value) o.selected = true;
+    lSel.appendChild(o);
+  }
+  const lTar = el('input');
+  lTar.type = 'text'; lTar.value = rw.link.target || '';
+  lTar.placeholder = 'Which guide or page?';
+  lTar.setAttribute('list', 'guidenames');
+  const syncL = () => { lTar.style.display = lSel.value ? '' : 'none'; };
+  const setLink = () => {
+    const target = lTar.value.trim();
+    rw.link = { type: lSel.value, target, wiki: !!(target && findGuide(S.doc, target)), raw: '' };
+    apply(); syncL();
+    const keep = document.activeElement === lTar;
+    render();
+    if (keep) reopenPop();
+  };
+  lSel.onchange = setLink;
+  lTar.onchange = setLink;
+  lTar.oninput = () => { rw.link.target = lTar.value.trim(); rw.link.wiki = !!findGuide(S.doc, lTar.value.trim()); apply(); };
+  syncL();
+  lRow.append(lSel, lTar);
+  field('Goes to', lRow, 'A target naming another guide becomes a route.');
+
+  const fRow = el('div', 'row');
+  const fSel = el('select');
+  for (const t of FORM_TYPES) {
+    const o = el('option', null, t === 'none' ? '—' : t);
+    o.value = t === 'none' ? '' : t;
+    if ((rw.form.type || '') === o.value) o.selected = true;
+    fSel.appendChild(o);
+  }
+  const req = el('button', 'tog' + (rw.form.required ? ' on' : ''), 'required');
+  req.onclick = () => {
+    rw.form = { ...rw.form, required: !rw.form.required };
+    apply(); render(); reopenPop();
+  };
+  req.style.display = rw.form.type ? '' : 'none';
+  fSel.onchange = () => {
+    rw.form = { type: fSel.value, required: !!(fSel.value && rw.form.required), raw: '' };
+    apply(); render(); reopenPop();
+  };
+  fRow.append(fSel, req);
+  field('Takes', fRow, 'What it is, never how it looks — “one from a list”, not “dropdown”.');
+
+  const caps = el('div', 'row');
+  for (const c of CAPABILITIES) {
+    const b = el('button', 'tog' + (rw.capabilities.includes(c) ? ' on' : ''), c);
+    b.onclick = () => {
+      const i = rw.capabilities.indexOf(c);
+      if (i === -1) rw.capabilities.push(c); else rw.capabilities.splice(i, 1);
+      rw.capabilities = CAPABILITIES.filter((x) => rw.capabilities.includes(x));
+      apply(); render(); reopenPop();
+    };
+    caps.appendChild(b);
+  }
+  field('Can be', caps);
+
+  const foot = el('div', 'foot');
+  const del = el('button', 'quiet', 'Delete this block');
+  del.onclick = () => {
+    if (!confirm(`Delete “${rw.content.text || 'this block'}”?`)) return;
+    table.rows.splice(table.rows.indexOf(rw), 1);
+    table.dirty = true; sec.dirty = true;
+    S.sel = null; closePop(); mark(); render();
+  };
+  foot.appendChild(del);
+  pop.appendChild(foot);
+
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, innerWidth - 280) + 'px';
+  pop.style.top = Math.min(r.top, innerHeight - pop.offsetHeight - 12) + 'px';
+  S.pop = pop; S.popRow = rw;
+  pop.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') { closePop(); render(); } };
+  setTimeout(() => document.addEventListener('mousedown', popAway), 0);
+}
+
+function popAway(e) {
+  if (S.pop && !S.pop.contains(e.target) && !e.target.closest('.fn')) { closePop(); }
+}
+function closePop() {
+  if (S.pop) S.pop.remove();
+  S.pop = null; S.popRow = null;
+  document.removeEventListener('mousedown', popAway);
+}
+/** Keep the picker open across the re-render its own change caused. */
+function reopenPop() {
+  setTimeout(() => {
+    const card = document.querySelector('.lane-r.rowsel .fn');
+    if (card && card._ctx) openFnPopover(card, card._ctx);
+  }, 0);
+}
+
+// ---------------------------------------------------------------- drag
+function wireDrag(row, ctx) {
+  const { g, sec, table, rw } = ctx;
+  const item = row.host.querySelector('.item');
+  if (!item) return;
   item.draggable = true;
   item.ondragstart = (e) => {
     S.drag = rw; row.c.classList.add('drag');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', label || 'block');
+    e.dataTransfer.setData('text/plain', rw.content.text || 'block');
   };
   item.ondragend = () => {
     S.drag = null;
@@ -1281,15 +1588,6 @@ function paintBlock(row, g, sec, table, rw) {
   };
 }
 
-function focusEditor() {
-  setTimeout(() => {
-    const box = document.querySelector('.ed');
-    if (box) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    const i = document.querySelector('.ed input[data-f=content]');
-    if (i) { i.focus(); i.select(); }
-  }, 0);
-}
-
 /** Move a row to an explicit position, possibly in another table. */
 function dropRow(g, row, table, sec, at) {
   for (const { table: t, section } of tablesOf(g)) {
@@ -1306,199 +1604,267 @@ function dropRow(g, row, table, sec, at) {
   table.dirty = true; sec.dirty = true;
 }
 
-// ---------------------------------------------------------------- block editor
-function buildEditor(g, sec, table, row) {
-  const ed = el('div', 'ed');
-  ed.onclick = (e) => e.stopPropagation();
-  const draft = {
-    content: row.content.text,
-    type: row.content.type,
-    realData: row.realData,
-    caps: row.capabilities.slice(),
-    link: row.link.type, target: row.link.target,
-    form: row.form.type, required: row.form.required,
-    note: row.note.text, action: row.note.action,
-    source: row.source || ''
+/** Nothing is held in a draft any more, but the picker can be open. */
+function commitEditor() { closePop(); }
+function focusEditor() { focusSoon('.rowsel .lbl'); }
+
+// ---------------------------------------------------------------- right panel
+/**
+ * Everything that is true of the whole guide rather than one row: what it is
+ * for, what it leans on, and what points at it. All at the same altitude,
+ * because they are the same kind of fact — and none of it takes width away from
+ * the guide itself.
+ */
+function renderRailRight() {
+  const r = $('railR');
+  r.innerHTML = '';
+  if (S.present || S.view !== 'guide' || !S.guide) { r.style.display = 'none'; return; }
+  r.style.display = '';
+
+  const tabs = el('div', 'ptabs');
+  const body = el('div', 'pbody');
+  const links = backlinks(S.doc, S.guide.name);
+  const out = links_out(S.guide);
+  const counts = {
+    context: 0,
+    sources: sourceUsage(S.doc).all.filter((s) => s.cites.some((c) => c.guide === S.guide.name)).length,
+    links: links.routes.length + links.references.length + out.length
   };
-  S.draft = draft;
-
-  // One hint line, following the focus. Six standing hints made the editor
-  // twice as tall as the thing it was editing.
-  const hintLine = el('div', 'hint');
-  const field = (label, node, hint) => {
-    ed.appendChild(el('label', null, label));
-    ed.appendChild(node);
-    if (hint) node.dataset.hint = hint;
-  };
-  ed.addEventListener('focusin', (e) => {
-    const owner = e.target.closest('[data-hint]');
-    hintLine.textContent = owner ? owner.dataset.hint : '';
-  });
-
-  // Lane B - content
-  const cRow = el('div', 'row');
-  const cIn = el('input');
-  cIn.type = 'text'; cIn.dataset.f = 'content'; cIn.value = row.content.text;
-  cIn.placeholder = 'What is this called? Use the name the data has.';
-  cIn.oninput = () => { draft.content = cIn.value; };
-  const vTog = el('button', 'tog' + (draft.type === 'Visual' ? ' on' : ''), 'Visual');
-  vTog.title = 'An image, chart or map - anything more visual than a data point';
-  vTog.onclick = () => {
-    draft.type = draft.type === 'Visual' ? 'Text' : 'Visual';
-    vTog.classList.toggle('on');
-  };
-  cRow.appendChild(cIn); cRow.appendChild(vTog);
-  field('Content', cRow);
-
-  const dIn = el('input');
-  dIn.type = 'text'; dIn.value = row.realData;
-  dIn.placeholder = '123 N Main St, Clio, MI 48420   or:   New, Working, Won, Lost';
-  dIn.oninput = () => { draft.realData = dIn.value; };
-  field('Real data', dIn,
-    'The real format, or the values when there are under ten. If there are many, say so - the count is what drives the design.');
-
-  // Lane A - what you can do to it
-  const caps = el('div', 'row');
-  for (const c of CAPABILITIES) {
-    const t = el('button', 'tog' + (draft.caps.includes(c) ? ' on' : ''), c);
-    t.onclick = () => {
-      const i = draft.caps.indexOf(c);
-      if (i === -1) draft.caps.push(c); else draft.caps.splice(i, 1);
-      t.classList.toggle('on');
-    };
-    caps.appendChild(t);
+  for (const [k, label] of [['context', 'Context'], ['sources', 'Sources'], ['links', 'Links']]) {
+    const b = el('button', (S.panel || 'context') === k ? 'on' : '');
+    b.textContent = label + (counts[k] ? ` ${counts[k]}` : '');
+    b.onclick = () => { S.panel = k; render(); };
+    tabs.appendChild(b);
   }
-  field('Do', caps);
+  r.append(tabs, body);
 
-  // Lane C - functionality. Behaviour only; the list is the whole vocabulary.
-  const lRow = el('div', 'row');
-  const lSel = el('select');
-  for (const t of LINK_TYPES) {
-    const o = el('option', null, t === 'none' ? '—' : t);
-    o.value = t === 'none' ? '' : t;
-    if ((draft.link || '') === o.value) o.selected = true;
-    lSel.appendChild(o);
-  }
-  const lTar = el('input');
-  lTar.type = 'text'; lTar.value = draft.target;
-  lTar.placeholder = 'Which guide, modal or page?';
-  lTar.setAttribute('list', 'guidenames');
-  const syncL = () => { lTar.style.display = lSel.value ? '' : 'none'; };
-  lSel.onchange = () => { draft.link = lSel.value; syncL(); };
-  lTar.oninput = () => { draft.target = lTar.value; };
-  syncL();
-  lRow.appendChild(lSel); lRow.appendChild(lTar);
-  field('Link', lRow, 'Where this goes. A target that names another guide becomes a route.');
-
-  const fRow = el('div', 'row');
-  const fSel = el('select');
-  for (const t of FORM_TYPES) {
-    const o = el('option', null, t === 'none' ? '—' : t);
-    o.value = t === 'none' ? '' : t;
-    if ((draft.form || '') === o.value) o.selected = true;
-    fSel.appendChild(o);
-  }
-  const reqT = el('button', 'tog' + (draft.required ? ' on' : ''), 'required');
-  reqT.onclick = () => { draft.required = !draft.required; reqT.classList.toggle('on'); };
-  reqT.style.display = draft.form ? '' : 'none';
-  fSel.onchange = () => { draft.form = fSel.value; reqT.style.display = fSel.value ? '' : 'none'; };
-  fRow.appendChild(fSel); fRow.appendChild(reqT);
-  field('Form', fRow, 'What it is, never how it looks - "single select", not "dropdown".');
-
-  // Lane D - note
-  const nWrap = el('div', 'row');
-  nWrap.style.alignItems = 'flex-start';
-  const nIn = el('textarea');
-  nIn.value = draft.note; nIn.rows = 2;
-  nIn.placeholder = 'Context that has no other home, or a question to circle back on.';
-  nIn.oninput = () => { draft.note = nIn.value; };
-  const aTog = el('button', 'tog act' + (draft.action ? ' on' : ''), 'action item');
-  aTog.title = 'A follow-up or open question to circle back on - never an emphasis flag';
-  aTog.onclick = () => { draft.action = !draft.action; aTog.classList.toggle('on'); };
-  nWrap.appendChild(nIn); nWrap.appendChild(aTog);
-  field('Note', nWrap);
-
-  ed.appendChild(hintLine);
-
-  const sRow = el('div', 'row');
-  const sSel = el('select');
-  const rebuildSources = () => {
-    sSel.innerHTML = '';
-    const none = el('option', null, '—'); none.value = ''; sSel.appendChild(none);
-    for (const src of sourceUsage(S.doc).all.filter((x) => x.def)) {
-      const o = el('option', null, src.def.title || src.handle);
-      o.value = '[' + src.handle + ']';
-      if (draft.source === o.value) o.selected = true;
-      sSel.appendChild(o);
-    }
-    const add = el('option', null, 'Add a source…'); add.value = '__new'; sSel.appendChild(add);
-  };
-  rebuildSources();
-  sSel.onchange = () => {
-    if (sSel.value !== '__new') { draft.source = sSel.value; return; }
-    sSel.value = draft.source || '';
-    newSourceForm(sRow, (entry) => {
-      draft.source = '[' + entry.handle + ']';
-      rebuildSources();
-      sSel.value = draft.source;
-    });
-  };
-  sRow.appendChild(sSel);
-  field('Source', sRow, 'Research, a decision, a file — attached to this one thing rather than the whole guide.');
-
-  const foot = el('div', 'ed-foot');
-  const del = el('button', 'quiet', 'Delete this block');
-  del.onclick = () => {
-    if (!confirm('Delete "' + (row.content.text || 'this block') + '"?')) return;
-    table.rows.splice(table.rows.indexOf(row), 1);
-    table.dirty = true; sec.dirty = true;
-    S.editing = null; S.sel = null; S.draft = null; mark(); render();
-  };
-  foot.appendChild(del);
-  foot.appendChild(el('div', 'spacer'));
-  const hint = el('span', 'quiet', 'Alt + arrows move it   ·   Esc when done');
-  hint.style.pointerEvents = 'none';
-  foot.appendChild(hint);
-  const done = el('button', 'btn', 'Done');
-  done.onclick = () => { commitEditor(); render(); };
-  foot.appendChild(done);
-  ed.appendChild(foot);
-
-  ed.onkeydown = (e) => {
-    if (e.key === 'Escape') { e.stopPropagation(); commitEditor(); render(); }
-    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
-      e.preventDefault(); commitEditor(); render();
-    }
-  };
-  return ed;
+  if ((S.panel || 'context') === 'context') panelContext(body);
+  else if (S.panel === 'sources') panelSources(body);
+  else panelLinks(body, links, out);
 }
 
-/** Fold the draft back into the row. One row edited is one line rewritten. */
-function commitEditor() {
-  const row = S.editing;
-  const d = S.draft;
-  S.editing = null; S.draft = null;
-  if (!row || !d) return;
+function links_out(g) {
+  return links(S.doc).routes.filter((r) => r.from === g.name);
+}
 
-  const sig = (r) => [renderContentCell(r.content), r.realData, renderCapabilities(r.capabilities),
-    renderLinkCell(r.link), renderFormCell(r.form), renderNoteCell(r.note), r.source || ''].join('|');
-  const before = sig(row);
+// ---------------------------------------------------------------- context tab
+function panelContext(body) {
+  const g = S.guide;
+  const OPTIONAL = ['type', 'notes'];
+  const missing = [];
+  for (const key of GUIDE_FIELDS) {
+    if (key === 'sources') continue;   // its own tab
+    const val = (g.fields[key] || '').trim();
+    if (!val && OPTIONAL.includes(key) && S.shownField !== key) { missing.push(key); continue; }
+    const box = el('div', 'ctx');
+    box.appendChild(el('dt', null, FIELD_LABELS[key]));
+    box.appendChild(key === 'primaryUsers' ? usersField(g) : textField(g, key, val));
+    body.appendChild(box);
+  }
+  if (missing.length && !S.readOnly) {
+    const add = el('div', 'addfield');
+    for (const key of missing) {
+      const b = el('button', null, '+ ' + FIELD_LABELS[key].toLowerCase());
+      b.onclick = () => {
+        S.shownField = key; render();
+        focusSoon(`.ctx dd[data-key="${key}"]`);
+      };
+      add.appendChild(b);
+    }
+    body.appendChild(add);
+  }
+}
 
-  row.content = { type: d.type, text: String(d.content || '').trim() };
-  row.realData = String(d.realData || '').trim();
-  row.capabilities = CAPABILITIES.filter((c) => d.caps.includes(c));
-  const target = String(d.target || '').trim();
-  row.link = { type: d.link || '', target, wiki: !!(target && findGuide(S.doc, target)), raw: '' };
-  row.form = { type: d.form || '', required: !!(d.form && d.required), raw: '' };
-  const note = String(d.note || '').trim();
-  row.note = { action: !!d.action && !!note, text: note, raw: '' };
-  row.source = String(d.source || '').trim();
+function textField(g, key, val) {
+  const dd = el('dd');
+  dd.dataset.key = key;
+  if (isUnknown(val)) { dd.className = 'unknown'; dd.textContent = val; dd.title = 'Nobody has been asked yet'; }
+  else if (val) setLinked(dd, val, g);
+  else blankable(dd, '', FIELD_PLACEHOLDER[key], 'empty');
+  editable(dd, val, (v) => {
+    setField(g, key, v);
+    if (S.shownField === key && v) S.shownField = null;
+  }, { multiline: true });
+  return dd;
+}
 
-  // An edit that changed nothing leaves the line exactly as the user wrote it.
-  if (sig(row) === before && row.src != null) return;
-  const { table, section } = ctx(row);
-  touchRow(row, table, section);
-  mark();
+/**
+ * A user type is a thing, not a phrase. Picking from what the file already uses
+ * is what stops "Sales agent" and "Sales Agent" becoming two groups that are
+ * really one.
+ */
+function usersField(g) {
+  const dd = el('dd');
+  dd.dataset.key = 'primaryUsers';
+  const raw = (g.fields.primaryUsers || '').trim();
+  const list = parseUsers(raw);
+  const commit = (next) => { setField(g, 'primaryUsers', renderUsers(next)); mark(); render(); };
+
+  if (!list.length && isUnknown(raw)) {
+    dd.className = 'unknown';
+    dd.textContent = raw;
+  }
+  const wrap = el('div', 'chips');
+  list.forEach((u, i) => {
+    const c = el('span', 'chip' + (u.primary ? ' pri' : ''));
+    const t = el('span', null, u.name);
+    t.title = u.primary ? 'The power user of this screen' : 'Click to mark as the primary user';
+    if (!S.readOnly) {
+      t.style.cursor = 'pointer';
+      t.onclick = () => commit(list.map((x, j) => ({ ...x, primary: j === i ? !x.primary : false })));
+    }
+    c.appendChild(t);
+    if (!S.readOnly) {
+      const x = el('button', 'x', '×');
+      x.title = 'Remove';
+      x.onclick = () => commit(list.filter((_, j) => j !== i));
+      c.appendChild(x);
+    }
+    wrap.appendChild(c);
+  });
+  if (!S.readOnly) {
+    const add = el('button', 'chip add', '+ user');
+    add.onclick = () => {
+      add.replaceWith(userInput(list, commit));
+      focusSoon('.chip input');
+    };
+    wrap.appendChild(add);
+  }
+  dd.appendChild(wrap);
+  return dd;
+}
+
+function userInput(list, commit) {
+  const c = el('span', 'chip');
+  const inp = el('input');
+  inp.setAttribute('list', 'usertypes');
+  inp.placeholder = 'user type';
+  inp.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      const v = inp.value.trim();
+      if (!v) { render(); return; }
+      const known = userTypes(S.doc).find((u) => u.name.toLowerCase() === v.toLowerCase());
+      commit([...list, { name: known ? known.name : v, primary: false }]);
+    } else if (e.key === 'Escape') render();
+  };
+  inp.onblur = () => setTimeout(() => { if (document.activeElement !== inp) render(); }, 120);
+  c.appendChild(inp);
+  return c;
+}
+
+// ---------------------------------------------------------------- sources tab
+function panelSources(body) {
+  const usage = sourceUsage(S.doc);
+  const mine = usage.all.filter((s) => s.cites.some((c) => c.guide === S.guide.name));
+  const rest = usage.all.filter((s) => s.def && !mine.includes(s));
+
+  if (!mine.length) {
+    body.appendChild(el('div', 'rail-empty',
+      'Nothing attached yet. A brief, a synthesis, a decision — anything this guide leans on.'));
+  }
+  for (const s of mine) body.appendChild(sourceCard(s, true));
+
+  if (!S.readOnly) {
+    const add = el('button', 'rail-add', '+  Add a source');
+    add.onclick = () => { add.style.display = 'none'; newSourceForm(add.parentNode, null, S.guide); };
+    body.appendChild(add);
+  }
+  if (rest.length) {
+    const h = el('div', 'rail-h', 'Also in this file');
+    h.style.marginTop = '20px';
+    body.appendChild(h);
+    for (const s of rest) body.appendChild(sourceCard(s, false));
+  }
+}
+
+function sourceCard(s, here) {
+  const c = el('div', 'src' + (s.def ? '' : ' bad'));
+  if (!s.def) {
+    c.appendChild(el('div', 'h', s.handle));
+    c.appendChild(el('div', 't', 'Cited in this guide, but no source by that name is defined.'));
+    if (!S.readOnly) {
+      const fix = el('button', 'quiet', 'Define it');
+      fix.onclick = () => { fix.style.display = 'none'; newSourceForm(c, null, null); };
+      c.appendChild(fix);
+    }
+    return c;
+  }
+  const head = el('div', 'h');
+  const link = outLink(s.def.url, s.def.title || s.handle, s.def.url);
+  link.classList.add('title');
+  head.appendChild(link);
+  if (here && !S.readOnly) {
+    const x = el('button', 'x', '×');
+    x.title = 'Detach from this guide. The source stays in the file.';
+    x.onclick = () => detachFromGuide(S.guide, s.handle);
+    head.appendChild(x);
+  }
+  c.appendChild(head);
+  c.appendChild(el('div', 'u', shortUrl(s.def.url)));
+  if (!here && !S.readOnly) {
+    const a = el('button', 'quiet', '+ attach to this guide');
+    a.onclick = () => { attachToGuide(S.guide, s.handle); mark(); render(); };
+    c.appendChild(a);
+  }
+  return c;
+}
+
+// ---------------------------------------------------------------- links tab
+/**
+ * What this guide leads to, and what leads here. The second half is the thing a
+ * design tool cannot tell you, so it does not belong buried under the guide
+ * where nobody scrolls.
+ */
+function panelLinks(body, back, out) {
+  const group = (title, list, render1) => {
+    if (!list.length) return;
+    const h = el('div', 'rail-h', title);
+    h.style.marginTop = body.children.length ? '18px' : '0';
+    body.appendChild(h);
+    for (const x of list) body.appendChild(render1(x));
+  };
+
+  group('Goes to', out, (r) => {
+    const b = el('button', 'linkrow');
+    const n = el('div', 'n', r.to);
+    if (!r.resolved) { n.className = 'n'; n.style.color = 'var(--flag)'; }
+    b.appendChild(n);
+    b.appendChild(el('span', 'm', `${r.type} · from “${r.via}”`
+      + (r.resolved ? '' : ' · no guide by that name')));
+    if (r.resolved) b.onclick = () => goGuide(r.to);
+    return b;
+  });
+
+  group('Referenced by', back.routes, (r) => {
+    const b = el('button', 'linkrow');
+    b.appendChild(el('div', 'n', r.from));
+    b.appendChild(el('span', 'm', `${r.type} · from “${r.via}”`));
+    b.onclick = () => goGuide(r.from);
+    return b;
+  });
+
+  group('Mentioned by', back.references, (r) => {
+    const b = el('button', 'linkrow');
+    b.appendChild(el('div', 'n', r.from));
+    b.appendChild(el('span', 'm', r.text));
+    b.onclick = () => goGuide(r.from);
+    return b;
+  });
+
+  if (!body.children.length) {
+    body.appendChild(el('div', 'rail-empty',
+      'Nothing links to or from this guide yet. Give a block a Goes-to, or add a reference from the toolbar.'));
+  }
+}
+
+function goGuide(name) {
+  const g = findGuide(S.doc, name);
+  if (!g) return;
+  commitEditor();
+  S.guide = g; S.sel = null; S.shownField = null; S.view = 'guide';
+  render();
+  $('stage').scrollTop = 0;
 }
 
 // ---------------------------------------------------------------- sources
@@ -1551,74 +1917,6 @@ function detachFromGuide(guide, handle) {
   const left = refsIn(guide.fields.sources || '').filter((h) => h !== handle);
   setField(guide, 'sources', left.map((h) => `[${h}]`).join(', '));
   mark(); render();
-}
-
-function renderRailRight() {
-  const r = $('railR');
-  r.innerHTML = '';
-  if (S.present || S.view !== 'guide' || !S.guide) { r.style.display = 'none'; return; }
-  r.style.display = '';
-
-  const usage = sourceUsage(S.doc);
-  const mine = usage.all.filter((s) => s.cites.some((c) => c.guide === S.guide.name));
-  const rest = usage.all.filter((s) => s.def && !mine.includes(s));
-
-  r.appendChild(el('div', 'rail-h', 'Attached here'));
-  if (!mine.length) {
-    r.appendChild(el('div', 'rail-empty',
-      'Nothing attached yet. A brief, a synthesis, a decision — anything this guide leans on.'));
-  }
-  for (const s of mine) r.appendChild(sourceCard(s, true));
-
-  if (!S.readOnly) {
-    const add = el('button', 'rail-add', '+  Add a source');
-    add.onclick = () => {
-      add.style.display = 'none';
-      newSourceForm(add.parentNode, null, S.guide);
-    };
-    r.appendChild(add);
-  }
-
-  if (rest.length) {
-    const h = el('div', 'rail-h', 'Also in this file');
-    h.style.marginTop = '20px';
-    r.appendChild(h);
-    for (const s of rest) r.appendChild(sourceCard(s, false));
-  }
-}
-
-function sourceCard(s, here) {
-  const c = el('div', 'src' + (s.def ? '' : ' bad'));
-  if (!s.def) {
-    c.appendChild(el('div', 'h', s.handle));
-    c.appendChild(el('div', 't', 'Cited in this guide, but no source by that name is defined.'));
-    if (!S.readOnly) {
-      const fix = el('button', 'quiet', 'Define it');
-      fix.onclick = () => { fix.style.display = 'none'; newSourceForm(c, null, null); };
-      c.appendChild(fix);
-    }
-    return c;
-  }
-
-  const head = el('div', 'h');
-  const link = outLink(s.def.url, s.def.title || s.handle, s.def.url);
-  link.classList.add('title');
-  head.appendChild(link);
-  if (here && !S.readOnly) {
-    const x = el('button', 'x', '×');
-    x.title = 'Detach from this guide. The source stays in the file.';
-    x.onclick = () => detachFromGuide(S.guide, s.handle);
-    head.appendChild(x);
-  }
-  c.appendChild(head);
-  c.appendChild(el('div', 'u', shortUrl(s.def.url)));
-
-  if (!here && !S.readOnly) {
-    const a = el('button', 'quiet', '+ attach to this guide');
-    a.onclick = () => { attachToGuide(S.guide, s.handle); mark(); render(); };
-    c.appendChild(a);
-  }
-  return c;
 }
 
 /** Enough of an address to recognise it. The whole thing stays on the link. */
@@ -2024,7 +2322,7 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
 
   if (e.key === 'Escape') {
-    if (S.editing) { commitEditor(); render(); return; }
+    if (S.pop) { closePop(); return; }
     if (S.capture) { toggleCapture(false); return; }
     if (S.present) { S.present = false; render(); return; }
     return;

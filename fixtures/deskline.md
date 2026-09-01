@@ -28,7 +28,7 @@ These guides capture what each screen needs before anything is laid out.
 | Space | Desk 4-118, Room "Ash", Bay 12 | search, sort |  |  | Three space types share this column — [naming] |
 | Building | Riverside, Northgate, Depot | filter |  | single select |  |
 | Time | 09:00–17:30, or All day | sort |  |  |  |
-| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  |  | No-show is set by the door reader, never by a person |
+| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  |  | No-show is set by the door reader, never by a person<br>Cancelled bookings stay on the list for the rest of the day |
 | Who it is for | First Last — blank when it is your own | search |  |  | Only office managers see bookings that are not theirs |
 | Open the booking |  |  | onsite page → [[Booking detail]] |  |  |
 | Cancel |  |  | modal → [[Cancel a booking]] |  |  |
@@ -61,17 +61,17 @@ These guides capture what each screen needs before anything is laid out.
 
 ### The booking
 
-| Content | Real data | Do | Link | Form | Note | Source |
-| --- | --- | --- | --- | --- | --- | --- |
-| Reference | DL-8841-2 — always 4 digits then a checksum digit | search |  |  |  | [refs] |
-| Space | Desk 4-118 |  | onsite page → [[Space detail]] |  |  |  |
-| Date | Mon 8 Sep 2026 | edit |  | date picker, required |  |  |
-| Time | 09:00–17:30, or All day | edit |  | single select, required | Half-day options were cut in review |  |
-| Who it is for | First Last | edit |  | single select | Office managers only | [privacy] |
-| Notes for the desk host | Up to 200 characters. Usually blank. | edit |  | multi line |  |  |
-| Status | Booked, Checked in, No-show, Cancelled |  |  |  |  |  |
-| Check in |  |  | trigger |  | Only inside a 30-minute window either side of the start |  |
-| Cancel |  |  | modal → [[Cancel a booking]] |  |  | [policy] |
+| Content | Real data | Do | Link | Form | Note |
+| --- | --- | --- | --- | --- | --- |
+| Reference | DL-8841-2 — always 4 digits then a checksum digit | search |  |  | Never reused, even after a cancellation<br>[refs] |
+| Space | Desk 4-118 |  | onsite page → [[Space detail]] |  |  |
+| Date | Mon 8 Sep 2026 | edit |  | date picker, required |  |
+| Time | 09:00–17:30, or All day | edit |  | single select, required | Half-day options were cut in review |
+| Who it is for | First Last | edit |  | single select | Office managers only<br>[privacy] |
+| Notes for the desk host | Up to 200 characters. Usually blank. | edit |  | multi line |  |
+| Status | Booked, Checked in, No-show, Cancelled |  |  |  |  |
+| Check in |  |  | trigger |  | Only inside a 30-minute window either side of the start<br>ACTION: what happens if someone checks in late? |
+| Cancel |  |  | modal → [[Cancel a booking]] |  | [policy] |
 
 ### Who else is in
 

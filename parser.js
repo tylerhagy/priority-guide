@@ -58,8 +58,7 @@ const COLUMN_ALIASES = {
   capabilities: ['do', 'capabilities', 'search filter sort', 'sfse'],
   link: ['link', 'link type', 'links'],
   form: ['form', 'form type', 'input', 'input type'],
-  note: ['note', 'notes'],
-  source: ['source', 'sources', 'ref', 'reference']
+  note: ['note', 'notes', 'context']
 };
 
 const CANONICAL_COLUMNS = [
@@ -68,11 +67,13 @@ const CANONICAL_COLUMNS = [
   ['capabilities', 'Do'],
   ['link', 'Link'],
   ['form', 'Form'],
-  ['note', 'Note'],
-  ['source', 'Source']
+  ['note', 'Note']
 ];
 
 const ACTION_PREFIX = /^ACTION:\s*/i;
+// <br> is how a markdown table cell holds more than one line, and Obsidian and
+// GitHub both render it. So notes stay in the cell and stay portable.
+const NOTE_SPLIT = /\s*<br\s*\/?>\s*/i;
 const UNKNOWN = '??';
 
 // ---------------------------------------------------------------- small helpers
@@ -202,20 +203,26 @@ export function renderFormCell(f) {
 }
 
 /**
- * A Note beginning `ACTION:` is an Action Item — a follow-up or open question to
- * circle back on, and nothing else. It is never an emphasis flag. The goal is to
- * clear every Action Item to zero, which only works if the marker means one thing.
+ * The notes on one block. A note beginning `ACTION:` is an Action Item — a
+ * follow-up or open question to circle back on, and nothing else. It is never an
+ * emphasis flag. The goal is to clear every Action Item to zero, which only
+ * works if the marker means one thing.
  */
 export function parseNoteCell(v) {
-  const raw = norm(v);
-  const action = ACTION_PREFIX.test(raw);
-  return { action, text: action ? norm(raw.replace(ACTION_PREFIX, '')) : raw, raw };
+  return norm(v).split(NOTE_SPLIT).map(norm).filter(Boolean).map((t) => {
+    const action = ACTION_PREFIX.test(t);
+    return { action, text: action ? norm(t.replace(ACTION_PREFIX, '')) : t };
+  });
 }
 
-export function renderNoteCell(n) {
-  if (!n || !n.text) return '';
-  return n.action ? `ACTION: ${n.text}` : n.text;
+export function renderNoteCell(list) {
+  return (list || [])
+    .filter((n) => n && norm(n.text))
+    .map((n) => (n.action ? `ACTION: ${norm(n.text)}` : norm(n.text)))
+    .join('<br>');
 }
+
+export function hasAction(list) { return (list || []).some((n) => n.action && norm(n.text)); }
 
 /** Every `[handle]` reference in a piece of text, excluding inline links and wikilinks. */
 export function refsIn(text) {
@@ -425,7 +432,6 @@ function parseBlockRow(line, cols) {
   row.link = parseLinkCell(at('link'));
   row.form = parseFormCell(at('form'));
   row.note = parseNoteCell(at('note'));
-  row.source = norm(at('source'));
   row.refs = rowRefs(row);
   return row;
 }
@@ -435,7 +441,7 @@ function parseBlockRow(line, cols) {
  * source line: an edit clears the raw line, and a citation must survive that.
  */
 function rowRefs(row) {
-  return refsIn(`${renderNoteCell(row.note)} ${row.realData} ${row.source || ''}`);
+  return refsIn(`${renderNoteCell(row.note)} ${row.realData}`);
 }
 
 /** Collect every source definition in the file, guide-local shadowing file-wide. */
@@ -471,7 +477,6 @@ function renderRow(row, cols) {
     else if (key === 'link') out.push(cellSafe(renderLinkCell(row.link)));
     else if (key === 'form') out.push(cellSafe(renderFormCell(row.form)));
     else if (key === 'note') out.push(cellSafe(renderNoteCell(row.note)));
-    else if (key === 'source') out.push(cellSafe(row.source || ''));
     else out.push(cellSafe(row.raw[i] || ''));   // a column we do not know: preserved
   }
   return `| ${out.join(' | ')} |`;
@@ -642,8 +647,9 @@ export function openItems(doc) {
     }
     for (const { row, section } of rowsOf(g)) {
       const label = renderContentCell(row.content) || '(unnamed)';
-      if (row.note.action) {
-        out.push({ kind: 'action', guide: g.name, where: `${section.title} · ${label}`, text: row.note.text, target: row });
+      for (const n of row.note) {
+        if (!n.action) continue;
+        out.push({ kind: 'action', guide: g.name, where: `${section.title} · ${label}`, text: n.text, target: row });
       }
       const un = [];
       if (norm(row.realData) === UNKNOWN) un.push('real data');
@@ -872,7 +878,7 @@ const VISUAL_ANSWERS = {
 
 export function lintRow(row) {
   const issues = [];
-  const hay = `${row.content.text} ${row.form.raw}`.toLowerCase();
+  const hay = `${row.content.text} ${row.form.type || ''}`.toLowerCase();
   for (const word of Object.keys(VISUAL_ANSWERS)) {
     if (new RegExp(`\\b${word}s?\\b`).test(hay)) {
       issues.push({ kind: 'visual-answer', word, ask: VISUAL_ANSWERS[word] });
@@ -906,7 +912,6 @@ export function addRow(table, section, fields = {}) {
     link: parseLinkCell(fields.link || ''),
     form: parseFormCell(fields.form || ''),
     note: parseNoteCell(fields.note || ''),
-    source: String(fields.source || '').trim(),
     refs: []
   };
   row.refs = rowRefs(row);
@@ -915,6 +920,29 @@ export function addRow(table, section, fields = {}) {
   table.dirty = true;
   if (section) markSection(section);
   return row;
+}
+
+/**
+ * The line of prose under a section heading — "likely a table", "filters on a
+ * left panel". It is a raw chunk in the file, so editing it rewrites exactly the
+ * lines it occupies and leaves the blank lines around it alone.
+ */
+export function proseOf(chunk) {
+  return (chunk.src || []).map((l) => norm(l)).filter(Boolean).join(' ').replace(/^\*+|\*+$/g, '').trim();
+}
+
+export function setProse(chunk, section, text) {
+  const t = norm(text);
+  const src = chunk.src;
+  let a = src.findIndex((l) => norm(l) !== '');
+  let b = src.length - 1;
+  while (b >= 0 && norm(src[b]) === '') b--;
+  if (a === -1) { a = src.length; b = src.length - 1; }
+  const line = t ? [`*${t}*`] : [];
+  src.splice(a, b - a + 1, ...line);
+  chunk.dirty = true;
+  if (section) section.dirty = true;
+  return chunk;
 }
 
 /** Any edit to a row re-renders that one line and nothing else. */

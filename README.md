@@ -9,8 +9,12 @@ render of the file, not a database that happens to export one.
 It renders the way a priority guide is meant to read: a narrow, stripped-back
 stack of what the screen needs, with notes annotating it from the left and
 functionality from the right, each on a leader to the one thing it describes.
-The stack stays scannable because everything that is not content has been moved
-off it.
+Everything that is true of the whole guide — what it is for, who it is for, what
+it leans on, what points at it — sits in the header and the side panel, so none
+of it takes width away from the guide itself.
+
+Everything is edited where it sits. There are no forms and nothing to save
+except the file.
 
 ![The guide view](screenshots/01-guide.png)
 
@@ -75,15 +79,15 @@ one table row is one content block.
 
 *Likely a table, one row per booking.*
 
-| Content | Real data | Do | Link | Form | Note | Source |
-| --- | --- | --- | --- | --- | --- | --- |
-| Date | Mon 8 Sep | filter, sort |  |  |  |  |
-| Reference | DL-8841-2 — 4 digits then a checksum | search |  |  |  | [refs] |
-| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  | single select | Set by the door reader |  |
-| Building | Riverside, Northgate, Depot | filter |  | single select |  |  |
-| [Visual] Coverage map | Counties shaded by rep |  |  |  | Roll-up was the top ask — [interviews] |  |
-| Open the booking |  |  | onsite page → [[Booking detail]] |  |  |  |
-| Export |  |  | download |  | ACTION: which formats does Finance need? |  |
+| Content | Real data | Do | Link | Form | Note |
+| --- | --- | --- | --- | --- | --- |
+| Date | Mon 8 Sep | filter, sort |  |  |  |
+| Reference | DL-8841-2 — 4 digits then a checksum | search |  |  | Never reused, even after a cancellation<br>[refs] |
+| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  | single select | Set by the door reader |
+| Building | Riverside, Northgate, Depot | filter |  | single select |  |
+| [Visual] Coverage map | Counties shaded by rep |  |  |  | Roll-up was the top ask — [interviews] |
+| Open the booking |  |  | onsite page → [[Booking detail]] |  |  |
+| Export |  |  | download |  | ACTION: which formats does Finance need? |
 
 > See [[Booking detail]] — the full field list is specified there.
 
@@ -105,12 +109,11 @@ the ones you do not use, or add your own — an `Owner` column is left untouched
 | Column | What goes in it |
 | --- | --- |
 | **Content** | What the thing is called. Prefix `[Visual]` for an image, chart or map. |
-| **Real data** | The actual format (`123 N Main St, Clio, MI 48420`), or the values when there are under ten. If there are many, say so — the count is what drives the design. |
+| **Real data** | The example, shown under the name in the middle: the actual format (`123 N Main St, Clio, MI 48420`), or the values when there are under ten. If there are many, say so — the count is what drives the design. |
 | **Do** | `search`, `filter`, `sort`, `edit` — what the user can do to this specific thing. |
 | **Link** | `type → [[Target]]`. One of `download`, `mailto`, `modal`, `offsite page`, `onsite page`, `trigger`, `upload`, `other`. |
 | **Form** | One of `date picker`, `single line`, `multi line`, `single select`, `multi select`, `other`, plus `required`. |
-| **Note** | Context. A note beginning `ACTION:` is an open item. Shown in the left lane. |
-| **Source** | Optional. `[handle]` — research or a decision behind *this one thing*, rather than the whole guide. |
+| **Note** | Everything else about the row, in the left lane. Several notes are separated by `<br>`, which Obsidian and GitHub both render. A note beginning `ACTION:` is an open item; a note that is a `[handle]` is a cited source. |
 
 ### Three conventions worth knowing
 
@@ -119,7 +122,8 @@ question does not apply here. The app never turns one into the other, and it
 counts every `??` as open.
 
 **`ACTION:` means a follow-up, and only that.** Never an emphasis flag. The
-header count is the number of open items, and it is meant to reach zero.
+header count is the number of open items, and it is meant to reach zero. Any
+note becomes one — and stops being one — in a click.
 
 **Functionality, never a visual solution.** `single select`, not `dropdown`. If
 you type a visual answer the app says so and asks the question you skipped —
@@ -163,7 +167,7 @@ that is how markdown reference definitions work.
 
 | | |
 | --- | --- |
-| **Guide** | The priority stack, editable. What you project in a meeting. |
+| **Guide** | The priority stack, edited in place. What you project in a meeting. Context, sources and links live in the side panel beside it. |
 | **Flow** | Every route in the file, drawn. What leads where, and what nothing leads to. |
 | **Users** | Every user type, and the guides each one needs. Pick a group to run a session through only their screens. |
 | **Open** | Every `ACTION:` and every `??`, with the block it came from. |
@@ -178,6 +182,7 @@ that is how markdown reference definitions work.
 | | |
 | --- | --- |
 | `↑` `↓` | Move the selection |
+| Click | Edit whatever you clicked — a name, an example, a note, a heading |
 | `Enter` | Edit the selected block |
 | `Alt`+`↑`/`↓` | **Move the block**, crossing into the next group when it runs out |
 | `Alt`+`Shift`+`↑`/`↓` | Move the block straight into the group above or below |
