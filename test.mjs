@@ -291,6 +291,29 @@ t('a source nothing cites is reported', () => {
   eq(P.sourceUsage(doc).unused.map((s) => s.handle), ['privacy']);
 });
 
+t('a destination with spaces is read and written in angle brackets', () => {
+  // Almost every folder path in a real vault has a space in it, and an unbracketed
+  // destination stops at the first one in every markdown renderer there is.
+  const text = ['# A', '', '## G', '', '### S', '',
+    '| Content | Note |', '| --- | --- |', '| x | see [today] |', '',
+    '## Sources', '',
+    '[today]: <../How the Timeline Works Today.md> "Current state"', ''].join('\n');
+  ok(P.verifyRoundTrip(text).ok, 'must round-trip');
+  const doc = P.parseDocument(text);
+  eq(P.resolveSource(doc, null, 'today').url, '../How the Timeline Works Today.md');
+  eq(P.sourceUsage(doc).undefined.map((s) => s.handle), [], 'must resolve, not read as undefined');
+});
+
+t('a source added with a spaced path is bracketed on write', () => {
+  const doc = P.parseDocument(FIXTURE);
+  P.addSource(doc, { handle: 'notes', url: '../Session Notes/2026-08-20.md', title: 'Notes' });
+  const after = P.serializeDocument(doc);
+  ok(after.includes('[notes]: <../Session Notes/2026-08-20.md> "Notes"'), 'not bracketed:\n' + after.slice(-200));
+  ok(P.verifyRoundTrip(after).ok, 'must round-trip');
+  eq(P.sourceUsage(P.parseDocument(after)).all.find((s) => s.handle === 'notes').def.url,
+    '../Session Notes/2026-08-20.md');
+});
+
 t('a source added at file level lands in the Sources block', () => {
   const doc = P.parseDocument(FIXTURE);
   P.addSource(doc, { handle: 'floorplans', url: 'https://example.com/plans', title: 'Floor plans' });

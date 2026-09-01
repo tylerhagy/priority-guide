@@ -283,10 +283,14 @@ function parseSources(body, level) {
   };
   const rest = body.slice(1);
   rest.forEach((line, i) => {
-    const m = /^\s*\[([^\]]+)\]:\s*(\S+)(?:\s+["'(](.*)["')])?\s*$/.exec(line);
-    seg.entries.push(m
-      ? { kind: 'def', src: line, handle: norm(m[1]), url: norm(m[2]), title: norm(m[3] || ''), dirty: false }
-      : { kind: 'raw', src: line });
+    const m = /^\s*\[([^\]]+)\]:\s*(?:<([^>]*)>|(\S+))(?:\s+["'(](.*)["')])?\s*$/.exec(line);
+    if (!m) { seg.entries.push({ kind: 'raw', src: line }); return; }
+    const bracketed = m[2] !== undefined;
+    seg.entries.push({
+      kind: 'def', src: line, handle: norm(m[1]),
+      url: bracketed ? m[2] : norm(m[3]),
+      bracketed, title: norm(m[4] || ''), dirty: false
+    });
   });
   return seg;
 }
@@ -513,7 +517,10 @@ function emitSources(seg) {
 
 function renderDef(e) {
   const title = e.title ? ` "${e.title.replace(/"/g, "'")}"` : '';
-  return `[${e.handle}]: ${e.url}${title}`;
+  // A destination containing whitespace MUST be bracketed or no renderer will
+  // read past the first space.
+  const url = e.bracketed || /\s/.test(e.url) ? `<${e.url}>` : e.url;
+  return `[${e.handle}]: ${url}${title}`;
 }
 
 function emitGuideHeader(guide) {
@@ -963,7 +970,10 @@ export function addGuide(doc, name) {
  */
 export function addSource(doc, { handle, url, title, guide }) {
   const h = norm(handle).replace(/[\[\]]/g, '');
-  const entry = { kind: 'def', src: null, handle: h, url: norm(url), title: norm(title || ''), dirty: true };
+  const entry = {
+    kind: 'def', src: null, handle: h, url: String(url || '').trim(),
+    bracketed: /\s/.test(String(url || '').trim()), title: norm(title || ''), dirty: true
+  };
   let seg = guide
     ? guide.sections.find((s) => s.kind === 'sources')
     : doc.segments.find((s) => s.kind === 'sources');
