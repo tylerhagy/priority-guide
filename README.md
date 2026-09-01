@@ -1,0 +1,256 @@
+# priority guide
+
+A priority guide is what a screen needs, in order, before anything is laid out.
+Content first: what data, what functionality, and what is still unknown.
+
+This is a small local tool for writing them. The file is markdown. The app is a
+render of the file, not a database that happens to export one.
+
+![The guide view](screenshots/01-guide.png)
+
+---
+
+## Why this exists
+
+Priority guides are usually made in a design tool, and three things go wrong there:
+
+| | In a design tool | Here |
+| --- | --- | --- |
+| **Linking one guide to another** | A hyperlink pinned to an internal node id. It breaks when the target moves or gets duplicated, and the target has no idea it is linked. | `[[Guide name]]` resolves by name, and every guide shows **Referenced by**. Derived on every read, so it cannot go stale. |
+| **Attaching a brief, a synthesis, a decision record** | A notes lane sized for one sentence. | A **Sources** block. Write a doc down once, cite it by handle from any guide, section or row. |
+| **Working live in a room** | Reordering means dragging boxes inside an auto-layout column. | `Alt`+`↑`/`↓` moves a block. Drag works too. A capture box takes content as fast as someone can say it. |
+
+And one thing that matters more than any of them: **it is a text file.** It opens
+in Obsidian, it renders on GitHub, it reviews in a pull request, and a one-field
+edit shows up as a one-line diff.
+
+---
+
+## Getting started
+
+Requires Python 3 and a Chromium browser (Chrome, Edge, Arc, Brave). The File
+System Access API, which is how the app reads and writes your folder, does not
+exist anywhere else. Nothing is uploaded, and there is no account.
+
+```bash
+git clone https://github.com/tylerhagy/priority-guide.git
+cd priority-guide
+./serve.sh
+```
+
+Then click **Open a folder** and pick a folder holding a guides markdown file.
+Try `fixtures/` to look around before pointing it at your own work.
+
+To launch it from anywhere:
+
+```bash
+ln -s "$PWD/serve.sh" ~/.local/bin/priority-guide
+```
+
+---
+
+## The file
+
+One file holds every guide for a project. `##` is a guide, `###` is a section,
+one table row is one content block.
+
+```markdown
+# Priority Guides — Deskline
+
+## Bookings — My Week
+
+**User goal:** See what I have booked this week and fix anything that is wrong.
+**Business goal:** ??
+**Primary users:** Everyone with a desk (primary) · Office manager
+**Sources:** [brief], [interviews]
+
+### The week
+
+*Likely a table, one row per booking.*
+
+| Content | Real data | Do | Link | Form | Note |
+| --- | --- | --- | --- | --- | --- |
+| Date | Mon 8 Sep | filter, sort |  |  |  |
+| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  | single select | Set by the door reader |
+| Building | Riverside, Northgate, Depot | filter |  | single select |  |
+| [Visual] Coverage map | Counties shaded by rep |  |  |  | Roll-up was the top ask — [interviews] |
+| Open the booking |  |  | onsite page → [[Booking detail]] |  |  |
+| Export |  |  | download |  | ACTION: which formats does Finance need? |
+
+> See [[Booking detail]] — the full field list is specified there.
+
+## Sources
+
+[brief]: https://example.com/wiki/spaces/DL/pages/41007 "Deskline brief"
+[interviews]: ./research/2026-08-20-synthesis.md "Nine people, three buildings"
+```
+
+### The six columns
+
+Columns are matched **by name, never by position**, so you can reorder them, drop
+the ones you do not use, or add your own — an `Owner` column is left untouched.
+
+| Column | What goes in it |
+| --- | --- |
+| **Content** | What the thing is called. Prefix `[Visual]` for an image, chart or map. |
+| **Real data** | The actual format (`123 N Main St, Clio, MI 48420`), or the values when there are under ten. If there are many, say so — the count is what drives the design. |
+| **Do** | `search`, `filter`, `sort`, `edit` — what the user can do to this specific thing. |
+| **Link** | `type → [[Target]]`. One of `download`, `mailto`, `modal`, `offsite page`, `onsite page`, `trigger`, `upload`, `other`. |
+| **Form** | One of `date picker`, `single line`, `multi line`, `single select`, `multi select`, `other`, plus `required`. |
+| **Note** | Context. A note beginning `ACTION:` is an open item. |
+
+### Three conventions worth knowing
+
+**`??` is not a blank.** `??` means nobody has been asked. A blank means the
+question does not apply here. The app never turns one into the other, and it
+counts every `??` as open.
+
+**`ACTION:` means a follow-up, and only that.** Never an emphasis flag. The
+header count is the number of open items, and it is meant to reach zero.
+
+**Functionality, never a visual solution.** `single select`, not `dropdown`. If
+you type a visual answer the app says so and asks the question you skipped —
+it never blocks you and never rewrites what you wrote.
+
+---
+
+## Sources
+
+`## Sources` holds ordinary markdown reference-link definitions, which is the
+whole trick: they are valid markdown everywhere, so the same file renders live
+links in this app, in Obsidian and on GitHub, with no custom syntax to learn.
+
+```markdown
+## Sources
+
+[brief]: https://example.com/wiki/spaces/DL/pages/41007 "Deskline brief"
+[policy]: ./decisions.md#late-cancellation "Late cancellation — decided 2026-08-14"
+```
+
+Write it once, cite it as `[brief]` from a guide's `**Sources:**` line, from a
+section, or from any Note. The rail beside the guide lists what is attached and
+how many places rely on it, and flags anything cited but never defined.
+
+A `### Sources` block inside one guide works the same way and is a fine place to
+keep something only that guide uses — it still resolves from anywhere, because
+that is how markdown reference definitions work.
+
+---
+
+## The four views
+
+| | |
+| --- | --- |
+| **Guide** | The priority stack, editable. What you project in a meeting. |
+| **Flow** | Every route in the file, drawn. What leads where, and what nothing leads to. |
+| **Open** | Every `ACTION:` and every `??`, with the block it came from. |
+| **Source** | The markdown. |
+
+![Flow](screenshots/03-flow.png)
+
+---
+
+## Keyboard
+
+| | |
+| --- | --- |
+| `↑` `↓` | Move the selection |
+| `Enter` | Edit the selected block |
+| `Alt`+`↑`/`↓` | **Move the block**, crossing into the next group when it runs out |
+| `Alt`+`Shift`+`↑`/`↓` | Move the block straight into the group above or below |
+| `C` | Capture — type a line, `Enter`, next line |
+| `P` | Present — big type, chrome out of the way |
+| `G` `F` `O` `S` | Guide · Flow · Open · Source |
+| `⌘S` | Save |
+
+---
+
+## How your file is treated
+
+The parser does not own your file. It owns addressed spans inside it. Every piece
+keeps the exact source lines it came from plus a dirty flag; clean pieces are
+emitted byte-for-byte, and only a piece you actually edited is regenerated.
+
+Three consequences:
+
+1. **A one-field edit is a one-line diff.** Moving a block is a two-line diff, and
+   the moved line is your original text, not a re-render of it.
+2. **An untouched file round-trips exactly.** The app checks this on open by
+   parsing, re-serialising and byte-comparing. If it does not match, the file
+   opens **read-only** and names the first differing line rather than writing to
+   something it does not fully understand.
+3. **It stays yours.** Edit the same file in Obsidian; the app checks the file on
+   disk before every save and asks rather than clobbering.
+
+There is also a ten-deep backup ring in browser storage, and the app refuses to
+write output that does not round-trip.
+
+---
+
+## Checking a file without opening it
+
+`validate.mjs` runs the same round-trip gate the app opens on — the same function,
+not a reimplementation of it — so a script or an agent that generates a guides
+file can prove it is editable before handing it over.
+
+```bash
+node validate.mjs fixtures/deskline.md
+node validate.mjs fixtures/deskline.md --json
+```
+
+```
+OK  fixtures/deskline.md
+
+  6 guides · 54 content blocks · 8 routes · 5 sources
+
+    Bookings — My Week                 2 sections · 13 blocks
+    Booking detail                     2 sections · 11 blocks
+    ...
+
+  6 action items, 4 unanswered — 10 open in total
+```
+
+It also reports routes that point at no guide, handles cited but never defined,
+sources nothing cites, guides nothing routes to, duplicate guide names, and any
+visual answer sitting where functionality belongs. Findings, not verdicts.
+
+---
+
+## Tests
+
+```bash
+node test.mjs           # the parser contract — round-trip, minimal diffs, the grammar
+node browser-test.mjs   # the real app in Chromium (needs playwright; skips if absent)
+```
+
+---
+
+## The Claude skill
+
+`skills/priority-guide/` is a skill for [Claude Code](https://claude.com/claude-code).
+Copy it into `~/.claude/skills/` and Claude can draft a guides file from notes, a
+transcript or an existing prototype, validate it, and open it here.
+
+The one rule it carries: **never guess.** An unknown is `??` plus an action item,
+not a plausible-sounding invention. A guide padded with confident fiction is worse
+than a sparse one, because invented content looks exactly like sourced content.
+
+---
+
+## What this deliberately does not do
+
+- **Layout.** The entire point is that a priority guide has no layout. A tool that
+  let you nudge things would be arguing against the method.
+- **Multiplayer.** Local, single user, no account, nothing leaves the machine.
+- **Fill in unknowns.** `??` plus an action item is the honest state, and the
+  count going down is the progress.
+
+---
+
+## Prior art
+
+The idea comes from Heleen van Nues and Lennart Overkamp,
+[Priority Guides: A Content-First Alternative to Wireframes](https://alistapart.com/article/priority-guides-a-content-first-alternative-to-wireframes/),
+A List Apart, 2018.
+
+MIT licensed.
