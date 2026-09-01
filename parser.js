@@ -218,7 +218,9 @@ export function renderNoteCell(n) {
 /** Every `[handle]` reference in a piece of text, excluding inline links and wikilinks. */
 export function refsIn(text) {
   const out = [];
-  const s = String(text || '');
+  // Inline code is not a citation. `[handle]` in a note is someone explaining the
+  // syntax, and a markdown renderer would not link it either.
+  const s = String(text || '').replace(/`[^`]*`/g, (m) => ' '.repeat(m.length));
   const re = /\[([^\[\]]+)\]/g;
   let m;
   while ((m = re.exec(s)) !== null) {

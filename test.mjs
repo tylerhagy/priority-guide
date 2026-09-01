@@ -201,6 +201,8 @@ t('source handles are found, and wikilinks and inline links are not mistaken for
   eq(P.refsIn('read [this](https://example.com)'), []);
   eq(P.refsIn('[x]: https://example.com'), []);
   eq(P.refsIn('[Visual] Floor plan'), ['Visual']);
+  eq(P.refsIn('write `[handle]` to cite a source'), [], 'inline code is not a citation');
+  eq(P.refsIn('`[a]` but not `[b]`, and [c]'), ['c'], 'only the one outside code');
 });
 
 // ---------------------------------------------------------------- derived views
