@@ -848,6 +848,84 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 ok('escape comes back to the guide', await page.$('.beside') === null && (await count('.item')) > 5);
 
+// ---------------------------------------------------------------- every panel belongs to its guide
+const showPanel = async (label) => {
+  await page.evaluate((l) => {
+    [...document.querySelectorAll('#railR .ptabs button')].find((b) => b.textContent.startsWith(l)).click();
+  }, label);
+  await page.waitForTimeout(250);
+};
+const panelText = async (label) => {
+  await showPanel(label);
+  return page.evaluate(() => document.querySelector('#railR .pbody').textContent.replace(/\s+/g, ' ').trim());
+};
+const goGuide = async (name) => {
+  await page.evaluate((n) => {
+    [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes(n)).click();
+  }, name);
+  await page.waitForTimeout(300);
+};
+
+await goGuide('Bookings');
+const a = {};
+for (const t of ['Context', 'Design', 'Sources', 'Links']) a[t] = await panelText(t);
+await goGuide('Cancel a booking');
+const b2 = {};
+for (const t of ['Context', 'Design', 'Sources', 'Links']) b2[t] = await panelText(t);
+
+for (const t of ['Context', 'Design', 'Sources', 'Links']) {
+  ok(`the ${t} panel belongs to the guide you are on`, a[t] !== b2[t],
+    `both guides showed: ${String(a[t]).slice(0, 70)}`);
+}
+ok('context carries that guide\'s own goal',
+  a.Context.includes('See what I have booked') && b2.Context.includes('Give up a space'));
+ok('a design linked on one guide does not appear on another',
+  a.Design.includes('the week view') && b2.Design.includes('Nothing linked yet'));
+
+// ---------------------------------------------------------------- managing the designs
+await goGuide('Bookings');
+await showPanel('Design');
+const dTitles = () => page.$$eval('.dcard .title', (ns) => ns.map((n) => n.textContent.trim()));
+eq('every design on the guide is listed', (await dTitles()).length, 3);
+const startOrder = await dTitles();
+
+await page.evaluate(() => {
+  const cards = [...document.querySelectorAll('.dcard')];
+  const from = cards[0], to = cards[2];
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+  const r = to.getBoundingClientRect();
+  to.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+  to.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+  from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+});
+await page.waitForTimeout(350);
+eq('a design can be dragged into a new position', (await dTitles())[2], startOrder[0]);
+await save();
+ok('and the file records the order',
+  (await line('**Design:**')).indexOf('week-layout') > (await line('**Design:**')).indexOf('week-shots'),
+  await line('**Design:**'));
+
+await page.$eval('.dcard .title', (n) => { n.focus(); n.textContent = 'Week view — v3'; n.blur(); });
+await page.waitForTimeout(300);
+await save();
+ok('renaming a design writes the source\'s own name',
+  (await current()).includes('"Week view — v3"'));
+ok('and the panel shows it', (await dTitles()).includes('Week view — v3'));
+
+const beforeUnlink = await dTitles();
+await page.evaluate(() => document.querySelector('.dcard .x').click());
+await page.waitForTimeout(300);
+eq('one click unlinks a design', (await dTitles()).length, beforeUnlink.length - 1);
+ok('with a way back', await page.$('.toast button') !== null);
+await page.evaluate(() => [...document.querySelectorAll('.toast button')]
+  .find((x) => x.textContent === 'Undo').click());
+await page.waitForTimeout(300);
+eq('which puts it back', (await dTitles()).length, beforeUnlink.length);
+await save();
+ok('and the source itself was never deleted from the file',
+  (await current()).includes('[week-layout]:'));
+
 // ---------------------------------------------------------------- capture
 // A shortcut must not fire while the caret is in a field, so let go first.
 await pressAt('#stage', 700, 700);

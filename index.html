@@ -520,14 +520,25 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .src .quiet{margin-top:4px;display:block}
 
 /* ---------- design ---------- */
-.dcard{padding:9px 10px;border-radius:9px;margin-bottom:4px;border:1px solid var(--line)}
+.dcard{padding:9px 10px;border-radius:9px;margin-bottom:4px;border:1px solid var(--line);
+  position:relative;background:var(--panel)}
 .dcard:hover{border-color:var(--dim)}
+.dcard.lifting{opacity:.4}
+.dcard.dropbefore{box-shadow:inset 0 2px 0 var(--accent)}
+.dcard.dropafter{box-shadow:inset 0 -2px 0 var(--accent)}
 .dcard .h{display:flex;align-items:center;gap:6px}
-.dcard .title{font-weight:500;text-align:left;flex:1;min-width:0}
+.dcard .grip{color:var(--faint);display:flex;cursor:grab;flex:none;margin-left:-3px}
+.dcard:hover .grip{color:var(--dim)}
+.dcard .title{font-weight:500;text-align:left;flex:1;min-width:0;padding:1px 3px;
+  margin-left:-3px;border-radius:4px;color:var(--ink)}
+.dcard .title:hover{background:var(--hover)}
+.dcard .title:focus{outline:none;background:var(--accent-soft)}
 .dcard .x{margin-left:auto;color:var(--faint);font-size:14px;line-height:1;padding:0 3px;
   border-radius:4px}
 .dcard .x:hover{color:var(--act);background:rgba(179,38,30,.1)}
-.dcard .u{font-size:11.5px;color:var(--faint);word-break:break-all;display:block;margin-top:2px}
+.dcard .u{font-size:11.5px;color:var(--faint);word-break:break-all;display:block;margin-top:2px;
+  text-align:left;padding:0}
+.dcard .u:hover{color:var(--accent)}
 .sidebyside{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:11.5px;
   color:var(--accent);padding:4px 8px;border-radius:7px;background:var(--accent-soft);
   font-weight:500}
@@ -656,7 +667,7 @@ import {
   parseUsers, renderUsers, userTypes, renameUserType, handleFor, isWebUrl, refsIn, hasAction,
   moveGuide, placeGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
   guideRefs, addGuideRef, setGuideRef, removeGuideRef,
-  designLinks, figmaEmbed, isFigma,
+  designLinks, figmaEmbed, isFigma, setSourceTitle,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -1316,6 +1327,7 @@ const GLYPH = {
   source: 'M9 7.2a3.4 3.4 0 010 4.8l-1.6 1.6a3.4 3.4 0 01-4.8-4.8l1-1M7 8.8a3.4 3.4 0 010-4.8l1.6-1.6a3.4 3.4 0 014.8 4.8l-1 1',
   chev: 'M4.5 6.5L8 10l3.5-3.5',
   sideby: 'M2 3h5.2v10H2zM8.8 3H14v10H8.8z',
+  grip: 'M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01',
   folder: 'M1.5 3.5h4.2l1.4 2h7.4v7.5a1 1 0 01-1 1H2.5a1 1 0 01-1-1z',
   plus: 'M8 3.5v9M3.5 8h9',
   info: 'M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2zM8 7.2v4M8 5.1v.01',
@@ -2959,30 +2971,54 @@ function sourceCard(s, here) {
 function panelDesign(body) {
   const g = S.guide;
   const links = designLinks(S.doc, g);
+  const order = () => refsIn(g.fields.design);
+  const write = (handles) => {
+    setField(g, 'design', handles.map((h) => `[${h}]`).join(', '));
+    mark(); render();
+  };
 
   if (!links.length) {
     body.appendChild(el('div', 'rail-empty',
       'Nothing linked yet. A Figma file, a prototype, a screenshot — whatever this guide became.'));
   }
 
-  for (const d of links) {
+  links.forEach((d, i) => {
     const c = el('div', 'dcard' + (d.figma ? ' figma' : ''));
     const head = el('div', 'h');
-    const link = outLink(d.url, d.title, d.url);
-    link.classList.add('title');
-    head.appendChild(link);
+
+    if (!S.readOnly) {
+      const grip = el('span', 'grip');
+      grip.appendChild(icon('grip', 12));
+      grip.title = 'Drag to reorder';
+      head.appendChild(grip);
+    }
+
+    // The name is the thing you read, so it is the thing you click to change.
+    // It belongs to the source, so every guide citing it follows.
+    const name = el('div', 'title');
+    name.textContent = d.title;
+    if (S.readOnly) name.title = d.url;
+    else {
+      name.title = 'Rename. This is the source’s name, so it changes everywhere it is cited.';
+      editable(name, d.title, (v) => { if (v) setSourceTitle(S.doc, g, d.handle, v); });
+    }
+    head.appendChild(name);
+
     if (!S.readOnly) {
       const x = el('button', 'x', '×');
       x.title = 'Unlink from this guide. The source stays in the file.';
       x.onclick = () => {
-        const left = refsIn(g.fields.design).filter((h) => h !== d.handle);
-        setField(g, 'design', left.map((h) => `[${h}]`).join(', '));
-        mark(); render();
+        const before = order();
+        write(before.filter((h) => h !== d.handle));
+        undoable(`“${d.title}”`, () => write(before));
       };
       head.appendChild(x);
     }
     c.appendChild(head);
-    c.appendChild(el('div', 'u', shortUrl(d.url)));
+
+    const open = outLink(d.url, shortUrl(d.url), d.url);
+    open.classList.add('u');
+    c.appendChild(open);
 
     if (d.figma) {
       const b = el('button', 'sidebyside');
@@ -2991,8 +3027,43 @@ function panelDesign(body) {
       b.onclick = () => { S.beside = d; render(); };
       c.appendChild(b);
     }
+
+    if (!S.readOnly) {
+      c.draggable = true;
+      c.ondragstart = (e) => {
+        S.dragDesign = d.handle; c.classList.add('lifting');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', d.title);
+      };
+      c.ondragend = () => {
+        S.dragDesign = null;
+        document.querySelectorAll('.dcard').forEach((n) =>
+          n.classList.remove('lifting', 'dropbefore', 'dropafter'));
+      };
+      c.ondragover = (e) => {
+        if (!S.dragDesign || S.dragDesign === d.handle) return;
+        e.preventDefault();
+        const r = c.getBoundingClientRect();
+        const below = e.clientY > r.top + r.height / 2;
+        c.classList.toggle('dropbefore', !below);
+        c.classList.toggle('dropafter', below);
+      };
+      c.ondragleave = () => c.classList.remove('dropbefore', 'dropafter');
+      c.ondrop = (e) => {
+        e.preventDefault();
+        const below = c.classList.contains('dropafter');
+        c.classList.remove('dropbefore', 'dropafter');
+        const moving = S.dragDesign;
+        S.dragDesign = null;
+        if (!moving || moving === d.handle) return;
+        const list = order().filter((h) => h !== moving);
+        let at = list.indexOf(d.handle) + (below ? 1 : 0);
+        list.splice(Math.max(0, Math.min(at, list.length)), 0, moving);
+        write(list);
+      };
+    }
     body.appendChild(c);
-  }
+  });
 
   if (S.readOnly) return;
   const add = el('button', 'rail-add', '+  Link a design');
@@ -3012,9 +3083,7 @@ function panelDesign(body) {
       action: 'Link'
     });
     const entry = addSource(S.doc, { handle: handleFor(title || url, S.doc), url, title: title || '' });
-    const cur = (g.fields.design || '').trim();
-    setField(g, 'design', cur ? `${cur}, [${entry.handle}]` : `[${entry.handle}]`);
-    mark(); render();
+    write([...order(), entry.handle]);
   };
   body.appendChild(add);
 }

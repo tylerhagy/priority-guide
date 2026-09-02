@@ -1256,6 +1256,25 @@ export function removeGuide(doc, guide) {
 }
 
 /**
+ * Rename a source. The definition is shared, so every guide citing it follows —
+ * which is right: it is one document, and it has one name.
+ */
+export function setSourceTitle(doc, guide, handle, title) {
+  const def = resolveSource(doc, guide, handle);
+  if (!def) return false;
+  def.title = norm(title);
+  def.dirty = true;
+  for (const seg of doc.segments) {
+    if (seg.kind === 'sources' && seg.entries.includes(def)) { seg.dirty = true; return true; }
+    if (seg.kind !== 'guide') continue;
+    for (const sec of seg.sections) {
+      if (sec.kind === 'sources' && sec.entries.includes(def)) { sec.dirty = true; seg.dirty = true; return true; }
+    }
+  }
+  return true;
+}
+
+/**
  * Write a source down once. Defined at file level by default, because the whole
  * point is that one Confluence page can be cited from twenty rows across five
  * guides without the URL being repeated anywhere.
