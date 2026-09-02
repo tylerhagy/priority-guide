@@ -212,18 +212,93 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .note a{color:var(--accent)}
 /* Out of flow, so hovering a row cannot move the row below it. */
 .item{position:relative}
-.rowtools{position:absolute;right:0;bottom:-10px;z-index:2;display:flex;gap:1px;
-  background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:1px;
+/* On the label line, which has slack — the example line under it does not. */
+.rowtools{position:absolute;right:-2px;top:-3px;z-index:3;display:flex;gap:1px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px;
   opacity:0;pointer-events:none;transition:opacity .1s var(--ease);
-  box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  box-shadow:0 2px 8px rgba(0,0,0,.09)}
 .item:hover .rowtools,.rowsel .rowtools,.rowtools:hover{opacity:1;pointer-events:auto}
-.rowtools button{font-size:10.5px;color:var(--dim);padding:2px 7px;border-radius:5px;white-space:nowrap}
+.rowtools button{font-size:10.5px;color:var(--dim);padding:2px 6px;border-radius:5px;white-space:nowrap}
 .rowtools button:hover{color:var(--ink);background:var(--hover)}
-.rowtools button:before{content:"+ "}
-.addnote{opacity:0;font-size:11px;color:var(--faint);padding:2px 6px;border-radius:6px;
-  border:1px dashed var(--line);transition:opacity .12s var(--ease)}
+.rowtools button.ic{padding:3px;display:flex}
+.rowtools button.ic svg{color:var(--dim)}
+.rowtools button.ic:hover svg{color:var(--ink)}
+.rowtools button[disabled]{opacity:.3;pointer-events:none}
+.rowtools .kind{color:var(--ink);font-weight:500;border-left:1px solid var(--line);
+  margin-left:2px;padding-left:8px;border-radius:0 5px 5px 0}
+.rowtools .kind:after{content:" ▾";color:var(--faint)}
+
+/* ---------- a divider is a rule and nothing else ---------- */
+.item.divider{padding:8px 0}
+.item.divider .rule{border-top:1px solid var(--ink);opacity:.35}
+.item .kindmark{color:var(--dim);flex:none}
+.item.visual .box{align-items:flex-start}
+
+/* ---------- section controls, in the section ---------- */
+.cell.sechead{cursor:pointer}
+.secsel .band.open{box-shadow:inset 2px 0 0 var(--accent)}
+.sectrl{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;padding-top:2px}
+.sectrl button{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);
+  padding:3px 8px;border-radius:7px;background:var(--panel);border:1px solid var(--line)}
+.sectrl button:hover{color:var(--ink);border-color:var(--dim)}
+.sectrl button svg{color:var(--faint)}
+.sectrl button:hover svg{color:var(--ink)}
+
+/* ---------- what a block is ---------- */
+.pop-h{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);grid-column:1/-1;margin-bottom:1px}
+.pop-h + *{margin-top:0}
+.kindpop{display:block;width:296px}
+.kindpop .pop-h{margin:10px 0 5px}
+.kindpop .pop-h:first-child{margin-top:0}
+.kinds{display:flex;flex-direction:column;gap:1px}
+.kindopt{display:flex;align-items:flex-start;gap:9px;width:100%;text-align:left;
+  padding:7px 8px;border-radius:8px}
+.kindopt:hover{background:var(--hover)}
+.kindopt.on{background:var(--accent-soft)}
+.kindopt > div{flex:1;min-width:0}
+.kindopt svg{color:var(--dim);margin-top:1px;flex:none}
+.kindopt.on svg{color:var(--accent)}
+.kindopt .n{font-size:12.5px;font-weight:500}
+.kindopt .b{font-size:11px;color:var(--faint);line-height:1.35;margin-top:1px}
+.charts{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
+.chartopt{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 2px;
+  border-radius:8px;font-size:9.5px;color:var(--dim);line-height:1.25;text-align:center;
+  min-height:56px;justify-content:center}
+.chartopt:hover{background:var(--hover);color:var(--ink)}
+.chartopt.on{background:var(--accent-soft);color:var(--accent)}
+.chartopt svg{color:currentColor}
+
+/* ---------- choosing what a reference points at ---------- */
+.refpop{display:block;width:300px}
+.refpop input{width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:7px;
+  background:var(--panel);font-size:12.5px}
+.refpop .pop-h{margin:11px 0 5px}
+.refpop .pop-h:first-child{margin-top:0}
+.reflist{max-height:210px;overflow-y:auto;margin-top:5px;display:flex;flex-direction:column;gap:1px}
+.refopt{width:100%;text-align:left;padding:6px 8px;border-radius:8px}
+.refopt:hover{background:var(--hover)}
+.refopt.on{background:var(--accent-soft)}
+.refopt .n{font-size:12.5px;font-weight:500}
+.refopt .m{font-size:11px;color:var(--faint);line-height:1.35;margin-top:1px}
+.ref{position:relative}
+.ref.unset{color:var(--faint);border-style:dashed}
+.ref[role=button]{cursor:pointer}
+.ref[role=button]:hover{border-color:var(--dim);color:var(--ink)}
+.refx{position:absolute;right:4px;top:2px;color:var(--faint);font-size:13px;line-height:1;
+  padding:1px 4px;border-radius:4px;opacity:0;transition:opacity .1s var(--ease)}
+.ref:hover .refx{opacity:1}
+.refx:hover{color:var(--act);background:rgba(179,38,30,.1)}
+.addnote{opacity:0;font-size:11px;color:var(--dim);padding:3px 8px;border-radius:7px;
+  border:1px dashed var(--line);background:var(--panel);transition:opacity .12s var(--ease);
+  display:inline-flex;align-items:center;gap:4px}
+.addnote svg{color:var(--faint)}
 .lane-l:hover .addnote,.rowsel .addnote{opacity:1}
-.addnote:hover{color:var(--ink);border-color:var(--dim)}
+.addnote:hover{color:var(--ink);border-color:var(--dim);background:var(--hover)}
+.addnote:hover svg{color:var(--ink)}
+/* A brand-new note is a field, not a hairline. */
+.note.fresh{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);min-width:190px}
+.note.fresh .t{min-height:32px}
 
 /* ---------- functionality, on the right ---------- */
 .fn{border:1px solid var(--line);background:var(--panel);border-radius:6px;
@@ -279,10 +354,8 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .ref:focus{outline:none;background:var(--accent-soft)}
 .raw-table{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
   color:var(--faint);background:var(--panel);border-radius:4px;padding:6px 8px}
-.sectools{display:flex;gap:1px;opacity:0;transition:opacity .12s var(--ease);margin-top:1px}
-.lane-l:hover .sectools{opacity:.75}
-.sectools:hover{opacity:1}
-.sectools button{color:var(--faint);font-size:12px;padding:2px 5px;border-radius:5px}
+.sectools{display:flex;gap:1px;margin-top:1px}
+.sectools button{color:var(--faint);padding:3px;border-radius:5px;display:flex}
 .sectools button:hover{color:var(--ink);background:var(--hover)}
 
 /* ---------- right panel ---------- */
@@ -332,6 +405,8 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .chip.add{background:transparent;border:1px dashed var(--line);color:var(--faint);padding:2px 8px}
 .chip.add:hover{color:var(--ink);border-color:var(--dim)}
 .chip input{background:transparent;border:0;color:inherit;width:13ch;outline:none;font-size:11.5px}
+.chip .nm{border-radius:4px;padding:0 2px;margin:0 -2px}
+.chip .nm:focus{outline:none;background:var(--panel);color:var(--ink)}
 .addfield{margin-top:8px;font-size:11.5px}
 .addfield button{color:var(--faint);margin-right:12px}
 .addfield button:hover{color:var(--ink);text-decoration:underline}
@@ -437,7 +512,6 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
   <div id="mid">
     <div id="pagehead"></div>
     <div id="stage"></div>
-    <div id="tools"></div>
   </div>
   <div id="railR"></div>
 </main>
@@ -460,7 +534,8 @@ import {
   parseContentCell, renderContentCell, parseCapabilities, renderCapabilities,
   parseLinkCell, renderLinkCell, parseFormCell, renderFormCell,
   parseNoteCell, renderNoteCell,
-  parseUsers, renderUsers, userTypes, handleFor, isWebUrl, refsIn, hasAction, moveGuide, removeGuide,
+  parseUsers, renderUsers, userTypes, renameUserType, handleFor, isWebUrl, refsIn, hasAction,
+  moveGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -690,7 +765,6 @@ function render() {
   renderBar();
   renderUserBar();
   renderPageHead();
-  renderTools();
   if (!S.doc) { renderHello(); return; }
   renderRailLeft();
   $('stage').innerHTML = '';
@@ -893,7 +967,15 @@ const GLYPH = {
   info: 'M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2zM8 7.2v4M8 5.1v.01',
   up: 'M8 12.5v-9M4.5 7L8 3.5 11.5 7',
   down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
-  trash: 'M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9M6.5 7v4M9.5 7v4'
+  trash: 'M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9M6.5 7v4M9.5 7v4',
+  rule: 'M1.5 8h13',
+  pie: 'M8 2.2a5.8 5.8 0 105.8 5.8H8z',
+  bar: 'M2.5 13.5v-4M6.2 13.5V6M9.8 13.5V3.2M13.5 13.5V8',
+  linechart: 'M2 12.5l3.6-4.2 2.8 2.2L14 3.5',
+  gridicon: 'M2.2 3.2h11.6v9.6H2.2zM2.2 6.6h11.6M2.2 9.8h11.6M6.4 3.2v9.6',
+  number: 'M4.2 6.2L6 5v6M9 6a1.9 1.9 0 113.4 1.2L9 11h3.6',
+  mapicon: 'M1.8 4.2l4.2-2 4 2 4.2-2v9.6l-4.2 2-4-2-4.2 2zM6 2.2v9.6M10 4.2v9.6',
+  chartother: 'M8 2.2a5.8 5.8 0 105.8 5.8H8zM8 2.2V8h5.8'
 };
 // Which dots are filled tells you one-from-a-list from several-from-a-list
 // without ever naming a control.
@@ -1118,12 +1200,6 @@ function renderPageHead() {
   h.appendChild(line);
 
   const sub = el('div', 'sub');
-  const users = parseUsers(g.fields.primaryUsers);
-  if (users.length) {
-    const w = el('span', 'who');
-    w.textContent = users.map((u) => u.name + (u.primary ? ' (primary)' : '')).join(' · ');
-    sub.appendChild(w);
-  }
   const n = rowsOf(g).length;
   const add = (txt, cls) => {
     if (sub.children.length) sub.appendChild(el('span', 'dot', '·'));
@@ -1132,100 +1208,7 @@ function renderPageHead() {
   add(`${n} block${n === 1 ? '' : 's'}`);
   const open = guideOpenCount(g);
   if (open) add(`${open} open`, 'open');
-  const goal = (g.fields.userGoal || '').trim();
-  if (goal && !isUnknown(goal)) {
-    const b = el('button', 'quiet', 'context');
-    b.onclick = () => { S.panel = 'context'; render(); };
-    if (sub.children.length) sub.appendChild(el('span', 'dot', '·'));
-    sub.appendChild(b);
-  }
   h.appendChild(sub);
-}
-
-// ---------------------------------------------------------------- toolbar
-/** The creator tools, always to hand, never in the way of the guide. */
-function renderTools() {
-  const t = $('tools');
-  t.innerHTML = '';
-  if (!S.doc || !S.guide || S.view !== 'guide' || S.readOnly || S.present) {
-    t.style.display = 'none'; return;
-  }
-  t.style.display = '';
-  const g = S.guide;
-  const secs = g.sections.filter((s) => s.kind === 'section');
-
-  const target = () => {
-    const chosen = secs.find((s) => s.title === S.intoSection);
-    if (chosen) return chosen;
-    if (S.sel) { const w = whereIs(g, S.sel); if (w) return w.tables[w.ti].section; }
-    return secs[secs.length - 1] || null;
-  };
-  const tableOf = (sec) => {
-    if (!sec) return null;
-    const ts = sec.chunks.filter((c) => c.kind === 'table');
-    return ts[ts.length - 1] || null;
-  };
-
-  t.appendChild(el('span', 'lbl', 'Add'));
-
-  const tool = (glyph, label, fn, title) => {
-    const b = el('button', 'tool');
-    b.appendChild(icon(glyph, 14));
-    b.appendChild(el('span', null, label));
-    if (title) b.title = title;
-    b.onclick = fn;
-    t.appendChild(b);
-  };
-
-  tool('line1', 'Content', () => {
-    const sec = target();
-    let tab = tableOf(sec);
-    if (!sec) { banner('warn', '<b>Add a section first.</b> Content lives inside one.'); return; }
-    if (!tab) { addSection(g, sec.title); tab = tableOf(sec); }
-    const here = S.sel && tab.rows.includes(S.sel) ? tab.rows.indexOf(S.sel) + 1 : tab.rows.length;
-    const row = addRow(tab, sec, { at: here });
-    S.sel = row; mark(); render();
-    focusSoon('.rowsel .lbl');
-  }, 'A data point, a control, or an action — after the selected block');
-
-  tool('lineN', 'Section', () => {
-    const sec = addSection(g, 'New section');
-    S.intoSection = sec.title; mark(); render();
-    focusSoon('.guide .sec-title:last-of-type');
-  }, 'A group of content, usually about one thing');
-
-  tool('other', 'Subsection', () => {
-    const sec = target();
-    if (!sec) return;
-    const at = sec.chunks.length;
-    sec.chunks.splice(at, 0, { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true });
-    sec.chunks.splice(at + 1, 0, blankTable());
-    sec.dirty = true; mark(); render();
-  }, 'A split inside a section — often the per-row actions');
-
-  tool('source', 'Reference', () => {
-    const sec = target();
-    if (!sec) return;
-    const other = guides(S.doc).find((x) => x !== g);
-    const name = other ? other.name : 'Another guide';
-    sec.chunks.push({ kind: 'ref', src: [`> See [[${name}]] — why`], target: name,
-      text: `See [[${name}]] — why`, refs: [], dirty: true });
-    sec.dirty = true; mark(); render();
-  }, 'Point at another guide instead of repeating its content');
-
-  const into = el('div', 'into');
-  into.appendChild(el('span', null, 'into'));
-  const sel = el('select');
-  for (const s of secs) {
-    const o = el('option', null, s.title);
-    o.value = s.title;
-    if (target() === s) o.selected = true;
-    sel.appendChild(o);
-  }
-  if (!secs.length) { const o = el('option', null, 'no sections yet'); o.disabled = true; sel.appendChild(o); }
-  sel.onchange = () => { S.intoSection = sel.value; render(); };
-  into.appendChild(sel);
-  t.appendChild(into);
 }
 
 function blankTable() {
@@ -1267,7 +1250,15 @@ function renderGuide() {
     const title = gridRow('open');
     mine.push(title.band);
     title.host.appendChild(sectionTitle(g, sec));
-    if (!S.present && !S.readOnly) title.l.appendChild(sectionTools(g, sec));
+    title.c.classList.add('sechead');
+    if (!S.readOnly && !S.present) {
+      title.c.onclick = (e) => {
+        if (e.target.closest('button,a,[contenteditable]')) return;
+        S.selSection = S.selSection === sec ? null : sec;
+        S.sel = null; render();
+      };
+    }
+    if (S.selSection === sec) [title.l, title.c, title.r].forEach((n) => n.classList.add('secsel'));
 
     // The line of prose under a heading is part of the guide, so it is editable
     // like everything else — and it exists even when the file has no line yet.
@@ -1275,6 +1266,11 @@ function renderGuide() {
     if (!S.present || (prose && proseOf(prose))) {
       const pRow = gridRow(''); mine.push(pRow.band);
       pRow.host.appendChild(sectionProse(g, sec, prose));
+    }
+    if (S.selSection === sec && !S.readOnly && !S.present) {
+      const cRow = gridRow(''); mine.push(cRow.band);
+      cRow.host.appendChild(sectionCtrl(g, sec));
+      cRow.l.appendChild(sectionTools(g, sec));
     }
 
     for (const chunk of sec.chunks) {
@@ -1297,15 +1293,23 @@ function renderGuide() {
         row.host.appendChild(w);
       } else if (chunk.kind === 'ref') {
         const row = gridRow(''); mine.push(row.band);
-        const p = el('div', 'ref');
-        setLinked(p, chunk.text, g);
-        editable(p, chunk.text, (v) => {
-          chunk.text = v;
-          const m = /\[\[([^\]]+)\]\]/.exec(v);
-          chunk.target = m ? m[1].trim() : '';
-          chunk.refs = refsIn(v);
-          chunk.dirty = true; sec.dirty = true;
-        });
+        const p = el('div', 'ref' + (chunk.target ? '' : ' unset'));
+        if (chunk.target) setLinked(p, chunk.text, g);
+        else p.textContent = S.readOnly ? 'Reference — nothing chosen' : 'Choose what this references';
+        if (!S.readOnly && !S.present) {
+          p.setAttribute('role', 'button');
+          p.tabIndex = 0;
+          p.title = 'Choose the guide this points at';
+          p.onclick = (e) => { if (e.target.closest('a')) return; openRefPicker(p, g, sec, chunk); };
+          const del = el('button', 'refx', '×');
+          del.title = 'Remove this reference';
+          del.onclick = (e) => {
+            e.stopPropagation();
+            sec.chunks.splice(sec.chunks.indexOf(chunk), 1);
+            sec.dirty = true; mark(); render();
+          };
+          p.appendChild(del);
+        }
         row.host.appendChild(p);
       } else if (chunk.kind === 'table') {
         for (const rw of chunk.rows) {
@@ -1353,22 +1357,82 @@ function sectionProse(g, sec, chunk) {
 
 function sectionTools(g, sec) {
   const tools = el('div', 'sectools');
-  for (const [label, dir, title] of [['↑', -1, 'Move this section up'], ['↓', 1, 'Move this section down']]) {
-    const b = el('button', null, label);
-    b.title = title;
-    b.onclick = () => { if (moveSection(g, sec, dir)) { mark(); render(); } };
-    tools.appendChild(b);
-  }
-  const del = el('button', null, '×');
-  del.title = 'Delete this section and everything in it';
-  del.onclick = () => {
+  const b = (glyph, title, fn) => {
+    const x = el('button');
+    x.appendChild(icon(glyph, 12));
+    x.title = title;
+    x.onclick = (e) => { e.stopPropagation(); fn(); };
+    tools.appendChild(x);
+  };
+  b('up', 'Move this section up', () => { if (moveSection(g, sec, -1)) { mark(); render(); } });
+  b('down', 'Move this section down', () => { if (moveSection(g, sec, 1)) { mark(); render(); } });
+  b('trash', 'Delete this section and everything in it', () => {
     const n = sec.chunks.filter((c) => c.kind === 'table').reduce((a, c) => a + c.rows.length, 0);
     if (!confirm(`Delete “${sec.title}”${n ? ` and its ${n} block${n === 1 ? '' : 's'}` : ''}?`)) return;
     g.sections.splice(g.sections.indexOf(sec), 1);
-    g.dirty = true; S.sel = null; mark(); render();
-  };
-  tools.appendChild(del);
+    g.dirty = true; S.sel = null; S.selSection = null; mark(); render();
+  });
   return tools;
+}
+
+/** Everything you can add to the section you just clicked, inside it. */
+function sectionCtrl(g, sec) {
+  const bar = el('div', 'sectrl');
+  const lastTable = () => {
+    const ts = sec.chunks.filter((c) => c.kind === 'table');
+    return ts[ts.length - 1] || null;
+  };
+  const add = (glyph, label, fn, title) => {
+    const b = el('button');
+    b.appendChild(icon(glyph, 12));
+    b.appendChild(el('span', null, label));
+    if (title) b.title = title;
+    b.onclick = (e) => { e.stopPropagation(); fn(); };
+    bar.appendChild(b);
+  };
+
+  add('line1', 'content', () => {
+    let t = lastTable();
+    if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
+    const rw = addRow(t, sec, {});
+    S.sel = rw; S.selSection = null; mark(); render();
+    focusSoon('.rowsel .lbl');
+  }, 'A data point, a control or an action');
+
+  add('rule', 'divider', () => {
+    let t = lastTable();
+    if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
+    const rw = addRow(t, sec, { content: '[Divider]' });
+    S.sel = rw; S.selSection = null; mark(); render();
+  }, 'A rule, to break this section up');
+
+  add('other', 'subsection', () => {
+    const at = sec.chunks.length;
+    sec.chunks.splice(at, 0, { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true });
+    sec.chunks.splice(at + 1, 0, blankTable());
+    sec.dirty = true; S.selSection = null; mark(); render();
+  }, 'A split inside this section — often the per-row actions');
+
+  add('source', 'reference', () => {
+    const c = { kind: 'ref', src: ['> See [[]] — why'], target: '', text: 'See [[]] — why', refs: [], dirty: true };
+    sec.chunks.push(c);
+    sec.dirty = true; S.selSection = null; mark(); render();
+    setTimeout(() => {
+      const r = [...document.querySelectorAll('.ref')].pop();
+      if (r) r.click();
+    }, 30);
+  }, 'Point at another guide instead of repeating its content');
+
+  add('plus', 'section below', () => {
+    const at = g.sections.indexOf(sec) + 1;
+    const ns = addSection(g, 'New section');
+    const i = g.sections.indexOf(ns);
+    g.sections.splice(i, 1);
+    g.sections.splice(at, 0, ns);
+    S.selSection = ns; mark(); render();
+    focusSoon(`.guide .sec-title`);
+  }, 'A new group of content, right after this one');
+  return bar;
 }
 
 // ---------------------------------------------------------------- one row
@@ -1376,23 +1440,43 @@ function sectionTools(g, sec) {
  * The middle says what the thing is called and what its data actually looks
  * like. The right says what it does. The left holds everything else — a rule, a
  * link, something someone said, a follow-up.
+ *
+ * Every control that acts on a row lives on the row, revealed on hover and
+ * positioned out of flow, so nothing moves and nothing has to be hunted for at
+ * the bottom of the screen.
  */
 function paintRow(row, g, sec, table, rw) {
   const ctx = { g, sec, table, rw };
   if (rw === S.sel) [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
 
-  // ---- middle
+  const kind = rw.content.kind || (rw.content.type === 'Visual' ? 'visual' : 'text');
+
+  // ---- a divider is a rule and nothing else
+  if (kind === 'divider') {
+    const item = el('div', 'item divider');
+    item.appendChild(el('div', 'rule'));
+    if (!S.readOnly && !S.present) item.appendChild(rowTools(ctx, kind));
+    row.host.appendChild(item);
+    if (!S.readOnly && !S.present) { wireSelect(item, row, rw); wireDrag(row, ctx); }
+    return;
+  }
+
   const hasForm = !!rw.form.type;
   const hasLink = !!rw.link.type;
-  const isVisual = rw.content.type === 'Visual';
-  const item = el('div', 'item' + (isVisual ? ' visual' : hasForm ? '' : hasLink ? ' linky' : ' plain'));
+  const visual = kind === 'visual' || kind === 'chart';
+  const item = el('div', 'item' + (visual ? ' visual' : hasForm ? '' : hasLink ? ' linky' : ' plain'));
   const box = el('div', 'box');
+  if (visual) {
+    const gl = icon(kind === 'chart' ? (CHART_GLYPH[rw.content.chart] || 'chartother') : 'visual', 14);
+    gl.classList.add('kindmark');
+    box.appendChild(gl);
+  }
   const lbl = el('div', 'lbl');
   const label = rw.content.text.trim();
-  if (isUnknown(label)) { lbl.innerHTML = '<span class="unk">?? not known</span>'; }
-  else blankable(lbl, label, 'What is it called?');
+  if (isUnknown(label)) lbl.innerHTML = '<span class="unk">?? not known</span>';
+  else blankable(lbl, label, visual ? 'What is the visual of?' : 'What is it called?');
   editable(lbl, label, (v) => {
-    rw.content = { type: rw.content.type, text: v };
+    rw.content = { ...rw.content, text: v };
     touchRow(rw, table, sec);
   });
   box.appendChild(lbl);
@@ -1401,8 +1485,6 @@ function paintRow(row, g, sec, table, rw) {
   }
   item.appendChild(box);
 
-  // The example is what the data really looks like, so it belongs under the
-  // name it belongs to — not off in another lane.
   const cur = rw.realData;
   const makeExample = (value) => {
     const eg = el('div', 'eg');
@@ -1413,60 +1495,23 @@ function paintRow(row, g, sec, table, rw) {
   };
   if (cur) item.appendChild(makeExample(cur));
 
-  // An example is optional, so its absence says nothing at all. Getting to one
-  // is a quiet offer on the row you have selected, and Tab from the name.
   const openExample = () => {
     if (item.querySelector('.eg')) { focusSoon(item.querySelector('.eg')); return; }
     const eg = makeExample('');
-    const tools = item.querySelector('.rowtools');
-    item.insertBefore(eg, tools || null);
+    item.insertBefore(eg, item.querySelector('.rowtools') || null);
     focusSoon(eg);
   };
   lbl.addEventListener('keydown', (e) => {
     if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); lbl.blur(); openExample(); }
   });
 
-  if (!S.readOnly && !S.present) {
-    const tools = el('div', 'rowtools');
-    if (!cur) {
-      const b = el('button', null, 'example');
-      b.title = 'What the data really looks like. Optional.';
-      b.onclick = (e) => { e.stopPropagation(); openExample(); };
-      tools.appendChild(b);
-    }
-    const below = el('button', null, 'block below');
-    below.title = 'Add a block right here, not at the end of the section';
-    below.onclick = (e) => { e.stopPropagation(); insertBelow(g, sec, table, rw); };
-    tools.appendChild(below);
-    item.appendChild(tools);
-  }
-
-  // Clicking the row opens it: its own tools and the add-a-note button appear.
-  // Clicking straight onto text edits that text instead, without a re-render
-  // that would steal the caret.
-  if (!S.readOnly && !S.present) {
-    const lightSelect = () => {
-      if (S.sel === rw) return;
-      S.sel = rw;
-      document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
-      [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
-    };
-    item.onmousedown = (e) => { if (e.target.closest('.lbl,.eg')) lightSelect(); };
-    item.onclick = (e) => {
-      if (e.target.closest('.lbl,.eg,a,button')) return;
-      if (S.sel !== rw) { S.sel = rw; render(); }
-    };
-  } else {
-    item.onclick = () => { S.sel = rw; render(); };
-  }
-
+  if (!S.readOnly && !S.present) item.appendChild(rowTools(ctx, kind, cur ? null : openExample));
   row.host.appendChild(item);
 
   if (!S.present) {
     for (const f of lintRow(rw)) {
       const n = el('div', 'flag');
       if (f.kind === 'visual-answer') n.innerHTML = '<b>&ldquo;' + esc(f.word) + '&rdquo;</b> is a visual answer. ' + esc(f.ask);
-      else if (f.kind === 'no-real-data') n.innerHTML = '<b>No example.</b> ' + esc(f.ask);
       else if (f.kind === 'unknown-form') n.textContent = '"' + f.word + '" is not one of the form types.';
       else if (f.kind === 'unknown-link') n.textContent = '"' + f.word + '" is not one of the link types.';
       row.host.appendChild(n);
@@ -1477,12 +1522,15 @@ function paintRow(row, g, sec, table, rw) {
   const notes = el('div', 'notes');
   rw.note.forEach((n, i) => notes.appendChild(noteCard(ctx, n, i)));
   if (!S.readOnly && !S.present) {
-    const add = el('button', 'addnote', rw.note.length ? '+ note' : '+ note');
+    const add = el('button', 'addnote');
+    add.appendChild(icon('plus', 11));
+    add.appendChild(el('span', null, 'note'));
     add.title = 'A rule, a link, something said in a session, or a follow-up';
-    add.onclick = () => {
+    add.onclick = (e) => {
+      e.stopPropagation();
       rw.note.push({ text: '', action: false });
-      S.sel = rw; render();
-      focusSoon('.rowsel .note:last-of-type .t');
+      S.sel = rw; S.newRowNote = rw; render();
+      focusSoon('.rowsel .note.fresh .t');
     };
     notes.appendChild(add);
   }
@@ -1491,17 +1539,226 @@ function paintRow(row, g, sec, table, rw) {
 
   // ---- right: functionality only
   const hasFn = !!(rw.link.type || rw.form.type || rw.capabilities.length);
-  if (hasFn) row.r.appendChild(el('div', 'lead'));
-  else row.r.appendChild(Object.assign(el('div', 'lead'), { style: 'border-color:transparent' }));
+  const lead = el('div', 'lead');
+  if (!hasFn) lead.style.borderColor = 'transparent';
+  row.r.appendChild(lead);
   row.r.appendChild(fnCard(ctx));
 
   if (S.readOnly || S.present) return;
+  wireSelect(item, row, rw);
   wireDrag(row, ctx);
+}
+
+const CHART_GLYPH = {
+  pie: 'pie', bar: 'bar', line: 'linechart', table: 'gridicon',
+  number: 'number', map: 'mapicon', other: 'chartother'
+};
+const KIND_LABEL = { text: 'text', visual: 'visual', chart: 'data visual', divider: 'divider' };
+
+/** What a row's own controls are: move it, add after it, change what it is. */
+function rowTools(ctx, kind, openExample) {
+  const { g, sec, table, rw } = ctx;
+  const tools = el('div', 'rowtools');
+  const icoBtn = (glyph, title, fn, disabled) => {
+    const b = el('button', 'ic');
+    b.appendChild(icon(glyph, 12));
+    b.title = title;
+    b.disabled = !!disabled;
+    b.onclick = (e) => { e.stopPropagation(); fn(); };
+    return b;
+  };
+  const rows = table.rows;
+  const at = rows.indexOf(rw);
+  const tabs = tablesOf(g);
+  const ti = tabs.findIndex((t) => t.table === table);
+  tools.appendChild(icoBtn('up', 'Move up', () => {
+    S.sel = rw; if (moveRow(g, rw, -1, true)) { mark(); render(); keepVisible(); }
+  }, at === 0 && ti === 0));
+  tools.appendChild(icoBtn('down', 'Move down', () => {
+    S.sel = rw; if (moveRow(g, rw, 1, true)) { mark(); render(); keepVisible(); }
+  }, at === rows.length - 1 && ti === tabs.length - 1));
+  tools.appendChild(icoBtn('plus', 'Add a block below this one', () => insertBelow(g, sec, table, rw)));
+
+  const k = el('button', 'kind');
+  k.textContent = kind === 'chart'
+    ? (rw.content.chart ? rw.content.chart : 'data visual')
+    : KIND_LABEL[kind];
+  k.title = 'What this block is. Changing it keeps everything else.';
+  k.onclick = (e) => { e.stopPropagation(); S.sel = rw; openKindPicker(k, ctx); };
+  tools.appendChild(k);
+
+  if (openExample && kind !== 'divider') {
+    const b = el('button', null, 'example');
+    b.title = 'What the data really looks like. Optional.';
+    b.onclick = (e) => { e.stopPropagation(); openExample(); };
+    tools.appendChild(b);
+  }
+  return tools;
+}
+
+function wireSelect(item, row, rw) {
+  const lightSelect = () => {
+    if (S.sel === rw) return;
+    S.sel = rw;
+    document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
+    [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
+  };
+  item.onmousedown = (e) => { if (e.target.closest('.lbl,.eg')) lightSelect(); };
+  item.onclick = (e) => {
+    if (e.target.closest('.lbl,.eg,a,button')) return;
+    e.stopPropagation();
+    if (S.sel !== rw || S.selSection) { S.sel = rw; S.selSection = null; render(); }
+  };
+}
+
+// ---------------------------------------------------------------- what a block is
+/**
+ * Changing a block's kind must keep its notes, its example and its
+ * functionality. Rebuilding a block by hand and copying the notes across is the
+ * clunky workaround this exists to remove.
+ */
+function openKindPicker(anchor, ctx) {
+  closePop();
+  const { sec, table, rw } = ctx;
+  const pop = el('div', 'pop kindpop');
+  const now = rw.content.kind || (rw.content.type === 'Visual' ? 'visual' : 'text');
+
+  const apply = (kind, chart) => {
+    setKind(rw, kind, chart);
+    touchRow(rw, table, sec);
+    mark(); closePop(); render();
+  };
+
+  pop.appendChild(el('div', 'pop-h', 'What this block is'));
+  const list = el('div', 'kinds');
+  const opt = (kind, glyph, label, blurb, chart) => {
+    const on = now === kind && (kind !== 'chart' || (rw.content.chart || '') === (chart || ''));
+    const b = el('button', 'kindopt' + (on ? ' on' : ''));
+    b.appendChild(icon(glyph, 15));
+    const t = el('div');
+    t.appendChild(el('div', 'n', label));
+    if (blurb) t.appendChild(el('div', 'b', blurb));
+    b.appendChild(t);
+    b.onclick = () => apply(kind, chart);
+    list.appendChild(b);
+  };
+  opt('text', 'line1', 'Content', 'A data point, a control or an action');
+  opt('visual', 'visual', 'Visual', 'An image, a map, a photo');
+  opt('divider', 'rule', 'Divider', 'A rule, to break a section up');
+  pop.appendChild(list);
+
+  pop.appendChild(el('div', 'pop-h', 'Data visual'));
+  const charts = el('div', 'charts');
+  const chartOpt = (chart, glyph, label) => {
+    const on = now === 'chart' && (rw.content.chart || '') === chart;
+    const b = el('button', 'chartopt' + (on ? ' on' : ''));
+    b.appendChild(icon(glyph, 16));
+    b.appendChild(el('span', null, label));
+    b.title = label;
+    b.onclick = () => apply('chart', chart);
+    charts.appendChild(b);
+  };
+  chartOpt('', 'chartother', 'Not decided');
+  chartOpt('pie', 'pie', 'Pie');
+  chartOpt('bar', 'bar', 'Bar');
+  chartOpt('line', 'linechart', 'Line');
+  chartOpt('table', 'gridicon', 'Table');
+  chartOpt('number', 'number', 'Single number');
+  chartOpt('map', 'mapicon', 'Map');
+  pop.appendChild(charts);
+
+  document.body.appendChild(pop);
+  placePop(pop, anchor);
+  S.pop = pop;
+  pop.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') { closePop(); render(); } };
+  setTimeout(() => document.addEventListener('mousedown', popAway), 0);
+}
+
+/**
+ * Pick the guide a reference points at, with enough of each one on screen to
+ * tell them apart. At twenty guides a name alone is not enough to choose from.
+ */
+function openRefPicker(anchor, g, sec, chunk) {
+  closePop();
+  const pop = el('div', 'pop refpop');
+  pop.appendChild(el('div', 'pop-h', 'This references'));
+
+  const search = el('input');
+  search.type = 'text';
+  search.placeholder = 'Search guides';
+  pop.appendChild(search);
+
+  const list = el('div', 'reflist');
+  pop.appendChild(list);
+
+  const why = el('input');
+  why.type = 'text';
+  why.placeholder = 'Why — “the customer fields are specified there”';
+  const m = /^\s*See\s+\[\[[^\]]*\]\]\s*(?:—|-)?\s*(.*)$/i.exec(chunk.text || '');
+  why.value = m && m[1] && m[1] !== 'why' ? m[1] : '';
+  pop.appendChild(el('div', 'pop-h', 'Why'));
+  pop.appendChild(why);
+
+  const write = (name) => {
+    const w = why.value.trim();
+    chunk.target = name;
+    chunk.text = `See [[${name}]]${w ? ` — ${w}` : ''}`;
+    chunk.src = [`> ${chunk.text}`];
+    chunk.refs = refsIn(chunk.text);
+    chunk.dirty = true; sec.dirty = true;
+    mark();
+  };
+
+  const paint = () => {
+    list.innerHTML = '';
+    const q = search.value.trim().toLowerCase();
+    const options = guides(S.doc).filter((x) => x !== g)
+      .filter((x) => !q || x.name.toLowerCase().includes(q)
+        || (x.fields.userGoal || '').toLowerCase().includes(q));
+    if (!options.length) {
+      list.appendChild(el('div', 'rail-empty', q ? 'No guide matches that.' : 'This file has only one guide.'));
+      return;
+    }
+    for (const x of options) {
+      const b = el('button', 'refopt' + (chunk.target === x.name ? ' on' : ''));
+      b.appendChild(el('div', 'n', x.name));
+      const n = rowsOf(x).length;
+      const goal = (x.fields.userGoal || '').trim();
+      b.appendChild(el('div', 'm', `${n} block${n === 1 ? '' : 's'}`
+        + (goal && !isUnknown(goal) ? ` · ${goal.slice(0, 70)}` : '')));
+      b.onclick = () => { write(x.name); closePop(); render(); };
+      list.appendChild(b);
+    }
+  };
+  search.oninput = paint;
+  paint();
+
+  why.onchange = () => { if (chunk.target) { write(chunk.target); render(); } };
+
+  document.body.appendChild(pop);
+  placePop(pop, anchor);
+  S.pop = pop;
+  pop.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Escape') { closePop(); render(); }
+    if (e.key === 'Enter') {
+      const first = list.querySelector('.refopt');
+      if (document.activeElement === search && first) first.click();
+    }
+  };
+  setTimeout(() => { document.addEventListener('mousedown', popAway); search.focus(); }, 0);
+}
+
+function placePop(pop, anchor) {
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pop.offsetWidth - 12)) + 'px';
+  pop.style.top = Math.max(8, Math.min(r.bottom + 6, innerHeight - pop.offsetHeight - 12)) + 'px';
 }
 
 function noteCard(ctx, n, i) {
   const { g, sec, table, rw } = ctx;
-  const card = el('div', 'note' + (n.action ? ' act' : ''));
+  const fresh = !n.text && S.newRowNote === rw;
+  const card = el('div', 'note' + (n.action ? ' act' : '') + (fresh ? ' fresh' : ''));
   const only = /^\s*\[[^\[\]]+\]\s*$/.test(n.text);
   const gl = icon(only ? 'source' : 'note', 12);
   gl.classList.add('gl');
@@ -1511,8 +1768,9 @@ function noteCard(ctx, n, i) {
   if (n.action) body.appendChild(el('div', 'k', 'ACTION'));
   const t = el('div', 't');
   setLinked(t, n.text, g);
-  if (!n.text) blankable(t, '', 'Note');
+  if (!n.text) blankable(t, '', 'A rule, a link, or something said in the session');
   editable(t, n.text, (v) => {
+    S.newRowNote = null;
     if (!v) rw.note.splice(i, 1);
     else n.text = v;
     touchRow(rw, table, sec);
@@ -1975,11 +2233,17 @@ function usersField(g) {
   const wrap = el('div', 'chips');
   list.forEach((u, i) => {
     const c = el('span', 'chip' + (u.primary ? ' pri' : ''));
-    const t = el('span', null, u.name);
-    t.title = u.primary ? 'The power user of this screen' : 'Click to mark as the primary user';
+    const t = el('span', 'nm', u.name);
     if (!S.readOnly) {
-      t.style.cursor = 'pointer';
-      t.onclick = () => commit(list.map((x, j) => ({ ...x, primary: j === i ? !x.primary : false })));
+      t.title = 'Rename this role. It changes everywhere it is used.';
+      editable(t, u.name, (v) => {
+        if (!v || v === u.name) return;
+        const n = renameUserType(S.doc, u.name, v);
+        if (n > 1) {
+          const b = banner('info', `<b>Renamed in ${n} guides.</b> “${esc(u.name)}” is now “${esc(v)}”.`);
+          setTimeout(() => b.remove(), 3000);
+        }
+      });
     }
     c.appendChild(t);
     if (!S.readOnly) {

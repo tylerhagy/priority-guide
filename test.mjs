@@ -158,10 +158,50 @@ t('moving a section carries its rows', () => {
 
 // ---------------------------------------------------------------- cell grammar
 
-t('a Visual block is read from the [Visual] marker', () => {
-  eq(P.parseContentCell('[Visual] Coverage map'), { type: 'Visual', text: 'Coverage map' });
-  eq(P.parseContentCell('Customer name'), { type: 'Text', text: 'Customer name' });
-  eq(P.renderContentCell({ type: 'Visual', text: 'Map' }), '[Visual] Map');
+t('what a block is, is a marker in front of its name', () => {
+  const k = (v) => { const c = P.parseContentCell(v); return [c.kind, c.chart, c.text]; };
+  eq(k('Customer name'), ['text', '', 'Customer name']);
+  eq(k('[Visual] Coverage map'), ['visual', '', 'Coverage map']);
+  eq(k('[Chart] Revenue'), ['chart', '', 'Revenue']);
+  eq(k('[Chart: pie] Revenue by segment'), ['chart', 'pie', 'Revenue by segment']);
+  eq(k('[Chart: line graph] Trend'), ['chart', 'line', 'Trend'], 'a written-out kind still lands');
+  eq(k('[Divider]'), ['divider', '', '']);
+  eq(P.renderContentCell({ kind: 'visual', text: 'Map' }), '[Visual] Map');
+  eq(P.renderContentCell({ kind: 'chart', chart: 'bar', text: 'Volume' }), '[Chart: bar] Volume');
+  eq(P.renderContentCell({ kind: 'divider', text: 'ignored' }), '[Divider]');
+  eq(P.renderContentCell({ type: 'Visual', text: 'Map' }), '[Visual] Map', 'the older shape still renders');
+});
+
+t('changing what a block is keeps everything else it carries', () => {
+  // The whole point: a single select becomes a multi select mid-conversation
+  // without anyone retyping the notes.
+  const doc = P.parseDocument(FIXTURE);
+  const hit = P.rowsOf(P.findGuide(doc, 'Booking detail')).find((r) => r.row.content.text === 'Reference');
+  const notesBefore = P.renderNoteCell(hit.row.note);
+  P.setKind(hit.row, 'chart', 'bar');
+  eq(hit.row.content.kind, 'chart');
+  eq(hit.row.content.text, 'Reference', 'the name survives');
+  eq(P.renderNoteCell(hit.row.note), notesBefore, 'the notes survive');
+  eq(hit.row.capabilities, ['search'], 'so does what you can do to it');
+  P.setKind(hit.row, 'text');
+  eq(P.renderContentCell(hit.row.content), 'Reference', 'and it goes back');
+});
+
+t('renaming a user type fixes it everywhere at once', () => {
+  const doc = P.parseDocument(FIXTURE);
+  const n = P.renameUserType(doc, 'Office manager', 'Workplace manager');
+  eq(n, 3, 'three guides name that type');
+  eq(P.userTypes(doc).map((u) => u.name).includes('Office manager'), false);
+  ok(P.userTypes(doc).some((u) => u.name === 'Workplace manager'));
+  ok(P.verifyRoundTrip(P.serializeDocument(doc)).ok, 'result must round-trip');
+});
+
+t('renaming onto a type that already exists merges them rather than duplicating', () => {
+  const doc = P.parseDocument(FIXTURE);
+  P.renameUserType(doc, 'Visitor host', 'Everyone with a desk');
+  const finder = P.findGuide(doc, 'Find a space');
+  eq(P.parseUsers(finder.fields.primaryUsers).length, 1, 'the two collapse into one');
+  eq(P.userTypes(doc).map((u) => u.name).includes('Visitor host'), false);
 });
 
 t('capabilities are plain words, in a stable order', () => {

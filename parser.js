@@ -131,17 +131,58 @@ function readColumnHeader(line) {
 // ---------------------------------------------------------------- cell grammar
 
 /**
- * A Visual block is written `[Visual] Coverage map`. That is not an invention —
- * it is how these guides already read, so nobody has to learn a new marker.
+ * What a block IS, written as a marker in front of its name.
+ *
+ * `[Visual] Coverage map` is not an invention — it is how these guides already
+ * read. The others follow the same shape, so the file stays legible and the
+ * marker is the one place a block's kind is recorded.
+ *
+ *   Customer name              a data point or a control
+ *   [Visual] Coverage map      an image, a map, a photo
+ *   [Chart] Revenue            a data visual, kind not decided
+ *   [Chart: pie] Revenue       a data visual of a known kind
+ *   [Divider]                  a rule, to break a section up
  */
+export const CHART_KINDS = ['pie', 'bar', 'line', 'table', 'number', 'map', 'other'];
+export const BLOCK_KINDS = ['text', 'visual', 'chart', 'divider'];
+
 export function parseContentCell(v) {
-  const m = /^\[\s*visual\s*\]\s*(.*)$/i.exec(norm(v));
-  if (m) return { type: 'Visual', text: norm(m[1]) };
-  return { type: 'Text', text: norm(v) };
+  const raw = norm(v);
+  const m = /^\[\s*([a-z ]+?)\s*(?::\s*([a-z ]+?)\s*)?\]\s*(.*)$/i.exec(raw);
+  if (m) {
+    const tag = lower(m[1]);
+    const rest = norm(m[3]);
+    if (tag === 'visual') return { kind: 'visual', chart: '', text: rest, type: 'Visual' };
+    if (tag === 'divider') return { kind: 'divider', chart: '', text: rest, type: 'Text' };
+    if (tag === 'chart' || tag === 'data' || tag === 'data visual') {
+      const k = lower(m[2] || '').replace(/\s*(chart|graph)$/, '').trim();
+      return { kind: 'chart', chart: CHART_KINDS.includes(k) ? k : '', text: rest, type: 'Visual' };
+    }
+  }
+  return { kind: 'text', chart: '', text: raw, type: 'Text' };
 }
 
 export function renderContentCell(c) {
-  return c.type === 'Visual' ? `[Visual] ${norm(c.text)}` : norm(c.text);
+  const text = norm(c && c.text);
+  const kind = (c && c.kind) || (c && c.type === 'Visual' ? 'visual' : 'text');
+  if (kind === 'visual') return text ? `[Visual] ${text}` : '[Visual]';
+  if (kind === 'divider') return '[Divider]';
+  if (kind === 'chart') {
+    const k = c.chart && CHART_KINDS.includes(c.chart) ? `: ${c.chart}` : '';
+    return text ? `[Chart${k}] ${text}` : `[Chart${k}]`;
+  }
+  return text;
+}
+
+/** Change what a block is without touching anything else it carries. */
+export function setKind(row, kind, chart) {
+  row.content = {
+    kind,
+    chart: kind === 'chart' ? (chart || row.content.chart || '') : '',
+    text: kind === 'divider' ? '' : row.content.text,
+    type: kind === 'visual' || kind === 'chart' ? 'Visual' : 'Text'
+  };
+  return row;
 }
 
 /** `search, sort, edit` — plain words, never abbreviated. */
@@ -814,6 +855,30 @@ export function renderUsers(list) {
     .join(' · ');
 }
 
+/**
+ * Rename a user type everywhere at once. A role spelled two ways is two groups
+ * in the Users view, and fixing that one guide at a time is how it stays broken.
+ */
+export function renameUserType(doc, from, to) {
+  const a = norm(from).toLowerCase();
+  const b = norm(to);
+  if (!a || !b) return 0;
+  let n = 0;
+  for (const g of guides(doc)) {
+    const list = parseUsers(g.fields.primaryUsers);
+    if (!list.some((u) => u.name.toLowerCase() === a)) continue;
+    const next = [];
+    for (const u of list) {
+      const name = u.name.toLowerCase() === a ? b : u.name;
+      if (next.some((x) => x.name.toLowerCase() === name.toLowerCase())) continue;   // merged into an existing type
+      next.push({ name, primary: u.primary });
+    }
+    setField(g, 'primaryUsers', renderUsers(next));
+    n++;
+  }
+  return n;
+}
+
 /** Every user type in the file, with the guides that name it. */
 export function userTypes(doc) {
   const byKey = new Map();
@@ -878,6 +943,7 @@ const VISUAL_ANSWERS = {
 
 export function lintRow(row) {
   const issues = [];
+  if (row.content.kind === 'divider') return issues;
   const hay = `${row.content.text} ${row.form.type || ''}`.toLowerCase();
   for (const word of Object.keys(VISUAL_ANSWERS)) {
     if (new RegExp(`\\b${word}s?\\b`).test(hay)) {

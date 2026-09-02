@@ -125,8 +125,9 @@ function diffCount(after) {
 ok('the file opens without a read-only banner', (await count('.banner.err')) === 0);
 eq('every guide is listed', await count('#railL .g-item'), 6);
 eq('the page header says which guide you are on', await text('#pagehead h1'), 'Bookings — My Week');
-ok('and who it is for, without spending the guide\'s width on it',
-  (await text('#pagehead .sub')).includes('Everyone with a desk (primary)'));
+ok('and how much of it there is, without repeating what the panel already says',
+  (await text('#pagehead .sub')).includes('13 blocks')
+  && !(await text('#pagehead .sub')).includes('Everyone with a desk'));
 ok('the guide itself carries no context block', await page.$('.guide .ghead') === null);
 eq('its blocks render as items in the stack', await count('.item'), 13);
 ok('the open count is shown', (await text('#open')).includes('11 open'));
@@ -328,85 +329,136 @@ eq('the line under a section heading is editable like everything else',
 ok('and it is written back as the line it was',
   (await current()).includes('*Likely a table. One row per booking.*'));
 
-// ---------------------------------------------------------------- the toolbar
-const secBefore = await count('.sec-title');
-await page.evaluate(() => [...document.querySelectorAll('#tools .tool')].find((b) => b.textContent.includes('Section')).click());
-await page.waitForTimeout(300);
-eq('the toolbar adds a section', await count('.sec-title'), secBefore + 1);
+// ---------------------------------------------------------------- section controls
+ok('there is no toolbar bolted to the bottom of the screen', await page.$('#tools') === null);
+await page.evaluate(() => document.querySelector('.cell.sechead').click());
+await page.waitForTimeout(250);
+ok('clicking a section brings up what you can add to it', await page.$('.sectrl') !== null);
+ok('and the controls sit inside that section', await page.$('.band .sectrl') !== null);
+eq('every kind of thing a section holds', await count('.sectrl button'), 5);
+ok('with move and delete beside it', (await count('.sectools button')) === 3);
+
 const blocksBefore = await count('.item');
-await page.evaluate(() => [...document.querySelectorAll('#tools .tool')].find((b) => b.textContent.includes('Content')).click());
+await page.evaluate(() => [...document.querySelectorAll('.sectrl button')]
+  .find((b) => b.textContent.includes('content')).click());
 await page.waitForTimeout(300);
-eq('and content into it', await count('.item'), blocksBefore + 1);
-ok('naming the new block starts focused', await page.evaluate(() => document.activeElement.className.includes('lbl')));
+eq('adding content adds it to that section', await count('.item'), blocksBefore + 1);
+ok('and starts you naming it', await page.evaluate(() => document.activeElement.className.includes('lbl')));
 await typeInto('.rowsel .lbl', 'A new thing');
 await save();
 ok('which lands in the file', (await current()).includes('| A new thing |'));
-await page.evaluate(() => {
-  const t = [...document.querySelectorAll('.sec-title')].find((n) => n.textContent === 'New section');
-  t.closest('.cell').previousElementSibling.querySelectorAll('.sectools button')[2].click();
-});
-await page.waitForTimeout(300);
-eq('and a section can be deleted again', await count('.sec-title'), secBefore);
 
-// ---------------------------------------------------------------- adding inside a section
-await pick('Time');
-await page.waitForTimeout(200);
-ok('a selected block offers a way to add one right after it',
-  await page.$('.rowsel .rowtools') !== null);
-const posBefore = await page.evaluate(() =>
-  [...document.querySelectorAll('.item .lbl')].map((n) => n.textContent.trim()).indexOf('Time'));
-await page.evaluate(() => [...document.querySelectorAll('.rowsel .rowtools button')]
-  .find((b) => b.textContent.includes('below')).click());
-await page.waitForTimeout(300);
-await typeInto('.rowsel .lbl', 'Room or desk');
-const posAfter = await page.evaluate(() =>
-  [...document.querySelectorAll('.item .lbl')].map((n) => n.textContent.trim()).indexOf('Room or desk'));
-eq('and it lands right there, not at the end of the section', posAfter, posBefore + 1);
-await save();
-ok('which the file records in that position',
-  (await current()).includes('| Room or desk |'));
-
-await pick('Room or desk');
-await page.waitForTimeout(150);
-await page.keyboard.press('Enter');
-await page.waitForTimeout(300);
-ok('Enter does the same thing, the way an outliner would',
-  await page.evaluate(() => document.activeElement.className.includes('lbl')
-    && document.activeElement.textContent.trim() === ''));
-await page.keyboard.press('Escape');
-await page.waitForTimeout(200);
-
-// ---------------------------------------------------------------- an example is optional
-ok('a block with no example says nothing about it',
-  await page.evaluate(() => {
-    const it = [...document.querySelectorAll('.item')].find((n) => n.querySelector('.lbl').textContent.trim() === 'Room or desk');
-    return !!it && !it.querySelector('.eg');
-  }));
-eq('and nothing on the guide is flagged for missing one', await count('.flag'), 0);
-await pick('Room or desk');
-await page.waitForTimeout(200);
-await page.evaluate(() => [...document.querySelectorAll('.rowsel .rowtools button')]
-  .find((b) => b.textContent.includes('example')).click());
+await page.evaluate(() => document.querySelector('.cell.sechead').click());
 await page.waitForTimeout(250);
-ok('but there is a quiet way to add one', await page.$('.rowsel .eg') !== null);
-await typeInto('.rowsel .eg', 'Desk 4-118');
+await page.evaluate(() => [...document.querySelectorAll('.sectrl button')]
+  .find((b) => b.textContent.includes('divider')).click());
+await page.waitForTimeout(300);
+ok('a divider is a rule and nothing else', await page.$('.item.divider .rule') !== null);
 await save();
-ok('and it lands in the file', (await current()).includes('| Room or desk | Desk 4-118 |'));
+ok('and the file says so plainly', (await current()).includes('| [Divider] |'));
 
-// ---------------------------------------------------------------- note tools do not move the page
-await pick('Status');
+const secBefore = await count('.sec-title');
+await page.evaluate(() => document.querySelector('.cell.sechead').click());
+await page.waitForTimeout(250);
+await page.evaluate(() => [...document.querySelectorAll('.sectrl button')]
+  .find((b) => b.textContent.includes('section below')).click());
+await page.waitForTimeout(300);
+eq('a section can be added right after this one', await count('.sec-title'), secBefore + 1);
+// the new section is the selected one, so its own tools are the ones on screen
+await page.evaluate(() => document.querySelectorAll('.sectools button')[2].click());
+await page.waitForTimeout(300);
+eq('and deleted again', await count('.sec-title'), secBefore);
+
+// ---------------------------------------------------------------- what a block is
+await pick('A new thing');
 await page.waitForTimeout(200);
-ok('the tools on a note sit outside it, so hovering shifts nothing',
-  await page.evaluate(() => {
-    const note = document.querySelector('.lane-l .note');
-    const before = note.getBoundingClientRect();
-    const tools = note.querySelector('.tools');
-    if (!tools) return false;
-    if (getComputedStyle(tools).position !== 'absolute') return false;
-    tools.style.opacity = '1';
-    const after = note.getBoundingClientRect();
-    return Math.abs(after.width - before.width) < 0.5 && Math.abs(after.height - before.height) < 0.5;
-  }));
+eq('every row says what it is', await text('.rowsel .rowtools .kind'), 'text');
+await page.evaluate(() => document.querySelector('.rowsel .rowtools .kind').click());
+await page.waitForSelector('.kindpop');
+ok('and offers the others', (await count('.kindopt')) === 3 && (await count('.chartopt')) === 7);
+await page.evaluate(() => [...document.querySelectorAll('.chartopt')]
+  .find((b) => b.textContent.includes('Pie')).click());
+await page.waitForTimeout(300);
+await save();
+ok('a data visual records the kind that was chosen',
+  (await current()).includes('| [Chart: pie] A new thing |'));
+
+await pick('A new thing');
+await page.waitForTimeout(200);
+await page.click('.rowsel .addnote');
+await page.waitForTimeout(250);
+await typeInto('.rowsel .note.fresh .t', 'Ideas: split by building');
+await save();
+await pick('A new thing');
+await page.waitForTimeout(200);
+await page.evaluate(() => document.querySelector('.rowsel .rowtools .kind').click());
+await page.waitForSelector('.kindpop');
+await page.evaluate(() => [...document.querySelectorAll('.kindopt')]
+  .find((b) => b.textContent.includes('Visual')).click());
+await page.waitForTimeout(300);
+await save();
+ok('changing what a block is keeps its notes',
+  (await current()).includes('| [Visual] A new thing |')
+  && (await current()).includes('Ideas: split by building'),
+  (await current()).split('\n').find((l) => l.includes('A new thing')));
+
+// ---------------------------------------------------------------- a row moves by its own arrows
+const orderNow = () => page.$$eval('.item .lbl', (ns) => ns.map((n) => n.textContent.trim()));
+await pick('A new thing');
+await page.waitForTimeout(200);
+const beforeMove = (await orderNow()).indexOf('A new thing');
+await page.evaluate(() => document.querySelector('.rowsel .rowtools button.ic').click());
+await page.waitForTimeout(300);
+eq('a row has arrows of its own', (await orderNow()).indexOf('A new thing'), beforeMove - 1);
+await page.evaluate(() => document.querySelectorAll('.rowsel .rowtools button.ic')[1].click());
+await page.waitForTimeout(300);
+eq('in both directions', (await orderNow()).indexOf('A new thing'), beforeMove);
+
+// ---------------------------------------------------------------- choosing a reference
+await page.evaluate(() => document.querySelector('.cell.sechead').click());
+await page.waitForTimeout(250);
+await page.evaluate(() => [...document.querySelectorAll('.sectrl button')]
+  .find((b) => b.textContent.includes('reference')).click());
+await page.waitForSelector('.refpop', { timeout: 4000 });
+ok('a new reference asks what it points at rather than waiting to be typed',
+  await page.$('.refpop input') !== null);
+ok('and lists the guides with enough of each to tell them apart',
+  (await count('.refopt')) >= 4 && (await page.$eval('.refopt .m', (n) => n.textContent.includes('blocks'))));
+await page.fill('.refpop input', 'cancel');
+await page.waitForTimeout(200);
+eq('and it can be searched, which is the point at scale', await count('.refopt'), 1);
+await page.click('.refopt');
+await page.waitForTimeout(300);
+await save();
+ok('the file records a real link, not free text',
+  (await current()).includes('> See [[Cancel a booking]]'));
+ok('and the flow map picks it up as a reference',
+  (await current()).split('\n').filter((l) => l.startsWith('> See')).length >= 3);
+const refsInFile = (t) => t.split('\n').filter((l) => l.startsWith('> See')).length;
+const refsBeforeRemoval = refsInFile(await current());
+await page.evaluate(() => {
+  const r = [...document.querySelectorAll('.ref')].pop();
+  if (r && r.querySelector('.refx')) r.querySelector('.refx').click();
+});
+await page.waitForTimeout(250);
+await save();
+eq('and it can be removed again', refsInFile(await current()), refsBeforeRemoval - 1);
+
+// ---------------------------------------------------------------- renaming a role
+await panel(0);
+await page.waitForTimeout(200);
+const before = await current();
+await page.$eval('#railR .chip .nm', (n) => { n.focus(); n.textContent = 'Deskworker'; n.blur(); });
+await page.waitForTimeout(400);
+await save();
+const after = await current();
+const changed = after.split('\n').filter((l, i) => before.split('\n')[i] !== l);
+ok('renaming a role fixes it in every guide at once, not one at a time',
+  changed.length >= 2 && changed.every((l) => l.startsWith('**Primary users:**')),
+  JSON.stringify(changed.slice(0, 4)));
+ok('and it says how many it touched', await page.$('.banner.info') !== null);
+ok('so the Users view stops showing one group twice',
+  !after.includes('Everyone with a desk'));
 
 // ---------------------------------------------------------------- capture
 await page.keyboard.press('c');
@@ -498,7 +550,12 @@ await page.click('#tabs button:nth-child(3)');
 await page.waitForSelector('.usr');
 eq('every user type in the file is listed', await count('.usr'), 3);
 ok('each names its guides', (await count('.usr .oi')) >= guidesNow);
-eq('the group that uses the most screens comes first', await text('.usr .n'), 'Everyone with a desk');
+ok('the group that uses the most screens comes first',
+  await page.evaluate(() => {
+    const counts = [...document.querySelectorAll('.usr')].map((u) => u.querySelectorAll('.oi').length);
+    return counts.every((n, i) => i === 0 || n <= counts[i - 1]);
+  }));
+const topUser = await text('.usr .n');
 ok('a guide says whether it is their main screen',
   await page.evaluate(() => [...document.querySelectorAll('.usr .oi')].some((n) => n.textContent.includes('their main screen'))));
 await page.click('.usr .btn');
@@ -507,7 +564,7 @@ ok('picking a group is a filter, not a presentation', await page.$('#userbar') !
 ok('it lands you in the guide view, still able to move about',
   await page.evaluate(() => !document.body.classList.contains('present'))
   && (await text('#tabs button.on')) === 'Guide');
-ok('and says whose set you are looking at', (await text('#userbar')).includes('Everyone with a desk'));
+ok('and says whose set you are looking at', (await text('#userbar')).includes(topUser));
 eq('the rail narrows to their screens', await count('#railL .g-item'), guidesNow);
 
 await page.keyboard.press('p');
@@ -549,7 +606,15 @@ await page.click('#tabs button:nth-child(2)');
 await page.waitForSelector('#flow svg');
 eq('every guide is a node', await count('#flow .node'), guidesNow);
 ok('routes are drawn', (await count('#flow .edge:not(.ref)')) >= 5);
-ok('references are drawn differently', (await count('#flow .edge.ref')) >= 2);
+eq('references are drawn differently from routes, when they resolve',
+  await count('#flow .edge.ref'),
+  await (async () => {
+    const t = await current();
+    const names = t.split('\n').filter((l) => l.startsWith('## ')).map((l) => l.slice(3).trim());
+    return t.split('\n')
+      .map((l) => /^> See \[\[([^\]]+)\]\]/.exec(l))
+      .filter((m) => m && names.includes(m[1].trim())).length;
+  })());
 ok('the panel steps out of the way of a file-wide view',
   await page.evaluate(() => getComputedStyle(document.getElementById('railR')).display === 'none'));
 
@@ -651,8 +716,6 @@ ok('present mode hides both rails',
   await page.evaluate(() => getComputedStyle(document.getElementById('railL')).display === 'none'));
 ok('and the tabs, which are not for the room',
   await page.evaluate(() => getComputedStyle(document.getElementById('tabs')).display === 'none'));
-ok('and the creator toolbar, which is not either',
-  await page.evaluate(() => getComputedStyle(document.getElementById('tools')).display === 'none'));
 ok('but the page header stays, so the room knows which screen this is',
   await page.evaluate(() => getComputedStyle(document.getElementById('pagehead')).display !== 'none'));
 ok('the stack gets wider for a shared screen',
@@ -671,7 +734,8 @@ ok('the source view shows the markdown', (await text('#src')).startsWith('# Prio
 await page.keyboard.press('g');
 await page.waitForSelector('.item');
 const dragged = await page.evaluate(() => {
-  const items = [...document.querySelectorAll('.item')];
+  // a divider has no name, so it is not a useful subject for this
+  const items = [...document.querySelectorAll('.item')].filter((n) => n.querySelector('.lbl'));
   const from = items[1], to = items[3];
   // Compare on the name alone: a selected row grows its own tools, so its full
   // text is not stable across the move.
@@ -683,7 +747,8 @@ const dragged = await page.evaluate(() => {
   cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
   cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
   from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
-  const after = [...document.querySelectorAll('.item')].map((b) => b.querySelector('.lbl').textContent.trim());
+  const after = [...document.querySelectorAll('.item')]
+    .filter((b) => b.querySelector('.lbl')).map((b) => b.querySelector('.lbl').textContent.trim());
   return { label, index: after.indexOf(label) };
 });
 eq('dragging a block lands it where it was dropped', dragged.index, 3);

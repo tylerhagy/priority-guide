@@ -13,8 +13,10 @@ Everything that is true of the whole guide — what it is for, who it is for, wh
 it leans on, what points at it — sits in the header and the side panel, so none
 of it takes width away from the guide itself.
 
-Everything is edited where it sits. There are no forms and nothing to save
-except the file.
+Everything is edited where it sits, and every control lives on the thing it acts
+on: click a section and its own controls appear inside it, hover a row and its
+own appear on it. There are no forms, no toolbar at the bottom of the screen, and
+nothing to save except the file.
 
 ![The guide view](screenshots/01-guide.png)
 
@@ -108,7 +110,7 @@ the ones you do not use, or add your own — an `Owner` column is left untouched
 
 | Column | What goes in it |
 | --- | --- |
-| **Content** | What the thing is called. Prefix `[Visual]` for an image, chart or map. |
+| **Content** | What the thing is called, and what kind of block it is. `[Visual] Floor plan` is an image or a map, `[Chart: pie] Revenue` a data visual, `[Divider]` a rule. No marker means an ordinary data point, control or action. |
 | **Real data** | The example, shown under the name in the middle: the actual format (`123 N Main St, Clio, MI 48420`), or the values when there are under ten. If there are many, say so — the count is what drives the design. **Optional**, and its absence is never flagged. |
 | **Do** | `search`, `filter`, `sort`, `edit` — what the user can do to this specific thing. |
 | **Link** | `type → [[Target]]`. One of `download`, `mailto`, `modal`, `offsite page`, `onsite page`, `trigger`, `upload`, `other`. |
@@ -124,6 +126,11 @@ counts every `??` as open.
 **`ACTION:` means a follow-up, and only that.** Never an emphasis flag. The
 header count is the number of open items, and it is meant to reach zero. Any
 note becomes one — and stops being one — in a click.
+
+**What a block is, is a marker in front of its name.** `[Visual]`, `[Chart]`,
+`[Chart: pie|bar|line|table|number|map]`, `[Divider]`. Changing a block's kind in
+the app keeps its name, its example, its notes and its functionality — you never
+rebuild a block to change what it is.
 
 **Functionality, never a visual solution.** `single select`, not `dropdown`. If
 you type a visual answer the app says so and asks the question you skipped —
