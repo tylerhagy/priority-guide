@@ -116,13 +116,12 @@ body.present .sec-title{font-size:15.5px}
 .g-item.on{background:var(--accent-soft);color:var(--ink)}
 .g-item .n{font-weight:500;display:block;padding:1px 3px;margin-left:-3px;border-radius:4px}
 .g-item .n:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
-.gtools{position:absolute;right:5px;top:4px;display:flex;gap:1px;opacity:0;padding-left:14px;
-  transition:opacity .1s var(--ease);
-  background:linear-gradient(90deg,transparent,var(--panel) 45%)}
-.g-item.on .gtools{background:linear-gradient(90deg,transparent,#e7edfb 45%)}
-.g-item:hover .gtools{opacity:1}
-.gtools button{color:var(--faint);padding:2px;border-radius:4px;display:flex}
-.gtools button:hover{color:var(--ink);background:rgba(16,18,22,.08)}
+.gmore{position:absolute;right:5px;top:5px;padding-left:12px;
+  background:linear-gradient(90deg,transparent,var(--panel) 40%)}
+.g-item.on .gmore{background:linear-gradient(90deg,transparent,#e7edfb 40%)}
+.g-item.dragging{opacity:.4}
+.g-item.dropat{box-shadow:inset 0 2px 0 var(--accent)}
+.g-item.dropafter{box-shadow:inset 0 -2px 0 var(--accent)}
 .g-item .m{font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
 .g-item.on .m{color:var(--dim)}
 .g-item .m .o{color:var(--flag);font-weight:600}
@@ -225,7 +224,8 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .rowtools button.ic:hover svg{color:var(--ink)}
 .rowtools button[disabled]{opacity:.3;pointer-events:none}
 .rowtools .kind{color:var(--ink);font-weight:500;border-left:1px solid var(--line);
-  margin-left:2px;padding-left:8px;border-radius:0 5px 5px 0}
+  margin-left:2px;padding-left:8px}
+.rowtools .more{opacity:1;padding:3px 4px}
 .rowtools .kind:after{content:" ▾";color:var(--faint)}
 
 /* ---------- a divider is a rule and nothing else ---------- */
@@ -234,21 +234,34 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .item .kindmark{color:var(--dim);flex:none}
 .item.visual .box{align-items:flex-start}
 
-/* ---------- section controls, in the section ---------- */
-.cell.sechead{cursor:pointer}
-.secsel .band.open{box-shadow:inset 2px 0 0 var(--accent)}
-.sectrl{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;padding-top:2px}
-.sectrl button{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);
-  padding:3px 8px;border-radius:7px;background:var(--panel);border:1px solid var(--line)}
-.sectrl button:hover{color:var(--ink);border-color:var(--dim)}
-.sectrl button svg{color:var(--faint)}
-.sectrl button:hover svg{color:var(--ink)}
+/* ---------- one overflow button, everywhere ---------- */
+.more{color:var(--faint);padding:3px;border-radius:6px;display:flex;align-items:center;
+  opacity:0;transition:opacity .1s var(--ease)}
+.more:hover,.more.open{color:var(--ink);background:rgba(16,18,22,.09)}
+.more.open{opacity:1}
+.g-item:hover .more,.g-item:focus-within .more,
+.cell.sechead:hover .more,.item:hover .more,.rowsel .more{opacity:1}
+.secmore{position:absolute;right:10px;top:8px}
+.cell.sechead{position:relative}
+.menu{width:236px;padding:5px;display:flex;flex-direction:column;gap:1px}
+.mitem{display:flex;align-items:flex-start;gap:9px;width:100%;text-align:left;
+  padding:6px 8px;border-radius:8px}
+.mitem:hover,.mitem:focus-visible{background:var(--hover);outline:none}
+.mitem > div{flex:1;min-width:0}
+.mitem svg{color:var(--dim);margin-top:1px;flex:none}
+.mitem .n{font-size:12.5px;line-height:1.35}
+.mitem .h{font-size:11px;color:var(--faint);line-height:1.35;margin-top:1px}
+.mitem[disabled]{opacity:.35;pointer-events:none}
+.mitem.danger .n{color:var(--act)}
+.mitem.danger svg{color:var(--act)}
+.mitem.danger:hover{background:rgba(179,38,30,.08)}
+.msep{height:1px;background:var(--line);margin:4px 6px}
 
 /* ---------- what a block is ---------- */
 .pop-h{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);grid-column:1/-1;margin-bottom:1px}
 .pop-h + *{margin-top:0}
-.kindpop{display:block;width:296px}
+.kindpop{width:296px}
 .kindpop .pop-h{margin:10px 0 5px}
 .kindpop .pop-h:first-child{margin-top:0}
 .kinds{display:flex;flex-direction:column;gap:1px}
@@ -270,7 +283,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .chartopt svg{color:currentColor}
 
 /* ---------- choosing what a reference points at ---------- */
-.refpop{display:block;width:300px}
+.refpop{width:300px}
 .refpop input{width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:7px;
   background:var(--panel);font-size:12.5px}
 .refpop .pop-h{margin:11px 0 5px}
@@ -319,8 +332,9 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 
 /* ---------- functionality popover ---------- */
 .pop{position:fixed;z-index:20;background:var(--panel);border:1px solid var(--line);
-  border-radius:11px;box-shadow:0 8px 30px rgba(0,0,0,.14);padding:12px;width:266px;
-  display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px 9px;align-items:center}
+  border-radius:11px;box-shadow:0 8px 30px rgba(0,0,0,.14);padding:12px}
+.fnpop{width:266px;display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px 9px;
+  align-items:center}
 .pop label{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
   color:var(--faint)}
 .pop select,.pop input{width:100%;padding:4px 7px;border:1px solid var(--line);border-radius:7px;
@@ -354,9 +368,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .ref:focus{outline:none;background:var(--accent-soft)}
 .raw-table{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
   color:var(--faint);background:var(--panel);border-radius:4px;padding:6px 8px}
-.sectools{display:flex;gap:1px;margin-top:1px}
-.sectools button{color:var(--faint);padding:3px;border-radius:5px;display:flex}
-.sectools button:hover{color:var(--ink);background:var(--hover)}
+
 
 /* ---------- right panel ---------- */
 #railR .ptabs{flex:none;display:flex;gap:2px;padding:10px 12px 0;border-bottom:1px solid var(--line)}
@@ -535,7 +547,7 @@ import {
   parseLinkCell, renderLinkCell, parseFormCell, renderFormCell,
   parseNoteCell, renderNoteCell,
   parseUsers, renderUsers, userTypes, renameUserType, handleFor, isWebUrl, refsIn, hasAction,
-  moveGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
+  moveGuide, placeGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -860,6 +872,76 @@ function renderHello() {
   $('stage').appendChild(w);
 }
 
+// ---------------------------------------------------------------- the menu
+/**
+ * One overflow menu, used by the guides rail, a section and a row.
+ *
+ * The rule it enforces: a click on a thing does the obvious thing to that thing
+ * — navigate to a guide, edit the text you clicked. Everything else it can do
+ * lives behind ⋯, in the same place, on every kind of object. Nothing important
+ * hides behind knowing which pixel is special.
+ */
+function menuButton(cls, title) {
+  const b = el('button', 'more' + (cls ? ' ' + cls : ''));
+  b.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">'
+    + '<circle cx="3.2" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.8" cy="8" r="1.4"/></svg>';
+  b.title = title || 'More';
+  b.setAttribute('aria-label', title || 'More');
+  return b;
+}
+
+function openMenu(anchor, items) {
+  closePop();
+  const m = el('div', 'pop menu');
+  for (const it of items) {
+    if (it.sep) { m.appendChild(el('div', 'msep')); continue; }
+    const b = el('button', 'mitem' + (it.danger ? ' danger' : ''));
+    b.appendChild(icon(it.glyph || 'other', 13));
+    const t = el('div');
+    t.appendChild(el('div', 'n', it.label));
+    if (it.hint) t.appendChild(el('div', 'h', it.hint));
+    b.appendChild(t);
+    b.disabled = !!it.disabled;
+    b.onclick = () => { closePop(); it.fn(); };
+    m.appendChild(b);
+  }
+  document.body.appendChild(m);
+  placePop(m, anchor);
+  S.pop = m;
+  anchor.classList.add('open');
+  m.dataset.owner = '1';
+  m.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') closePop();
+  };
+  setTimeout(() => { document.addEventListener('mousedown', popAway); m.querySelector('.mitem').focus(); }, 0);
+  return m;
+}
+
+/** Everything a guide can do, in the one place a user will look for it. */
+function guideMenu(anchor, g, i, total) {
+  openMenu(anchor, [
+    { glyph: 'edit', label: 'Rename', fn: () => {
+      S.guide = g; S.renaming = g; render();
+      focusSoon('#railL .g-item.on .n');
+    } },
+    { glyph: 'up', label: 'Move up', disabled: i === 0,
+      fn: () => { if (moveGuide(S.doc, g, -1)) { mark(); render(); } } },
+    { glyph: 'down', label: 'Move down', disabled: i === total - 1,
+      fn: () => { if (moveGuide(S.doc, g, 1)) { mark(); render(); } } },
+    { sep: true },
+    { glyph: 'trash', label: 'Delete guide', danger: true, fn: () => {
+      const blocks = rowsOf(g).length;
+      if (!confirm(`Delete “${g.name}”${blocks ? ` and its ${blocks} block${blocks === 1 ? '' : 's'}` : ''}?`
+        + '\n\nAnything routing to it will be reported as pointing nowhere.')) return;
+      removeGuide(S.doc, g);
+      if (S.guide === g) S.guide = guides(S.doc)[0] || null;
+      S.sel = null; mark(); render();
+    } }
+  ]);
+}
+
 // ---------------------------------------------------------------- left rail
 function renderRailLeft() {
   const r = $('railL');
@@ -873,13 +955,16 @@ function renderRailLeft() {
     : null;
   r.appendChild(el('div', 'rail-h', filtered ? S.userFilter : 'Guides'));
   const all = guides(S.doc);
-  for (const g of (filtered || all)) {
+  (filtered || all).forEach((g, gi) => {
     const b = el('div', 'g-item' + (g === S.guide ? ' on' : ''));
+    b.tabIndex = 0;
     const nm = el('div', 'n');
     nm.textContent = g.name;
-    if (!S.readOnly) {
-      editable(nm, g.name, (v) => { if (v) { g.name = v; g.dirtyHeading = true; } });
-      nm.onfocus = () => { S.guide = g; };
+    // Renaming happens on purpose, from the menu — never because a click for
+    // navigation happened to land on the words.
+    if (!S.readOnly && S.renaming === g) {
+      editable(nm, g.name, (v) => { S.renaming = null; if (v) { g.name = v; g.dirtyHeading = true; } });
+      nm.addEventListener('blur', () => { if (S.renaming === g) { S.renaming = null; render(); } });
     }
     b.appendChild(nm);
     const n = rowsOf(g).length;
@@ -887,37 +972,54 @@ function renderRailLeft() {
     const m = el('div', 'm');
     m.innerHTML = `${n} block${n === 1 ? '' : 's'}` + (o ? ` · <span class="o">${o} open</span>` : '');
     b.appendChild(m);
-    b.onclick = (e) => {
-      if (e.target.closest('.n,.gtools')) return;
-      commitEditor(); S.guide = g; S.sel = null; S.shownField = null; S.view = 'guide'; render();
+    const go = () => {
+      if (S.renaming) return;
+      commitEditor(); S.guide = g; S.sel = null; S.selSection = null;
+      S.shownField = null; S.view = 'guide'; render();
     };
+    b.onclick = (e) => { if (e.target.closest('.more,[contenteditable]')) return; go(); };
+    b.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
+
     if (!S.readOnly && !filtered) {
-      const tools = el('div', 'gtools');
-      const mv = (dir, glyph, title) => {
-        const t = el('button');
-        t.appendChild(icon(glyph, 12));
-        t.title = title;
-        t.onclick = () => { if (moveGuide(S.doc, g, dir)) { mark(); render(); } };
-        return t;
+      const more = menuButton('gmore', 'Rename, move or delete this guide');
+      more.onclick = (e) => { e.stopPropagation(); guideMenu(more, g, gi, all.length); };
+      b.appendChild(more);
+
+      // Reordering is dragging, because that is what a list of things affords.
+      b.draggable = true;
+      b.ondragstart = (e) => {
+        S.dragGuide = g; b.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', g.name);
       };
-      tools.appendChild(mv(-1, 'up', 'Move up'));
-      tools.appendChild(mv(1, 'down', 'Move down'));
-      const del = el('button');
-      del.appendChild(icon('trash', 12));
-      del.title = 'Delete this guide';
-      del.onclick = () => {
-        const blocks = rowsOf(g).length;
-        if (!confirm(`Delete “${g.name}”${blocks ? ` and its ${blocks} block${blocks === 1 ? '' : 's'}` : ''}?`
-          + '\n\nAnything routing to it will be reported as pointing nowhere.')) return;
-        removeGuide(S.doc, g);
-        if (S.guide === g) S.guide = guides(S.doc)[0] || null;
-        S.sel = null; mark(); render();
+      b.ondragend = () => {
+        S.dragGuide = null;
+        document.querySelectorAll('.g-item').forEach((x) => x.classList.remove('dragging', 'dropat', 'dropafter'));
       };
-      tools.appendChild(del);
-      b.appendChild(tools);
+      b.ondragover = (e) => {
+        if (!S.dragGuide || S.dragGuide === g) return;
+        e.preventDefault();
+        const rect = b.getBoundingClientRect();
+        const below = e.clientY > rect.top + rect.height / 2;
+        b.classList.toggle('dropat', !below);
+        b.classList.toggle('dropafter', below);
+      };
+      b.ondragleave = () => b.classList.remove('dropat', 'dropafter');
+      b.ondrop = (e) => {
+        e.preventDefault();
+        const below = b.classList.contains('dropafter');
+        b.classList.remove('dropat', 'dropafter');
+        const moving = S.dragGuide;
+        if (!moving || moving === g) return;
+        const order = guides(S.doc);
+        let to = order.indexOf(g) + (below ? 1 : 0);
+        if (order.indexOf(moving) < to) to--;
+        placeGuide(S.doc, moving, to);
+        S.dragGuide = null; mark(); render();
+      };
     }
     r.appendChild(b);
-  }
+  });
   if (filtered) {
     const clear = el('button', 'rail-add', 'Show every guide');
     clear.onclick = () => { S.userFilter = null; render(); };
@@ -1113,9 +1215,19 @@ function editable(node, current, commit, opts = {}) {
     render();
   };
   node.onkeydown = (e) => {
-    e.stopPropagation();
-    if (e.key === 'Escape') { e.preventDefault(); node.textContent = current; node.blur(); }
-    else if (e.key === 'Enter' && !opts.multiline) { e.preventDefault(); node.blur(); }
+    // Swallowing every keystroke meant Cmd-S did nothing while you were typing,
+    // which is exactly when you want it. Only what this editor handles is
+    // stopped; every command chord goes through to the app.
+    if (e.metaKey || e.ctrlKey) return;
+    if (e.key === 'Escape') {
+      e.stopPropagation(); e.preventDefault();
+      node.textContent = current; node.blur();
+    } else if (e.key === 'Enter' && !opts.multiline) {
+      e.stopPropagation(); e.preventDefault(); node.blur();
+    } else if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete'
+      || e.key.startsWith('Arrow') || e.key === 'Tab') {
+      e.stopPropagation();
+    }
   };
   return node;
 }
@@ -1252,13 +1364,10 @@ function renderGuide() {
     title.host.appendChild(sectionTitle(g, sec));
     title.c.classList.add('sechead');
     if (!S.readOnly && !S.present) {
-      title.c.onclick = (e) => {
-        if (e.target.closest('button,a,[contenteditable]')) return;
-        S.selSection = S.selSection === sec ? null : sec;
-        S.sel = null; render();
-      };
+      const more = menuButton('secmore', 'Add to this section, move it, or delete it');
+      more.onclick = (e) => { e.stopPropagation(); sectionMenu(more, g, sec); };
+      title.host.appendChild(more);
     }
-    if (S.selSection === sec) [title.l, title.c, title.r].forEach((n) => n.classList.add('secsel'));
 
     // The line of prose under a heading is part of the guide, so it is editable
     // like everything else — and it exists even when the file has no line yet.
@@ -1267,11 +1376,7 @@ function renderGuide() {
       const pRow = gridRow(''); mine.push(pRow.band);
       pRow.host.appendChild(sectionProse(g, sec, prose));
     }
-    if (S.selSection === sec && !S.readOnly && !S.present) {
-      const cRow = gridRow(''); mine.push(cRow.band);
-      cRow.host.appendChild(sectionCtrl(g, sec));
-      cRow.l.appendChild(sectionTools(g, sec));
-    }
+
 
     for (const chunk of sec.chunks) {
       if (chunk.kind === 'raw') {
@@ -1355,84 +1460,68 @@ function sectionProse(g, sec, chunk) {
   return p;
 }
 
-function sectionTools(g, sec) {
-  const tools = el('div', 'sectools');
-  const b = (glyph, title, fn) => {
-    const x = el('button');
-    x.appendChild(icon(glyph, 12));
-    x.title = title;
-    x.onclick = (e) => { e.stopPropagation(); fn(); };
-    tools.appendChild(x);
-  };
-  b('up', 'Move this section up', () => { if (moveSection(g, sec, -1)) { mark(); render(); } });
-  b('down', 'Move this section down', () => { if (moveSection(g, sec, 1)) { mark(); render(); } });
-  b('trash', 'Delete this section and everything in it', () => {
-    const n = sec.chunks.filter((c) => c.kind === 'table').reduce((a, c) => a + c.rows.length, 0);
-    if (!confirm(`Delete “${sec.title}”${n ? ` and its ${n} block${n === 1 ? '' : 's'}` : ''}?`)) return;
-    g.sections.splice(g.sections.indexOf(sec), 1);
-    g.dirty = true; S.sel = null; S.selSection = null; mark(); render();
-  });
-  return tools;
-}
-
-/** Everything you can add to the section you just clicked, inside it. */
-function sectionCtrl(g, sec) {
-  const bar = el('div', 'sectrl');
+/** Everything a section can do, from one button that is always in the same place. */
+function sectionMenu(anchor, g, sec) {
   const lastTable = () => {
     const ts = sec.chunks.filter((c) => c.kind === 'table');
     return ts[ts.length - 1] || null;
   };
-  const add = (glyph, label, fn, title) => {
-    const b = el('button');
-    b.appendChild(icon(glyph, 12));
-    b.appendChild(el('span', null, label));
-    if (title) b.title = title;
-    b.onclick = (e) => { e.stopPropagation(); fn(); };
-    bar.appendChild(b);
+  const intoTable = () => {
+    let t = lastTable();
+    if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
+    return t;
   };
+  const secs = g.sections.filter((x) => x.kind === 'section');
+  const at = secs.indexOf(sec);
 
-  add('line1', 'content', () => {
-    let t = lastTable();
-    if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
-    const rw = addRow(t, sec, {});
-    S.sel = rw; S.selSection = null; mark(); render();
-    focusSoon('.rowsel .lbl');
-  }, 'A data point, a control or an action');
-
-  add('rule', 'divider', () => {
-    let t = lastTable();
-    if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
-    const rw = addRow(t, sec, { content: '[Divider]' });
-    S.sel = rw; S.selSection = null; mark(); render();
-  }, 'A rule, to break this section up');
-
-  add('other', 'subsection', () => {
-    const at = sec.chunks.length;
-    sec.chunks.splice(at, 0, { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true });
-    sec.chunks.splice(at + 1, 0, blankTable());
-    sec.dirty = true; S.selSection = null; mark(); render();
-  }, 'A split inside this section — often the per-row actions');
-
-  add('source', 'reference', () => {
-    const c = { kind: 'ref', src: ['> See [[]] — why'], target: '', text: 'See [[]] — why', refs: [], dirty: true };
-    sec.chunks.push(c);
-    sec.dirty = true; S.selSection = null; mark(); render();
-    setTimeout(() => {
-      const r = [...document.querySelectorAll('.ref')].pop();
-      if (r) r.click();
-    }, 30);
-  }, 'Point at another guide instead of repeating its content');
-
-  add('plus', 'section below', () => {
-    const at = g.sections.indexOf(sec) + 1;
-    const ns = addSection(g, 'New section');
-    const i = g.sections.indexOf(ns);
-    g.sections.splice(i, 1);
-    g.sections.splice(at, 0, ns);
-    S.selSection = ns; mark(); render();
-    focusSoon(`.guide .sec-title`);
-  }, 'A new group of content, right after this one');
-  return bar;
+  openMenu(anchor, [
+    { glyph: 'line1', label: 'Add content', hint: 'A data point, a control or an action', fn: () => {
+      const rw = addRow(intoTable(), sec, {});
+      S.sel = rw; mark(); render(); focusSoon('.rowsel .lbl');
+    } },
+    { glyph: 'visual', label: 'Add a visual', hint: 'An image, a map, a data visual', fn: () => {
+      const rw = addRow(intoTable(), sec, { content: '[Visual] ' });
+      S.sel = rw; mark(); render(); focusSoon('.rowsel .lbl');
+    } },
+    { glyph: 'rule', label: 'Add a divider', hint: 'A rule, to break this section up', fn: () => {
+      const rw = addRow(intoTable(), sec, { content: '[Divider]' });
+      S.sel = rw; mark(); render();
+    } },
+    { glyph: 'other', label: 'Add a subsection', hint: 'A split inside this section', fn: () => {
+      const i = sec.chunks.length;
+      sec.chunks.splice(i, 0, { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true });
+      sec.chunks.splice(i + 1, 0, blankTable());
+      sec.dirty = true; mark(); render();
+      focusSoon('.guide .sub-t:last-of-type');
+    } },
+    { glyph: 'source', label: 'Add a reference', hint: 'Point at another guide instead of repeating it', fn: () => {
+      const c = { kind: 'ref', src: ['> See [[]] — why'], target: '', text: 'See [[]] — why', refs: [], dirty: true };
+      sec.chunks.push(c);
+      sec.dirty = true; mark(); render();
+      setTimeout(() => { const r = [...document.querySelectorAll('.ref')].pop(); if (r) r.click(); }, 30);
+    } },
+    { sep: true },
+    { glyph: 'plus', label: 'Add a section below', fn: () => {
+      const to = g.sections.indexOf(sec) + 1;
+      const ns = addSection(g, 'New section');
+      const i = g.sections.indexOf(ns);
+      g.sections.splice(i, 1);
+      g.sections.splice(to, 0, ns);
+      mark(); render();
+      focusSoon('.guide .sec-title');
+    } },
+    { glyph: 'up', label: 'Move section up', disabled: at === 0,
+      fn: () => { if (moveSection(g, sec, -1)) { mark(); render(); } } },
+    { glyph: 'down', label: 'Move section down', disabled: at === secs.length - 1,
+      fn: () => { if (moveSection(g, sec, 1)) { mark(); render(); } } },
+    { sep: true },
+    { glyph: 'trash', label: 'Delete section', danger: true, fn: () => {
+      const n = sec.chunks.filter((c) => c.kind === 'table').reduce((a, c) => a + c.rows.length, 0);
+      if (!confirm(`Delete “${sec.title}”${n ? ` and its ${n} block${n === 1 ? '' : 's'}` : ''}?`)) return;
+      g.sections.splice(g.sections.indexOf(sec), 1);
+      g.dirty = true; S.sel = null; mark(); render();
+    } }
+  ]);
 }
 
 // ---------------------------------------------------------------- one row
@@ -1587,12 +1676,39 @@ function rowTools(ctx, kind, openExample) {
   k.onclick = (e) => { e.stopPropagation(); S.sel = rw; openKindPicker(k, ctx); };
   tools.appendChild(k);
 
-  if (openExample && kind !== 'divider') {
-    const b = el('button', null, 'example');
-    b.title = 'What the data really looks like. Optional.';
-    b.onclick = (e) => { e.stopPropagation(); openExample(); };
-    tools.appendChild(b);
-  }
+  const more = menuButton('rowmore', 'More for this block');
+  more.onclick = (e) => {
+    e.stopPropagation();
+    S.sel = rw;
+    openMenu(more, [
+      ...(openExample && kind !== 'divider'
+        ? [{ glyph: 'line1', label: 'Add an example', hint: 'What the data really looks like', fn: openExample }]
+        : []),
+      { glyph: 'note', label: 'Add a note', hint: 'A rule, a link, or a follow-up', fn: () => {
+        rw.note.push({ text: '', action: false });
+        S.newRowNote = rw; render();
+        focusSoon('.rowsel .note.fresh .t');
+      } },
+      { glyph: 'plus', label: 'Duplicate', fn: () => {
+        const copy = addRow(table, sec, { at: rows.indexOf(rw) + 1 });
+        copy.content = { ...rw.content };
+        copy.realData = rw.realData;
+        copy.capabilities = rw.capabilities.slice();
+        copy.link = { ...rw.link };
+        copy.form = { ...rw.form };
+        copy.note = rw.note.map((n) => ({ ...n }));
+        touchRow(copy, table, sec);
+        S.sel = copy; mark(); render(); focusSoon('.rowsel .lbl');
+      } },
+      { sep: true },
+      { glyph: 'trash', label: 'Delete block', danger: true, fn: () => {
+        rows.splice(rows.indexOf(rw), 1);
+        table.dirty = true; sec.dirty = true;
+        S.sel = null; mark(); render();
+      } }
+    ]);
+  };
+  tools.appendChild(more);
   return tools;
 }
 
@@ -1670,7 +1786,11 @@ function openKindPicker(anchor, ctx) {
   document.body.appendChild(pop);
   placePop(pop, anchor);
   S.pop = pop;
-  pop.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') { closePop(); render(); } };
+  pop.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') { closePop(); render(); }
+  };
   setTimeout(() => document.addEventListener('mousedown', popAway), 0);
 }
 
@@ -1739,6 +1859,7 @@ function openRefPicker(anchor, g, sec, chunk) {
   placePop(pop, anchor);
   S.pop = pop;
   pop.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
     e.stopPropagation();
     if (e.key === 'Escape') { closePop(); render(); }
     if (e.key === 'Enter') {
@@ -1883,7 +2004,7 @@ const FORM_SAYS = {
 function openFnPopover(anchor, ctx) {
   closePop();
   const { g, sec, table, rw } = ctx;
-  const pop = el('div', 'pop');
+  const pop = el('div', 'pop fnpop');
   const apply = () => { touchRow(rw, table, sec); mark(); };
 
   const field = (label, node, hint) => {
@@ -1954,23 +2075,16 @@ function openFnPopover(anchor, ctx) {
   }
   field('Can be', caps);
 
-  const foot = el('div', 'foot');
-  const del = el('button', 'quiet', 'Delete this block');
-  del.onclick = () => {
-    if (!confirm(`Delete “${rw.content.text || 'this block'}”?`)) return;
-    table.rows.splice(table.rows.indexOf(rw), 1);
-    table.dirty = true; sec.dirty = true;
-    S.sel = null; closePop(); mark(); render();
-  };
-  foot.appendChild(del);
-  pop.appendChild(foot);
-
   document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   pop.style.left = Math.min(r.left, innerWidth - 280) + 'px';
   pop.style.top = Math.min(r.top, innerHeight - pop.offsetHeight - 12) + 'px';
   S.pop = pop; S.popRow = rw;
-  pop.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') { closePop(); render(); } };
+  pop.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') { closePop(); render(); }
+  };
   setTimeout(() => document.addEventListener('mousedown', popAway), 0);
 }
 
@@ -2272,6 +2386,7 @@ function userInput(list, commit) {
   inp.placeholder = 'user type';
   const done = () => { S.startUser = false; };
   inp.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
     e.stopPropagation();
     if (e.key === 'Enter') {
       const v = inp.value.trim();

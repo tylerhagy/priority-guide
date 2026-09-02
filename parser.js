@@ -1145,6 +1145,19 @@ export function moveGuide(doc, guide, dir) {
   return true;
 }
 
+/** Put a guide at an explicit position among the others. */
+export function placeGuide(doc, guide, index) {
+  const slots = doc.segments.map((s, i) => (s.kind === 'guide' ? i : -1)).filter((i) => i !== -1);
+  const from = doc.segments.indexOf(guide);
+  if (from === -1) return false;
+  const order = slots.map((i) => doc.segments[i]);
+  const at = order.indexOf(guide);
+  order.splice(at, 1);
+  order.splice(Math.max(0, Math.min(index, order.length)), 0, guide);
+  slots.forEach((slot, i) => { doc.segments[slot] = order[i]; order[i].dirty = true; });
+  return true;
+}
+
 /** Remove a guide. Anything routing to it becomes a dangling route, and says so. */
 export function removeGuide(doc, guide) {
   const i = doc.segments.indexOf(guide);
