@@ -1266,6 +1266,43 @@ if (await page.$eval('#minimap', (n) => getComputedStyle(n).display !== 'none'))
   eq('and letting go clears the real one', await gcount('.rowsel'), 0);
 }
 
+// ---------------------------------------------------------------- the map at laptop sizes
+/**
+ * The map is for a laptop more than for a desktop — a big screen shows most of
+ * a guide anyway. A width rule that quietly removed it on every MacBook would
+ * have taken it away from exactly the machine that needs it.
+ */
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
+});
+for (const w of [1512, 1440, 1280]) {
+  await page.setViewportSize({ width: w, height: 860 });
+  await page.waitForTimeout(500);
+  // A resize has to remeasure, not inherit whatever was true at the last size.
+  ok(`the map is still there at ${w}px`,
+    await page.$eval('#minimap', (n) => getComputedStyle(n).display !== 'none'),
+    await page.$eval('#stage', (n) => `stage ${Math.round(n.clientWidth)}px`));
+  ok(`and the guide still fits beside it at ${w}px`,
+    await page.evaluate(() => {
+      const st = document.getElementById('stage').getBoundingClientRect();
+      const lanes = [...document.querySelectorAll('#stage .lane-r')];
+      return Math.max(...lanes.map((n) => n.getBoundingClientRect().right)) <= st.right - 20;
+    }));
+}
+// And it does go, when the guide really has no room for it.
+await page.setViewportSize({ width: 900, height: 860 });
+await page.waitForTimeout(500);
+ok('but it does give way when the stage is genuinely too narrow',
+  await page.evaluate(() => {
+    const st = document.getElementById('stage');
+    const shown = getComputedStyle(document.getElementById('minimap')).display !== 'none';
+    return st.clientWidth >= 600 ? shown : !shown;
+  }));
+await page.setViewportSize({ width: 1600, height: 1000 });
+await page.waitForTimeout(450);
+ok('and it comes back when the window does',
+  await page.$eval('#minimap', (n) => getComputedStyle(n).display !== 'none'));
+
 // ---------------------------------------------------------------- capture
 // A shortcut must not fire while the caret is in a field, so let go first.
 await pressAt('#stage', 700, 700);
@@ -1618,6 +1655,11 @@ if (process.env.SHOTS) {
   if (cb) { await cb.click(); await page.waitForTimeout(400); }
   const rail = await page.$('#railR');
   if (rail) await rail.screenshot({ path: path.join(HERE, 'screenshots', 'comments-panel.png') });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(HERE, 'screenshots', 'laptop.png') });
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.waitForTimeout(400);
   const map = await page.$('#minimap');
   if (map) {
     const r = await map.boundingBox();

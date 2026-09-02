@@ -1823,6 +1823,17 @@ function sizeZoomFrame(frame, grid) {
 }
 
 document.documentElement.style.setProperty('--zoom', String(S.zoom || 1));
+
+/**
+ * Both the map and the zoom frame are measured, not declared, so a resized
+ * window has to remeasure them. Without this the map keeps whatever visibility
+ * it had at the size the page was first drawn at.
+ */
+let resizeSoon = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeSoon);
+  resizeSoon = setTimeout(() => { sizeZoomFrame(); renderMinimap(); }, 90);
+});
 function setZoom(z) {
   S.zoom = Math.min(ZOOMS[ZOOMS.length - 1], Math.max(ZOOMS[0], z));
   document.documentElement.style.setProperty('--zoom', String(S.zoom));
@@ -1906,9 +1917,10 @@ function renderMinimap() {
   // A map is for when you cannot hold the guide in your head. Under about a
   // screenful hidden, scrolling is one flick and a map is furniture.
   if (!guide || stage.scrollHeight < stage.clientHeight * 1.75) { m.style.display = 'none'; return; }
-  // On a laptop the guide needs every pixel of the stage more than it needs a
-  // map of itself.
-  if (stage.clientWidth < 820) { m.style.display = 'none'; return; }
+  // The map costs 124px, so it goes only when the guide genuinely cannot spare
+  // them — below its own three-lane minimum. An earlier, far higher threshold
+  // took the map away from every laptop, which is the machine that needs it.
+  if (stage.clientWidth < 600) { m.style.display = 'none'; return; }
   m.style.display = '';
 
   // The picture is the guide itself, cloned and shrunk. Drawing a second,
