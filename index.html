@@ -87,20 +87,28 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
 #pagehead .sub .dot{color:var(--faint)}
 #pagehead .sub .open{color:var(--flag);font-weight:500}
 
-/* ---------- bottom toolbar: the creator tools ---------- */
-#tools{flex:none;display:flex;align-items:center;gap:6px;padding:9px 30px;
-  border-top:1px solid var(--line);background:var(--panel);font-size:12.5px}
-#tools .lbl{color:var(--faint);margin-right:2px}
-#tools .into{margin-left:auto;color:var(--faint);display:flex;align-items:center;gap:6px}
-#tools .into select{border:1px solid var(--line);border-radius:7px;padding:3px 6px;
-  background:var(--panel);max-width:22ch}
-.tool{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;
-  color:var(--dim);font-weight:500}
-.tool:hover{background:var(--hover);color:var(--ink)}
-.tool svg{color:var(--faint)}
-.tool:hover svg{color:var(--ink)}
+/* ---------- the palette: the one place you drag from ---------- */
+#palette{flex:none;display:flex;align-items:center;gap:6px;padding:10px 24px;
+  border-top:1px solid var(--line);background:var(--panel);overflow-x:auto}
+#palette .lbl{color:var(--faint);font-size:11.5px;white-space:nowrap;margin-right:6px;flex:none}
+.ptool{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:9px;
+  border:1px solid var(--line);background:var(--panel);color:var(--dim);font-size:12px;
+  font-weight:500;white-space:nowrap;cursor:grab;user-select:none;flex:none}
+.ptool:hover{color:var(--ink);border-color:var(--dim);background:var(--hover)}
+.ptool svg{color:var(--faint)}
+.ptool:hover svg{color:var(--ink)}
+.ptool.lifting{opacity:.4;cursor:grabbing}
 
-body.present #railL,body.present #railR,body.present #tools{display:none}
+/* Where it will land. */
+.cell.dropbefore{box-shadow:inset 0 3px 0 var(--accent)}
+.cell.dropafter{box-shadow:inset 0 -3px 0 var(--accent)}
+.cell.lifting{opacity:.35}
+.cell.tail{min-height:18px}
+.tailhint{height:10px}
+body.dragging .item{cursor:grabbing}
+
+/* ---------- bottom toolbar: the creator tools ---------- */
+body.present #railL,body.present #railR,body.present #palette{display:none}
 body.present #pagehead{padding:22px 30px 16px}
 body.present #pagehead h1{font-size:28px}
 body.present #stage{padding:30px 30px 90px}
@@ -163,7 +171,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 
 /* ---------- one row in the stack ---------- */
 .item{padding:2px 0}
-.item .box{border:1px solid var(--ink);background:var(--panel);border-radius:2px;
+.item .box{cursor:grab;border:1px solid var(--ink);background:var(--panel);border-radius:2px;
   padding:3px 8px;display:flex;align-items:center;gap:6px;min-height:24px}
 .item.plain .box,.item.linky .box{border-color:transparent;background:transparent;padding-left:2px}
 .item.linky .lbl{text-decoration:underline;text-underline-offset:2px}
@@ -409,11 +417,9 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;background:var(--hover);
   border-radius:6px;padding:2px 5px 2px 8px;color:var(--ink)}
-.chip.pri{background:var(--ink);color:var(--panel);font-weight:500}
+
 .chip .x{color:var(--faint);font-size:13px;line-height:1;padding:0 1px}
-.chip.pri .x{color:rgba(255,255,255,.6)}
 .chip .x:hover{color:var(--act)}
-.chip.pri .x:hover{color:#fff}
 .chip.add{background:transparent;border:1px dashed var(--line);color:var(--faint);padding:2px 8px}
 .chip.add:hover{color:var(--ink);border-color:var(--dim)}
 .chip input{background:transparent;border:0;color:inherit;width:13ch;outline:none;font-size:11.5px}
@@ -524,6 +530,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
   <div id="mid">
     <div id="pagehead"></div>
     <div id="stage"></div>
+    <div id="palette"></div>
   </div>
   <div id="railR"></div>
 </main>
@@ -777,6 +784,7 @@ function render() {
   renderBar();
   renderUserBar();
   renderPageHead();
+  renderPalette();
   if (!S.doc) { renderHello(); return; }
   renderRailLeft();
   $('stage').innerHTML = '';
@@ -1335,9 +1343,180 @@ function blankTable() {
   };
 }
 
+// ---------------------------------------------------------------- the palette
+/**
+ * Everything a guide can hold, in one place you drag from.
+ *
+ * Dragging is the only way to add, and the only way to move. That is one
+ * gesture for "where does this go", instead of a menu that adds somewhere you
+ * cannot see and arrows that move one step at a time.
+ */
+const PALETTE = [
+  { what: 'content', glyph: 'line1', label: 'Content', hint: 'A data point, a control or an action' },
+  { what: 'visual', glyph: 'visual', label: 'Visual', hint: 'An image, a map, a photo' },
+  { what: 'chart', glyph: 'chartother', label: 'Data visual', hint: 'A chart, a table, a number' },
+  { what: 'divider', glyph: 'rule', label: 'Divider', hint: 'A rule, to break a section up' },
+  { what: 'subsection', glyph: 'other', label: 'Subsection', hint: 'A split inside a section' },
+  { what: 'reference', glyph: 'source', label: 'Reference', hint: 'Point at another guide' },
+  { what: 'section', glyph: 'lineN', label: 'Section', hint: 'A new group of content' }
+];
+
+function renderPalette() {
+  const p = $('palette');
+  p.innerHTML = '';
+  if (!S.doc || !S.guide || S.view !== 'guide' || S.readOnly || S.present) {
+    p.style.display = 'none'; return;
+  }
+  p.style.display = '';
+  p.appendChild(el('span', 'lbl', 'Drag onto the guide'));
+  for (const it of PALETTE) {
+    const b = el('div', 'ptool');
+    b.draggable = true;
+    b.title = it.hint;
+    b.appendChild(icon(it.glyph, 15));
+    b.appendChild(el('span', null, it.label));
+    b.ondragstart = (e) => {
+      S.drag = { kind: 'new', what: it.what };
+      b.classList.add('lifting');
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/plain', it.label);
+    };
+    b.ondragend = () => { b.classList.remove('lifting'); endDrag(); };
+    p.appendChild(b);
+  }
+}
+
+function endDrag() {
+  S.drag = null;
+  document.querySelectorAll('.dropbefore,.dropafter')
+    .forEach((n) => n.classList.remove('dropbefore', 'dropafter'));
+  document.body.classList.remove('dragging');
+}
+
+// ---------------------------------------------------------------- dropping
+/**
+ * Every cell in the stack is a drop target and knows what it stands for, so a
+ * drop always has a place: this row, the top of that section, the end of this
+ * one. The line you see is where the thing will land.
+ */
+function dropZone(cell, spot) {
+  cell._spot = spot;
+  cell.ondragover = (e) => {
+    if (!S.drag) return;
+    if (S.drag.kind === 'row' && S.drag.row === spot.row) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = S.drag.kind === 'new' ? 'copy' : 'move';
+    const r = cell.getBoundingClientRect();
+    const after = spot.endOnly || e.clientY > r.top + r.height / 2;
+    cell.classList.toggle('dropbefore', !after && !spot.endOnly);
+    cell.classList.toggle('dropafter', after);
+  };
+  cell.ondragleave = () => cell.classList.remove('dropbefore', 'dropafter');
+  cell.ondrop = (e) => {
+    if (!S.drag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const after = cell.classList.contains('dropafter');
+    cell.classList.remove('dropbefore', 'dropafter');
+    const d = S.drag;
+    endDrag();
+    if (d.kind === 'row') moveRowTo(d.row, spot, after);
+    else addAt(d.what, spot, after);
+  };
+}
+
+/** Where a drop lands, expressed as a table and an index inside it. */
+function resolveSpot(spot, after) {
+  const { g, sec } = spot;
+  if (spot.row) {
+    const at = spot.table.rows.indexOf(spot.row) + (after ? 1 : 0);
+    return { g, sec, table: spot.table, at };
+  }
+  // A section header, or the space after everything in a section.
+  const tables = sec.chunks.filter((c) => c.kind === 'table');
+  if (spot.atTop) {
+    let t = tables[0];
+    if (!t) { t = blankTable(); sec.chunks.unshift(t); sec.dirty = true; }
+    return { g, sec, table: t, at: 0 };
+  }
+  let t = tables[tables.length - 1];
+  if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
+  return { g, sec, table: t, at: t.rows.length };
+}
+
+function moveRowTo(row, spot, after) {
+  const { g, sec, table, at } = resolveSpot(spot, after);
+  dropRow(g, row, table, sec, at);
+  S.sel = row; mark(); render(); keepVisible();
+}
+
+const NEW_CONTENT = { content: '', visual: '[Visual] ', chart: '[Chart] ', divider: '[Divider]' };
+
+function addAt(what, spot, after) {
+  const { g, sec, table, at } = resolveSpot(spot, after);
+
+  if (NEW_CONTENT[what] !== undefined) {
+    const rw = addRow(table, sec, { content: NEW_CONTENT[what], at });
+    S.sel = rw; mark(); render();
+    if (what !== 'divider') focusSoon('.rowsel .lbl');
+    return;
+  }
+
+  if (what === 'subsection') {
+    const chunks = sec.chunks;
+    let insertAt = chunks.indexOf(table) + 1;
+    if (at > 0 && at < table.rows.length) {
+      const rest = table.rows.splice(at);
+      const t2 = {
+        kind: 'table',
+        headerSrc: table.headerSrc ? table.headerSrc.slice() : null,
+        dividerSrc: table.dividerSrc ? table.dividerSrc.slice() : null,
+        cols: table.cols, rows: rest, dirty: true
+      };
+      table.dirty = true;
+      chunks.splice(insertAt, 0, t2);
+    } else if (at === 0) {
+      insertAt = chunks.indexOf(table);
+    }
+    const sub = { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true };
+    chunks.splice(insertAt, 0, { kind: 'raw', src: [''], dirty: false }, sub,
+      { kind: 'raw', src: [''], dirty: false });
+    sec.dirty = true; mark(); render();
+    focusSoon('.guide .sub-t');
+    return;
+  }
+
+  if (what === 'reference') {
+    const chunks = sec.chunks;
+    const c = { kind: 'ref', src: ['> See [[]] — why'], target: '', text: 'See [[]] — why', refs: [], dirty: true };
+    chunks.splice(chunks.indexOf(table) + 1, 0, { kind: 'raw', src: [''], dirty: false }, c);
+    sec.dirty = true; mark(); render();
+    setTimeout(() => {
+      const r = [...document.querySelectorAll('.ref')].find((n) => n.classList.contains('unset'));
+      if (r) r.click();
+    }, 30);
+    return;
+  }
+
+  if (what === 'section') {
+    const to = g.sections.indexOf(sec) + (after || spot.row || !spot.atTop ? 1 : 0);
+    const ns = addSection(g, 'New section');
+    const i = g.sections.indexOf(ns);
+    g.sections.splice(i, 1);
+    g.sections.splice(to, 0, ns);
+    mark(); render();
+    focusSoon('.guide .sec-title');
+  }
+}
+
 // ---------------------------------------------------------------- guide view
 function renderGuide() {
   const stage = $('stage');
+  // Clicking the page around the guide lets go of whatever was selected.
+  stage.onmousedown = (e) => {
+    if (e.target.closest('.guide,.pop,.palette')) return;
+    if (S.sel) { S.sel = null; render(); }
+  };
   if (!S.guide) { stage.appendChild(el('div', 'rail-empty', 'No guide selected.')); return; }
   const g = S.guide;
   const grid = el('div', 'guide');
@@ -1354,6 +1533,7 @@ function renderGuide() {
     c.appendChild(band);
     return { l, c, r, host: band, band };
   };
+  const drops = [];
   const gap = () => { const { c } = gridRow(); c.classList.add('gap'); };
 
   for (const sec of g.sections) {
@@ -1363,6 +1543,7 @@ function renderGuide() {
     mine.push(title.band);
     title.host.appendChild(sectionTitle(g, sec));
     title.c.classList.add('sechead');
+    if (!S.readOnly && !S.present) dropZone(title.c, { g, sec, atTop: true });
     if (!S.readOnly && !S.present) {
       const more = menuButton('secmore', 'Add to this section, move it, or delete it');
       more.onclick = (e) => { e.stopPropagation(); sectionMenu(more, g, sec); };
@@ -1420,10 +1601,20 @@ function renderGuide() {
         for (const rw of chunk.rows) {
           const row = gridRow(''); mine.push(row.band);
           paintRow(row, g, sec, chunk, rw);
+          if (!S.readOnly && !S.present) dropZone(row.c, { g, sec, table: chunk, row: rw });
         }
       }
     }
     if (mine.length) mine[mine.length - 1].classList.add('close');
+    if (!S.readOnly && !S.present) {
+      const tail = gridRow('');
+      mine.push(tail.band);
+      tail.c.classList.add('tail');
+      tail.host.appendChild(el('div', 'tailhint'));
+      dropZone(tail.c, { g, sec, endOnly: true });
+      mine[mine.length - 2].classList.remove('close');
+      tail.band.classList.add('close');
+    }
     gap();
   }
 
@@ -1462,59 +1653,7 @@ function sectionProse(g, sec, chunk) {
 
 /** Everything a section can do, from one button that is always in the same place. */
 function sectionMenu(anchor, g, sec) {
-  const lastTable = () => {
-    const ts = sec.chunks.filter((c) => c.kind === 'table');
-    return ts[ts.length - 1] || null;
-  };
-  const intoTable = () => {
-    let t = lastTable();
-    if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
-    return t;
-  };
-  const secs = g.sections.filter((x) => x.kind === 'section');
-  const at = secs.indexOf(sec);
-
   openMenu(anchor, [
-    { glyph: 'line1', label: 'Add content', hint: 'A data point, a control or an action', fn: () => {
-      const rw = addRow(intoTable(), sec, {});
-      S.sel = rw; mark(); render(); focusSoon('.rowsel .lbl');
-    } },
-    { glyph: 'visual', label: 'Add a visual', hint: 'An image, a map, a data visual', fn: () => {
-      const rw = addRow(intoTable(), sec, { content: '[Visual] ' });
-      S.sel = rw; mark(); render(); focusSoon('.rowsel .lbl');
-    } },
-    { glyph: 'rule', label: 'Add a divider', hint: 'A rule, to break this section up', fn: () => {
-      const rw = addRow(intoTable(), sec, { content: '[Divider]' });
-      S.sel = rw; mark(); render();
-    } },
-    { glyph: 'other', label: 'Add a subsection', hint: 'A split inside this section', fn: () => {
-      const i = sec.chunks.length;
-      sec.chunks.splice(i, 0, { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true });
-      sec.chunks.splice(i + 1, 0, blankTable());
-      sec.dirty = true; mark(); render();
-      focusSoon('.guide .sub-t:last-of-type');
-    } },
-    { glyph: 'source', label: 'Add a reference', hint: 'Point at another guide instead of repeating it', fn: () => {
-      const c = { kind: 'ref', src: ['> See [[]] — why'], target: '', text: 'See [[]] — why', refs: [], dirty: true };
-      sec.chunks.push(c);
-      sec.dirty = true; mark(); render();
-      setTimeout(() => { const r = [...document.querySelectorAll('.ref')].pop(); if (r) r.click(); }, 30);
-    } },
-    { sep: true },
-    { glyph: 'plus', label: 'Add a section below', fn: () => {
-      const to = g.sections.indexOf(sec) + 1;
-      const ns = addSection(g, 'New section');
-      const i = g.sections.indexOf(ns);
-      g.sections.splice(i, 1);
-      g.sections.splice(to, 0, ns);
-      mark(); render();
-      focusSoon('.guide .sec-title');
-    } },
-    { glyph: 'up', label: 'Move section up', disabled: at === 0,
-      fn: () => { if (moveSection(g, sec, -1)) { mark(); render(); } } },
-    { glyph: 'down', label: 'Move section down', disabled: at === secs.length - 1,
-      fn: () => { if (moveSection(g, sec, 1)) { mark(); render(); } } },
-    { sep: true },
     { glyph: 'trash', label: 'Delete section', danger: true, fn: () => {
       const n = sec.chunks.filter((c) => c.kind === 'table').reduce((a, c) => a + c.rows.length, 0);
       if (!confirm(`Delete “${sec.title}”${n ? ` and its ${n} block${n === 1 ? '' : 's'}` : ''}?`)) return;
@@ -1648,26 +1787,7 @@ const KIND_LABEL = { text: 'text', visual: 'visual', chart: 'data visual', divid
 function rowTools(ctx, kind, openExample) {
   const { g, sec, table, rw } = ctx;
   const tools = el('div', 'rowtools');
-  const icoBtn = (glyph, title, fn, disabled) => {
-    const b = el('button', 'ic');
-    b.appendChild(icon(glyph, 12));
-    b.title = title;
-    b.disabled = !!disabled;
-    b.onclick = (e) => { e.stopPropagation(); fn(); };
-    return b;
-  };
   const rows = table.rows;
-  const at = rows.indexOf(rw);
-  const tabs = tablesOf(g);
-  const ti = tabs.findIndex((t) => t.table === table);
-  tools.appendChild(icoBtn('up', 'Move up', () => {
-    S.sel = rw; if (moveRow(g, rw, -1, true)) { mark(); render(); keepVisible(); }
-  }, at === 0 && ti === 0));
-  tools.appendChild(icoBtn('down', 'Move down', () => {
-    S.sel = rw; if (moveRow(g, rw, 1, true)) { mark(); render(); keepVisible(); }
-  }, at === rows.length - 1 && ti === tabs.length - 1));
-  tools.appendChild(icoBtn('plus', 'Add a block below this one', () => insertBelow(g, sec, table, rw)));
-
   const k = el('button', 'kind');
   k.textContent = kind === 'chart'
     ? (rw.content.chart ? rw.content.chart : 'data visual')
@@ -2094,6 +2214,7 @@ function popAway(e) {
 function closePop() {
   if (S.pop) S.pop.remove();
   S.pop = null; S.popRow = null;
+  document.querySelectorAll('.more.open').forEach((n) => n.classList.remove('open'));
   document.removeEventListener('mousedown', popAway);
 }
 /** Keep the picker open across the re-render its own change caused. */
@@ -2106,36 +2227,20 @@ function reopenPop() {
 
 // ---------------------------------------------------------------- drag
 function wireDrag(row, ctx) {
-  const { g, sec, table, rw } = ctx;
+  const { rw } = ctx;
   const item = row.host.querySelector('.item');
   if (!item) return;
   item.draggable = true;
   item.ondragstart = (e) => {
-    S.drag = rw; row.c.classList.add('drag');
+    S.drag = { kind: 'row', row: rw };
+    row.c.classList.add('lifting');
+    document.body.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', rw.content.text || 'block');
   };
   item.ondragend = () => {
-    S.drag = null;
-    document.querySelectorAll('.cell').forEach((x) => x.classList.remove('drag', 'over', 'over-b'));
-  };
-  row.c.ondragover = (e) => {
-    if (!S.drag || S.drag === rw) return;
-    e.preventDefault();
-    const r = row.c.getBoundingClientRect();
-    const below = e.clientY > r.top + r.height / 2;
-    row.c.classList.toggle('over', !below);
-    row.c.classList.toggle('over-b', below);
-  };
-  row.c.ondragleave = () => row.c.classList.remove('over', 'over-b');
-  row.c.ondrop = (e) => {
-    e.preventDefault();
-    const below = row.c.classList.contains('over-b');
-    row.c.classList.remove('over', 'over-b');
-    const moving = S.drag;
-    if (!moving || moving === rw) return;
-    dropRow(g, moving, table, sec, table.rows.indexOf(rw) + (below ? 1 : 0));
-    S.sel = moving; S.drag = null; mark(); render();
+    row.c.classList.remove('lifting');
+    endDrag();
   };
 }
 
@@ -2346,7 +2451,7 @@ function usersField(g) {
   }
   const wrap = el('div', 'chips');
   list.forEach((u, i) => {
-    const c = el('span', 'chip' + (u.primary ? ' pri' : ''));
+    const c = el('span', 'chip');
     const t = el('span', 'nm', u.name);
     if (!S.readOnly) {
       t.title = 'Rename this role. It changes everywhere it is used.';
@@ -2971,18 +3076,13 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape') {
     if (S.pop) { closePop(); return; }
+    if (document.activeElement && document.activeElement.isContentEditable) {
+      document.activeElement.blur();
+      return;
+    }
+    if (S.sel) { S.sel = null; render(); return; }
     if (S.capture) { toggleCapture(false); return; }
     if (S.present) { S.present = false; render(); return; }
-    return;
-  }
-
-  // Moving a block works while its editor is open, because that is exactly when
-  // you realise it is in the wrong place.
-  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-    if (!S.sel || S.view !== 'guide') return;
-    e.preventDefault();
-    const dir = e.key === 'ArrowDown' ? 1 : -1;
-    if (e.shiftKey) jumpGroup(dir); else nudge(dir);
     return;
   }
 
@@ -2999,12 +3099,7 @@ document.addEventListener('keydown', (e) => {
     step(e.key === 'ArrowDown' ? 1 : -1);
     return;
   }
-  if (e.key === 'Enter' && S.sel && S.view === 'guide' && !S.readOnly && !S.present) {
-    e.preventDefault();
-    const w = whereIs(S.guide, S.sel);
-    if (w) insertBelow(S.guide, w.tables[w.ti].section, w.tables[w.ti].table, S.sel);
-    return;
-  }
+
 
   const k = e.key.toLowerCase();
   if (k === 'p') { S.present = !S.present; S.editing = null; render(); }

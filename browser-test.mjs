@@ -109,6 +109,51 @@ const typeInto = async (sel, value) => {
   await page.waitForTimeout(200);
 };
 const panel = (i) => page.evaluate((k) => document.querySelectorAll('#railR .ptabs button')[k].click(), i);
+/** Drag a palette element onto the row with this label. */
+const dragOnto = async (what, needle, after = true) => {
+  const done = await page.evaluate(({ w, n, a }) => {
+    const tool = [...document.querySelectorAll('.ptool')].find((t) => t.textContent.includes(w));
+    const item = [...document.querySelectorAll('.item')]
+      .find((x) => x.querySelector('.lbl') && x.querySelector('.lbl').textContent.includes(n));
+    if (!tool || !item) return false;
+    const cell = item.closest('.cell');
+    const dt = new DataTransfer();
+    tool.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    const r = cell.getBoundingClientRect();
+    const y = a ? r.bottom - 2 : r.top + 2;
+    cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+    cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+    tool.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+    return true;
+  }, { w: what, n: needle, a: after });
+  if (!done) throw new Error(`could not drag ${what} onto ${needle}`);
+  await page.waitForTimeout(350);
+};
+/** Drag one existing block onto another. */
+const dragBlock = async (fromLabel, toLabel, after = true) => {
+  const done = await page.evaluate(({ f, t, a }) => {
+    const find = (n) => [...document.querySelectorAll('.item')]
+      .find((x) => x.querySelector('.lbl') && x.querySelector('.lbl').textContent.trim() === n);
+    const from = find(f), to = find(t);
+    if (!from || !to) return false;
+    const dt = new DataTransfer();
+    from.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    const cell = to.closest('.cell');
+    const r = cell.getBoundingClientRect();
+    const y = a ? r.bottom - 2 : r.top + 2;
+    cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+    cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+    from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+    return true;
+  }, { f: fromLabel, t: toLabel, a: after });
+  if (!done) throw new Error(`could not drag ${fromLabel} onto ${toLabel}`);
+  await page.waitForTimeout(350);
+};
+const labels = () => page.$$eval('.item', (ns) => ns.map((n) => {
+  const l = n.querySelector('.lbl');
+  return l ? l.textContent.trim() : (n.classList.contains('divider') ? '[divider]' : '');
+}));
+
 /** Open an overflow menu and click the item whose label contains this text. */
 const menu = async (openSel, label) => {
   await page.evaluate((sel) => document.querySelector(sel).click(), openSel);
@@ -209,41 +254,31 @@ await page.evaluate(() => {
 await page.waitForTimeout(250);
 
 // ---------------------------------------------------------------- moving a block
-await pick('Status');
-await page.keyboard.press('Escape');
-await page.keyboard.press('Alt+ArrowUp');
-await page.waitForTimeout(180);
+const fileBefore = await current();
+await dragBlock('Date', 'Space');          // one place down: Date after Space
 await save();
-ok('a save happened', !!(await written()));
-let out = await current();
-eq('moving a block one place changes two lines', out ? diffCount(out) : -1, 2);
-eq('the line count does not change', out.split('\n').length, FILE.split('\n').length);
+const afterDrag = await current();
+eq('dragging a block one place changes two lines',
+  afterDrag.split('\n').filter((l, i) => fileBefore.split('\n')[i] !== l).length, 2);
+eq('the line count does not change', afterDrag.split('\n').length, fileBefore.split('\n').length);
 ok('the moved line is the original text, not a re-render',
-  out.includes('| Status | Booked, Checked in, No-show, Cancelled | filter, sort |  |  | No-show is set by the door reader, never by a person<br>Cancelled bookings stay on the list for the rest of the day |'));
-
-await page.keyboard.press('Alt+ArrowDown');
-await page.waitForTimeout(180);
+  afterDrag.includes('| Date | Mon 8 Sep | filter, sort |  |  |  |'));
+await dragBlock('Date', 'Space', false);   // and back above it
 await save();
-eq('moving it back restores the file exactly', await current(), FILE);
+ok('dragging it back restores the file exactly', (await current()) === fileBefore,
+  'first differing line: ' + (() => {
+    const a2 = fileBefore.split('\n'); const b2 = (afterDrag || '').split('\n');
+    const i = a2.findIndex((l, j) => l !== b2[j]);
+    return i === -1 ? 'none' : `${i + 1}: ${JSON.stringify(a2[i])} vs ${JSON.stringify(b2[i])}`;
+  })());
 
-// ---------------------------------------------------------------- across a group
-await pick('Nothing booked this week');
-await page.keyboard.press('Escape');
-await page.keyboard.press('Alt+ArrowUp');
-await page.waitForTimeout(200);
-ok('a block at the top of a group crosses into the one above',
-  await page.evaluate(() => {
-    const items = [...document.querySelectorAll('.item')].map((n) => n.textContent);
-    const i = items.findIndex((t) => t.includes('Nothing booked this week'));
-    const j = items.findIndex((t) => t.includes('Export the week'));
-    return i > -1 && j > -1 && i > j;
+ok('there is no keyboard shortcut that moves a block behind your back',
+  await page.evaluate(async () => {
+    const first = document.querySelector('.item .lbl').textContent;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
+    await new Promise((r) => setTimeout(r, 250));
+    return document.querySelector('.item .lbl').textContent === first;
   }));
-await save();
-await page.reload();
-await page.waitForSelector('#stage');
-await page.click('.hello .btn.primary').catch(() => {});
-await page.waitForSelector('.item', { timeout: 8000 });
-ok('the moved block survived the reload', await hasItem('Nothing booked this week'));
 
 // ---------------------------------------------------------------- editing one cell
 await pick('Building');
@@ -345,32 +380,46 @@ eq('the line under a section heading is editable like everything else',
 ok('and it is written back as the line it was',
   (await current()).includes('*Likely a table. One row per booking.*'));
 
-// ---------------------------------------------------------------- section controls
-ok('there is no toolbar bolted to the bottom of the screen', await page.$('#tools') === null);
-ok('a section carries the same overflow button as everything else',
-  await page.$('.cell.sechead .more') !== null);
-await page.evaluate(() => document.querySelector('.cell.sechead .more').click());
-await page.waitForSelector('.menu');
-eq('holding everything that section can do', await count('.mitem'), 9);
+// ---------------------------------------------------------------- the palette
+ok('there is one place everything is added from', await page.$('#palette') !== null);
+eq('holding every element a guide can contain', await count('.ptool'), 7);
+ok('and each one is something you pick up',
+  await page.$$eval('.ptool', (ns) => ns.every((n) => n.draggable)));
+ok('a section carries no way to add anything — dragging is the only way',
+  await page.evaluate(async () => {
+    document.querySelector('.cell.sechead .more').click();
+    await new Promise((r) => setTimeout(r, 250));
+    const txt = document.querySelector('.menu').textContent;
+    return !/add/i.test(txt);
+  }));
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
+ok('and a block carries no arrows', (await count('.rowtools button.ic')) === 0);
 
 const blocksBefore = await count('.item');
-await menu('.cell.sechead .more', 'Add content');
-eq('adding content adds it to that section', await count('.item'), blocksBefore + 1);
+await dragOnto('Content', 'Status');
+eq('dragging content onto a block adds one', await count('.item'), blocksBefore + 1);
+eq('right where it was dropped', (await labels())[(await labels()).indexOf('Status') + 1], '');
 ok('and starts you naming it', await page.evaluate(() => document.activeElement.className.includes('lbl')));
 await typeInto('.rowsel .lbl', 'A new thing');
 await save();
-ok('which lands in the file', (await current()).includes('| A new thing |'));
+ok('which lands in the file in that position',
+  (await current()).split('\n').findIndex((l) => l.startsWith('| A new thing |'))
+  === (await current()).split('\n').findIndex((l) => l.startsWith('| Status |')) + 1);
 
-await menu('.cell.sechead .more', 'Add a divider');
+await dragOnto('Divider', 'A new thing');
 ok('a divider is a rule and nothing else', await page.$('.item.divider .rule') !== null);
 await save();
 ok('and the file says so plainly', (await current()).includes('| [Divider] |'));
 
+await dragOnto('Visual', 'A new thing', false);
+await typeInto('.rowsel .lbl', 'A picture of something');
+await save();
+ok('a visual is dropped in as one', (await current()).includes('| [Visual] A picture of something |'));
+
 const secBefore = await count('.sec-title');
-await menu('.cell.sechead .more', 'Add a section below');
-eq('a section can be added right after this one', await count('.sec-title'), secBefore + 1);
+await dragOnto('Section', 'A new thing');
+eq('a section can be dragged in too', await count('.sec-title'), secBefore + 1);
 await page.evaluate(() => {
   const t = [...document.querySelectorAll('.sec-title')].find((n) => n.textContent === 'New section');
   t.closest('.cell').querySelector('.more').click();
@@ -379,6 +428,31 @@ await page.waitForSelector('.menu');
 await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Delete section')).click());
 await page.waitForTimeout(300);
 eq('and deleted again', await count('.sec-title'), secBefore);
+
+const subBefore = await count('.sub-t');
+await dragOnto('Subsection', 'Status');
+eq('a subsection splits the section where it lands', await count('.sub-t'), subBefore + 1);
+await save();
+ok('and the file still round-trips', !(await text('#save')).includes('Read-only'));
+ok('with the split written as a heading', (await current()).includes('#### Actions'));
+
+// ---------------------------------------------------------------- moving is dragging
+const orderWas = await labels();
+const iStatus = orderWas.indexOf('Status');
+await dragBlock('Status', 'Date', false);
+const orderNow2 = await labels();
+eq('a block moves by being dragged', orderNow2.indexOf('Status'), orderWas.indexOf('Date'));
+ok('and it really moved', orderNow2.indexOf('Status') !== iStatus);
+await save();
+await dragBlock('Status', 'Time');
+await save();
+ok('across the section it is in', (await labels()).indexOf('Status') > (await labels()).indexOf('Time'));
+
+const guideText = await current();
+await dragBlock('Status', 'Nothing booked this week');
+await save();
+ok('and into another section entirely', (await current()) !== guideText
+  && (await current()).includes('Nothing booked this week'));
 
 // ---------------------------------------------------------------- what a block is
 await pick('A new thing');
@@ -413,20 +487,8 @@ ok('changing what a block is keeps its notes',
   && (await current()).includes('Ideas: split by building'),
   (await current()).split('\n').find((l) => l.includes('A new thing')));
 
-// ---------------------------------------------------------------- a row moves by its own arrows
-const orderNow = () => page.$$eval('.item .lbl', (ns) => ns.map((n) => n.textContent.trim()));
-await pick('A new thing');
-await page.waitForTimeout(200);
-const beforeMove = (await orderNow()).indexOf('A new thing');
-await page.evaluate(() => document.querySelector('.rowsel .rowtools button.ic').click());
-await page.waitForTimeout(300);
-eq('a row has arrows of its own', (await orderNow()).indexOf('A new thing'), beforeMove - 1);
-await page.evaluate(() => document.querySelectorAll('.rowsel .rowtools button.ic')[1].click());
-await page.waitForTimeout(300);
-eq('in both directions', (await orderNow()).indexOf('A new thing'), beforeMove);
-
 // ---------------------------------------------------------------- choosing a reference
-await menu('.cell.sechead .more', 'Add a reference');
+await dragOnto('Reference', 'Date');
 await page.waitForSelector('.refpop', { timeout: 4000 });
 ok('a new reference asks what it points at rather than waiting to be typed',
   await page.$('.refpop input') !== null);
@@ -468,30 +530,21 @@ ok('and it says how many it touched', await page.$('.banner.info') !== null);
 ok('so the Users view stops showing one group twice',
   !after.includes('Everyone with a desk'));
 
-// ---------------------------------------------------------------- adding inside a section
-await pick('Time');
-await page.waitForTimeout(200);
-ok('a block carries its own controls', await page.$('.rowsel .rowtools') !== null);
-const posBefore = await page.evaluate(() =>
-  [...document.querySelectorAll('.item .lbl')].map((n) => n.textContent.trim()).indexOf('Time'));
-await page.evaluate(() => document.querySelectorAll('.rowsel .rowtools button.ic')[2].click());
-await page.waitForTimeout(300);
+// ---------------------------------------------------------------- adding lands where you drop it
+await dragOnto('Content', 'Time');
 await typeInto('.rowsel .lbl', 'Room or desk');
-const posAfter = await page.evaluate(() =>
-  [...document.querySelectorAll('.item .lbl')].map((n) => n.textContent.trim()).indexOf('Room or desk'));
-eq('and it lands right there, not at the end of the section', posAfter, posBefore + 1);
+const lab = await labels();
+eq('a dropped block lands right there, not at the end of the section',
+  lab.indexOf('Room or desk'), lab.indexOf('Time') + 1);
 await save();
 ok('which the file records in that position', (await current()).includes('| Room or desk |'));
-
-await pick('Room or desk');
-await page.waitForTimeout(150);
-await page.keyboard.press('Enter');
-await page.waitForTimeout(300);
-ok('Enter does the same thing, the way an outliner would',
-  await page.evaluate(() => document.activeElement.className.includes('lbl')
-    && document.activeElement.textContent.trim() === ''));
-await page.keyboard.press('Escape');
-await page.waitForTimeout(200);
+ok('and Enter no longer conjures one from nowhere', await page.evaluate(async () => {
+  const n = document.querySelectorAll('.item').length;
+  document.body.focus();
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await new Promise((r) => setTimeout(r, 250));
+  return document.querySelectorAll('.item').length === n;
+}));
 
 // ---------------------------------------------------------------- an example is optional
 ok('a block with no example says nothing about it',
@@ -814,7 +867,11 @@ await page.waitForTimeout(250);
 await panel(0);
 await page.waitForTimeout(200);
 ok('primary users are discrete chips', (await count('#railR .chip:not(.add)')) >= 2);
-ok('the power user is marked', (await count('#railR .chip.pri')) >= 1);
+ok('every chip reads the same, because none of them is a state you set here',
+  await page.$$eval('#railR .chip:not(.add)', (ns) => {
+    const c = ns.map((n) => getComputedStyle(n).backgroundColor);
+    return c.length > 1 && c.every((x) => x === c[0]);
+  }));
 await page.evaluate(() => [...document.querySelectorAll('#railR .ctx-add')]
   .find((b) => b.textContent.includes('user')).click());
 await page.waitForSelector('.chip input');

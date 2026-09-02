@@ -13,10 +13,11 @@ Everything that is true of the whole guide — what it is for, who it is for, wh
 it leans on, what points at it — sits in the header and the side panel, so none
 of it takes width away from the guide itself.
 
-Everything is edited where it sits, and every control lives on the thing it acts
-on: click a section and its own controls appear inside it, hover a row and its
-own appear on it. There are no forms, no toolbar at the bottom of the screen, and
-nothing to save except the file.
+Everything is edited where it sits: click the text and type. Everything is
+**added and moved by dragging** — a palette along the bottom holds every element
+a guide can contain, you drag one onto the guide and it lands where you dropped
+it, and moving a block anywhere, including into another section, is the same
+gesture. There are no forms and nothing to save except the file.
 
 ![The guide view](screenshots/01-guide.png)
 
@@ -30,7 +31,7 @@ Priority guides are usually made in a design tool, and three things go wrong the
 | --- | --- | --- |
 | **Linking one guide to another** | A hyperlink pinned to an internal node id. It breaks when the target moves or gets duplicated, and the target has no idea it is linked. | `[[Guide name]]` resolves by name, and every guide shows **Referenced by**. Derived on every read, so it cannot go stale. |
 | **Attaching a brief, a synthesis, a decision record** | A notes lane sized for one sentence. | A **Sources** block. Write a doc down once, cite it by handle from any guide, section or row. |
-| **Working live in a room** | Reordering means dragging boxes inside an auto-layout column. | `Alt`+`↑`/`↓` moves a block. Drag works too. A capture box takes content as fast as someone can say it. |
+| **Working live in a room** | Reordering means dragging boxes inside an auto-layout column. | One gesture for everything structural: drag from the palette to add, drag a block to move it — within a section or into another one. A capture box takes content as fast as someone can say it. |
 | **Knowing who a screen is for** | A line of prose. "Sales agent" and "Sales Agent" quietly become two groups. | User types are discrete, picked from the ones already in the file, and the **Users** view turns them around: pick a group, see only their screens, present those. |
 
 And one thing that matters more than any of them: **it is a text file.** It opens
@@ -193,11 +194,10 @@ that is how markdown reference definitions work.
 | --- | --- |
 | `↑` `↓` | Move the selection |
 | Click | Edit whatever you clicked — a name, an example, a note, a heading |
+| Drag | Add anything from the palette, or move a block anywhere |
 | `Tab` | From a name, start its example |
-| `Enter` | Add a block right after the selected one |
+| `Esc` | Let go — of a field, a menu, or the selected block |
 | `←` `→` | In present mode, the previous and next screen |
-| `Alt`+`↑`/`↓` | **Move the block**, crossing into the next group when it runs out |
-| `Alt`+`Shift`+`↑`/`↓` | Move the block straight into the group above or below |
 | `C` | Capture — type a line, `Enter`, next line |
 | `P` | Present — big type, chrome out of the way |
 | `G` `F` `U` `O` `S` | Guide · Flow · Users · Open · Source |
