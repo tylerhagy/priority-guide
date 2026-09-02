@@ -722,6 +722,8 @@ function renderUserBar() {
 }
 
 function renderBar() {
+  $('save').style.display = S.doc ? '' : 'none';
+  $('tabs').style.display = S.doc && !S.present ? '' : 'none';
   const f = $('file');
   f.innerHTML = '';
   f.appendChild(icon('folder', 13));
@@ -739,7 +741,7 @@ function renderBar() {
   tabs.innerHTML = '';
   if (!S.doc) return;
   // In a room, the only things worth showing are the guide and what is still open.
-  tabs.style.display = S.present ? 'none' : '';
+  tabs.style.display = S.present || !S.doc ? 'none' : '';
   $('save').style.display = S.present ? 'none' : '';
   $('file').style.display = S.present || !S.dir ? 'none' : '';
   for (const [k, label] of [['guide', 'Guide'], ['flow', 'Flow'], ['users', 'Users'], ['open', 'Open'], ['source', 'Source']]) {
@@ -778,8 +780,8 @@ function renderHello() {
     w.appendChild(list);
   }
   w.appendChild(el('div', 'keys')).innerHTML =
-    '<kbd>P</kbd> present &nbsp; <kbd>C</kbd> capture &nbsp; <kbd>S</kbd> source'
-    + ' &nbsp; <kbd>⌥↑</kbd><kbd>⌥↓</kbd> move a block';
+    '<kbd>P</kbd> present &nbsp; <kbd>C</kbd> capture &nbsp; <kbd>U</kbd> users'
+    + ' &nbsp; <kbd>⌥↑</kbd><kbd>⌥↓</kbd> move a block &nbsp; <kbd>⏎</kbd> add below';
   $('stage').innerHTML = '';
   $('stage').appendChild(w);
 }
