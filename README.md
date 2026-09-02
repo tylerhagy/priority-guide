@@ -130,6 +130,21 @@ the ones you do not use, or add your own — an `Owner` column is left untouched
 question does not apply here. The app never turns one into the other, and it
 counts every `??` as open.
 
+**A comment is not a note.** A note is part of the guide and travels to whoever
+reads it. A comment is working material — a question to come back to — so it can
+be switched off entirely (`K`), and it is pinned to its block rather than to a
+place in the file: reorder the guide, move a block to another section, rename
+it, and the comment is still on the same thing. Comments live in a `## Comments`
+task list at the end of the file, and the block carries a short id in an HTML
+comment that no markdown renderer shows.
+
+```markdown
+## Comments
+
+- [ ] `k3f` Should this be one from a list? It only ever has three values.
+- [x] `k3f` Renamed, was "Time slot".
+```
+
 **`ACTION:` means a follow-up, and only that.** Never an emphasis flag. The
 header count is the number of open items, and it is meant to reach zero. Any
 note becomes one — and stops being one — in a click.
@@ -208,6 +223,7 @@ to a read-only copy of the guide), **Sources** and **Links**.
 | Click | Edit whatever you clicked — a name, an example, a note, a heading |
 | Drag | Add anything from the palette, or move a block anywhere |
 | `Tab` | From a name, start its example |
+| `K` | Comments on or off |
 | `Esc` | Let go — of a dialog, a field, a menu, then the selected block |
 | `⌘S` | Save, including while you are still typing |
 | `←` `→` | In present mode, the previous and next screen |

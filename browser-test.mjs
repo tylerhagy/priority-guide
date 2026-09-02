@@ -926,6 +926,113 @@ await save();
 ok('and the source itself was never deleted from the file',
   (await current()).includes('[week-layout]:'));
 
+// ---------------------------------------------------------------- comments
+eq('comments are off until you ask for them', await count('.bubble'), 0);
+await page.click('#comments');
+await page.waitForTimeout(300);
+ok('turning them on puts one on every block', (await count('.bubble')) > 5);
+
+await page.evaluate(() => {
+  const it = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl')
+    && x.querySelector('.lbl').textContent.trim() === 'Status');
+  it.querySelector('.bubble').click();
+});
+await page.waitForSelector('.thread');
+await page.fill('.tnew', 'Is this one from a list?');
+await page.click('.thread .btn.primary');
+await page.waitForTimeout(300);
+eq('a comment can be left on a block', await count('.tc'), 1);
+await save();
+ok('and the file records it as a plain task list',
+  (await current()).split('\n').some((l) => /^- \[ \] `[a-z0-9]+` Is this one from a list\?$/.test(l)));
+ok('with the block carrying an id nothing else can see',
+  /^\| Status <!--#[a-z0-9]+--> \|/m.test(await current()));
+
+// the whole point: the comment is pinned to the block, not to a place
+const ridOf = async () => (await current()).match(/\| Status <!--#([a-z0-9]+)-->/)[1];
+const rid = await ridOf();
+await dragBlock('Status', 'Nothing booked this week');
+await save();
+ok('moving the block to another section keeps its comment',
+  (await current()).includes(`\`${rid}\``) && (await current()).includes(`<!--#${rid}-->`));
+ok('and the comment still points at that block',
+  await page.evaluate((r) => {
+    const line = [...document.querySelectorAll('.item')]
+      .find((x) => x.outerHTML.includes('Status'));
+    return !!line;
+  }, rid));
+await dragBlock('Status', 'Space');
+await save();
+
+await page.evaluate(() => {
+  const it = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl')
+    && x.querySelector('.lbl').textContent.trim() === 'Status');
+  it.querySelector('.bubble').click();
+});
+await page.waitForSelector('.thread');
+await page.evaluate(() => document.querySelector('.tc .tick').click());
+await page.waitForTimeout(250);
+await save();
+ok('a comment can be resolved', (await current()).split('\n').some((l) => l.startsWith('- [x] `')));
+await page.$eval('.tc .t', (n) => { n.focus(); n.textContent = 'One from a list, or many?'; n.blur(); });
+await page.waitForTimeout(300);
+await save();
+ok('and edited', (await current()).includes('One from a list, or many?'));
+await page.evaluate(() => document.querySelector('.tc .x').click());
+await page.waitForTimeout(300);
+eq('and deleted', await count('.tc'), 0);
+ok('with a way back', await page.$('.toast button') !== null);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(250);
+await page.click('#comments');
+await page.waitForTimeout(250);
+eq('and they can be switched off again', await count('.bubble'), 0);
+
+// ---------------------------------------------------------------- the minimap
+ok('a long guide gets a map of itself', await page.$('#minimap .mmarks') !== null);
+eq('with a mark for every block',
+  await count('#minimap .mrow'), await count('#stage .item'));
+ok('and a band for every section', (await count('#minimap .mband')) >= 2);
+ok('open items are marked so you can see where they are',
+  (await count('#minimap .mrow.m-open')) >= 1);
+ok('the marks sit where their blocks sit',
+  await page.evaluate(() => {
+    const stage = document.getElementById('stage');
+    const items = [...stage.querySelectorAll('.item')];
+    const marks = [...document.querySelectorAll('#minimap .mrow')];
+    if (items.length !== marks.length) return false;
+    // The first mark should be as far down the map as the first block is down
+    // the guide, within a point or so.
+    const a2 = items[0].offsetTop / stage.scrollHeight;
+    const b3 = parseFloat(marks[0].style.top) / 100;
+    return Math.abs(a2 - b3) < 0.02;
+  }));
+const scrollBefore = await page.evaluate(() => document.getElementById('stage').scrollTop);
+await page.evaluate(() => {
+  const m = document.getElementById('minimap');
+  const r = m.getBoundingClientRect();
+  m.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientY: r.top + r.height * 0.85 }));
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+});
+await page.waitForTimeout(300);
+ok('pressing it takes you there',
+  (await page.evaluate(() => document.getElementById('stage').scrollTop)) > scrollBefore + 100);
+ok('and the viewport box follows',
+  await page.evaluate(() => parseFloat(document.querySelector('.mview').style.top) > 5));
+await page.evaluate(() => { document.getElementById('stage').scrollTop = 0; });
+await page.waitForTimeout(200);
+
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Cancel a booking')).click();
+});
+await page.waitForTimeout(300);
+eq('a short guide has nothing to lose your place in, so it gets no map',
+  await page.$eval('#minimap', (n) => getComputedStyle(n).display), 'none');
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
+});
+await page.waitForTimeout(300);
+
 // ---------------------------------------------------------------- capture
 // A shortcut must not fire while the caret is in a field, so let go first.
 await pressAt('#stage', 700, 700);

@@ -318,6 +318,8 @@ export function parseDocument(text) {
 
     // A file-level `## Sources` block holds definitions shared by every guide.
     if (/^sources$/i.test(name)) { doc.segments.push(parseSources(body, 2)); continue; }
+    // `## Comments` holds notes-to-self pinned to blocks, not content.
+    if (/^comments$/i.test(name)) { doc.segments.push(parseComments(body)); continue; }
     doc.segments.push(parseGuide(body, name));
   }
 
@@ -469,7 +471,9 @@ function parseBlockRow(line, cols) {
   const raw = splitRow(line);
   const row = { kind: 'row', src: line, raw, dirty: false };
   const at = (key) => (cols.byKey[key] === undefined ? '' : (raw[cols.byKey[key]] || ''));
-  row.content = parseContentCell(at('content'));
+  const idd = splitRid(at('content'));
+  row.rid = idd.rid;
+  row.content = parseContentCell(idd.text);
   row.realData = norm(at('realData'));
   row.capabilities = parseCapabilities(at('capabilities'));
   row.link = parseLinkCell(at('link'));
@@ -514,7 +518,7 @@ function renderRow(row, cols) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const key = cols.keyAt[i];
-    if (key === 'content') out.push(cellSafe(renderContentCell(row.content)));
+    if (key === 'content') out.push(cellSafe(withRid(renderContentCell(row.content), row.rid)));
     else if (key === 'realData') out.push(cellSafe(row.realData));
     else if (key === 'capabilities') out.push(cellSafe(renderCapabilities(row.capabilities)));
     else if (key === 'link') out.push(cellSafe(renderLinkCell(row.link)));
@@ -613,6 +617,7 @@ export function serializeDocument(doc) {
   for (const seg of doc.segments) {
     if (seg.kind === 'raw') out.push(...seg.src);
     else if (seg.kind === 'sources') out.push(...emitSources(seg));
+    else if (seg.kind === 'comments') out.push(...emitComments(seg));
     else out.push(...emitGuide(seg));
   }
   return out.join('\n');
@@ -957,6 +962,148 @@ export function designLinks(doc, guide) {
       figma: figmaEmbed(x.def.url) }));
 }
 
+// ---------------------------------------------------------------- comments
+/**
+ * A comment is pinned to a block, not to a place in the file.
+ *
+ * The block carries a short id as an HTML comment inside its Content cell —
+ * invisible in every markdown renderer, and part of the row's own line, so it
+ * travels with the row wherever the row goes. Reorder the guide, move a block
+ * to another section, and the comment is still on the same thing.
+ *
+ * The comments themselves live in one `## Comments` block at the end of the
+ * file, as an ordinary task list, so they are legible and editable by hand:
+ *
+ *     - [ ] `k3f` Should this be one from a list? It only ever has three values.
+ *     - [x] `k3f` Renamed, was "Time slot".
+ */
+const RID = /\s*<!--\s*#([a-z0-9]{2,8})\s*-->\s*/i;
+
+/** Pull a block's id out of a cell, leaving the text it was written beside. */
+export function splitRid(text) {
+  const m = RID.exec(String(text == null ? '' : text));
+  if (!m) return { text: norm(text), rid: '' };
+  return { text: norm(String(text).replace(RID, ' ')), rid: m[1].toLowerCase() };
+}
+
+export function withRid(text, rid) {
+  const t = norm(text);
+  return rid ? (t ? `${t} <!--#${rid}-->` : `<!--#${rid}-->`) : t;
+}
+
+/** A short id, unique within this file. */
+export function newRid(doc) {
+  const taken = new Set(allRows(doc).map(({ row }) => row.rid).filter(Boolean));
+  for (const c of commentList(doc)) taken.add(c.rid);
+  let id;
+  do { id = Math.random().toString(36).slice(2, 5); } while (taken.has(id) || id.length < 3);
+  return id;
+}
+
+/** Give a block an id, if it has not got one, so a comment can point at it. */
+export function ensureRid(doc, row, table, section) {
+  if (row.rid) return row.rid;
+  row.rid = newRid(doc);
+  touchRow(row, table, section);
+  return row.rid;
+}
+
+function commentsSegment(doc) {
+  return doc.segments.find((s) => s.kind === 'comments') || null;
+}
+
+function parseComments(body) {
+  const seg = { kind: 'comments', headingSrc: [body[0]], entries: [], dirty: false };
+  for (const line of body.slice(1)) {
+    const m = /^\s*-\s*\[( |x|X)\]\s*`([a-z0-9]{2,8})`\s*(.*)$/.exec(line);
+    seg.entries.push(m
+      ? { kind: 'comment', src: line, done: m[1].toLowerCase() === 'x',
+          rid: m[2].toLowerCase(), text: norm(m[3]), dirty: false }
+      : { kind: 'raw', src: line });
+  }
+  return seg;
+}
+
+function renderComment(c) {
+  return `- [${c.done ? 'x' : ' '}] \`${c.rid}\` ${norm(c.text)}`;
+}
+
+function emitComments(seg) {
+  const out = [...seg.headingSrc];
+  for (const e of seg.entries) {
+    out.push(e.kind === 'comment' && e.dirty ? renderComment(e) : e.src);
+  }
+  return out;
+}
+
+/** Every comment in the file, in the order they were written. */
+export function commentList(doc) {
+  const seg = commentsSegment(doc);
+  if (!seg) return [];
+  return seg.entries.filter((e) => e.kind === 'comment');
+}
+
+/** The comments on one block. */
+export function commentsFor(doc, rid) {
+  if (!rid) return [];
+  return commentList(doc).filter((c) => c.rid === rid);
+}
+
+export function openComments(doc) {
+  return commentList(doc).filter((c) => !c.done);
+}
+
+export function addComment(doc, rid, text) {
+  let seg = commentsSegment(doc);
+  if (!seg) {
+    seg = { kind: 'comments', headingSrc: ['## Comments', ''], entries: [], dirty: true };
+    doc.segments.push({ kind: 'raw', src: [''], dirty: false });
+    doc.segments.push(seg);
+  }
+  const c = { kind: 'comment', src: null, done: false, rid, text: norm(text), dirty: true };
+  seg.entries.push(c);
+  seg.dirty = true;
+  return c;
+}
+
+export function setComment(doc, comment, text) {
+  comment.text = norm(text);
+  comment.dirty = true;
+  const seg = commentsSegment(doc);
+  if (seg) seg.dirty = true;
+  return comment;
+}
+
+export function resolveComment(doc, comment, done) {
+  comment.done = done === undefined ? !comment.done : !!done;
+  comment.dirty = true;
+  const seg = commentsSegment(doc);
+  if (seg) seg.dirty = true;
+  return comment;
+}
+
+export function removeComment(doc, comment) {
+  const seg = commentsSegment(doc);
+  if (!seg) return false;
+  const i = seg.entries.indexOf(comment);
+  if (i === -1) return false;
+  seg.entries.splice(i, 1);
+  seg.dirty = true;
+  return true;
+}
+
+/** Where a comment's block lives now, so the list can say what it is on. */
+export function commentTarget(doc, rid) {
+  for (const g of guides(doc)) {
+    for (const { row, section } of rowsOf(g)) {
+      if (row.rid === rid) {
+        return { guide: g, section, row, label: renderContentCell(row.content) || '(unnamed)' };
+      }
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------- the referee
 
 /**
@@ -1010,6 +1157,7 @@ export function addRow(table, section, fields = {}) {
     link: parseLinkCell(fields.link || ''),
     form: parseFormCell(fields.form || ''),
     note: parseNoteCell(fields.note || ''),
+    rid: '',
     refs: []
   };
   row.refs = rowRefs(row);

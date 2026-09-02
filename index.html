@@ -70,7 +70,29 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
   overflow-y:auto;padding:14px 10px 40px}
 #railR{width:296px;flex:none;border-left:1px solid var(--line);background:var(--panel);
   display:flex;flex-direction:column;min-height:0}
-#mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+#mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+
+/* ---------- where you are in a long guide ---------- */
+#minimap{position:absolute;right:0;top:0;bottom:0;width:58px;z-index:2;cursor:pointer;
+  padding:8px 8px;overflow:hidden;user-select:none;
+  background:linear-gradient(90deg,transparent,rgba(16,18,22,.02))}
+#minimap:hover{background:linear-gradient(90deg,transparent,rgba(16,18,22,.05))}
+.mmarks{position:relative;height:100%}
+.mband{position:absolute;left:0;right:0;background:rgba(16,18,22,.05);border-radius:3px;
+  overflow:hidden;padding:2px 3px 0}
+.mlbl{flex:0 0 auto;font-size:5.5px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--faint);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  line-height:1.5;margin-bottom:1px}
+.mrow{position:absolute;left:4px;border-radius:1.5px;background:rgba(16,18,22,.3);min-height:1.5px}
+.mrow.m-visual{background:rgba(16,18,22,.13);border:.5px dashed rgba(16,18,22,.32)}
+.mrow.m-divider{background:rgba(16,18,22,.5);width:calc(100% - 8px)!important;min-height:1px}
+.mrow.m-open{background:var(--act)}
+.mrow.m-cm{background:var(--flag)}
+.mref{position:absolute;left:4px;right:4px;border-radius:2px;
+  border:.5px dashed rgba(16,18,22,.34);min-height:2px}
+.mview{position:absolute;left:3px;right:3px;border:1px solid var(--accent);border-radius:4px;
+  background:rgba(37,99,235,.08);pointer-events:none;min-height:8px}
+body.present #minimap,body.is-paired #minimap{display:none}
 #stage{flex:1;overflow-y:auto;padding:22px 30px 40px;min-width:0}
 .wrap{max-width:760px;margin:0 auto}
 
@@ -461,6 +483,40 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .linkrow .n{font-weight:500;color:var(--accent)}
 .linkrow .m{color:var(--faint);font-size:11.5px;display:block;margin-top:1px}
 
+/* ---------- comments: working material, switchable off ---------- */
+#comments{display:inline-flex;align-items:center;gap:5px}
+#comments .n{font-variant-numeric:tabular-nums;font-size:11.5px}
+#comments .n:empty{display:none}
+.bubble{display:inline-flex;align-items:center;gap:3px;flex:none;padding:1px 4px;border-radius:6px;
+  font-size:10px;font-weight:600;color:var(--faint);line-height:1;margin-left:2px}
+.bubble svg{color:currentColor}
+.bubble:hover{background:rgba(16,18,22,.08);color:var(--ink)}
+.bubble.has{color:var(--flag);background:rgba(184,84,31,.12)}
+.bubble.done{color:var(--ok)}
+.bubble.none{opacity:0}
+.item:hover .bubble.none,.rowsel .bubble.none{opacity:.5}
+.item:hover .bubble.none:hover{opacity:1}
+.thread{width:296px;display:block}
+.tlist{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin:5px 0 9px}
+.tc{display:flex;align-items:flex-start;gap:7px;padding:6px 7px;border-radius:8px;
+  background:var(--hover);font-size:12.5px;line-height:1.5}
+.tc.done{opacity:.55}
+.tc.done .t{text-decoration:line-through}
+.tc .t{flex:1;min-width:0;border-radius:4px;padding:0 2px}
+.tc .t:focus{outline:none;background:var(--panel)}
+.tc .tick{flex:none;color:var(--faint);padding:1px;border-radius:5px;display:flex;margin-top:1px}
+.tc .tick:hover{color:var(--ink);background:rgba(16,18,22,.08)}
+.tc .tick.on{color:var(--ok)}
+.tc .x{flex:none;color:var(--faint);font-size:14px;line-height:1;padding:0 3px;border-radius:4px;
+  opacity:0;transition:opacity .1s var(--ease)}
+.tc:hover .x{opacity:1}
+.tc .x:hover{color:var(--act);background:rgba(179,38,30,.1)}
+.tnew{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:9px;
+  background:var(--panel);font-size:12.5px;resize:vertical;min-height:44px;line-height:1.45}
+.tnew:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tfoot{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-top:7px}
+.tfoot .hint{font-size:11px;color:var(--faint)}
+
 /* ---------- asked in the app, never by the browser ---------- */
 .scrim{position:fixed;inset:0;z-index:40;background:rgba(16,18,22,.28);
   display:flex;align-items:center;justify-content:center;padding:24px;
@@ -631,6 +687,7 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   <div class="spacer"></div>
   <div class="tabs" id="tabs"></div>
   <span class="count" id="open"></span>
+  <button class="btn" id="comments" title="Comments (K)"></button>
   <button class="btn" id="present" title="Present (P)">Present</button>
   <button class="btn primary" id="save" disabled>Save</button>
 </div>
@@ -641,6 +698,7 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   <div id="mid">
     <div id="pagehead"></div>
     <div id="stage"></div>
+    <div id="minimap"></div>
     <div id="palette"></div>
   </div>
   <div id="railR"></div>
@@ -668,6 +726,8 @@ import {
   moveGuide, placeGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
   guideRefs, addGuideRef, setGuideRef, removeGuideRef,
   designLinks, figmaEmbed, isFigma, setSourceTitle,
+  commentsFor, commentList, openComments, addComment, setComment, resolveComment,
+  removeComment, commentTarget, ensureRid,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -1028,6 +1088,7 @@ function render() {
   else if (S.view === 'open') renderOpen();
   else renderSource();
   renderRailRight();
+  renderMinimap();
   $('cap').hidden = !S.capture;
   if (S.capture) {
     const t = tablesOf(S.guide || {}).slice(-1)[0];
@@ -1072,6 +1133,15 @@ function renderBar() {
     sv.appendChild(el('span', null, 'Saved'));
     sv.title = 'Everything is written to the file';
   }
+  const cm = $('comments');
+  cm.innerHTML = '';
+  cm.appendChild(icon('bubble', 13));
+  const openN = S.doc ? openComments(S.doc).length : 0;
+  cm.appendChild(el('span', 'n', openN ? String(openN) : ''));
+  cm.classList.toggle('on', S.comments);
+  cm.title = S.comments ? 'Hide comments (K)' : 'Show comments (K)';
+  cm.style.display = S.doc && !S.present ? '' : 'none';
+
   $('present').classList.toggle('on', S.present);
   $('present').textContent = S.present ? 'Exit' : 'Present';
   $('present').title = S.present ? 'Leave present mode (Esc)' : 'Present (P)';
@@ -1326,6 +1396,8 @@ const GLYPH = {
   note: 'M3.5 2h9v12h-9zM6 5.5h4.5M6 8h4.5M6 10.5h3',
   source: 'M9 7.2a3.4 3.4 0 010 4.8l-1.6 1.6a3.4 3.4 0 01-4.8-4.8l1-1M7 8.8a3.4 3.4 0 010-4.8l1.6-1.6a3.4 3.4 0 014.8 4.8l-1 1',
   chev: 'M4.5 6.5L8 10l3.5-3.5',
+  bubble: 'M2.5 3.5h11v7.5h-6L4 13.5V11H2.5z',
+  circle: 'M8 2.4a5.6 5.6 0 100 11.2A5.6 5.6 0 008 2.4z',
   sideby: 'M2 3h5.2v10H2zM8.8 3H14v10H8.8z',
   grip: 'M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01',
   folder: 'M1.5 3.5h4.2l1.4 2h7.4v7.5a1 1 0 01-1 1H2.5a1 1 0 01-1-1z',
@@ -1598,6 +1670,100 @@ function blankTable() {
     dividerSrc: [`| ${names.map(() => '---').join(' | ')} |`],
     cols: { keyAt: keys, byKey: Object.fromEntries(keys.map((k, i) => [k, i])), names },
     rows: [], dirty: true
+  };
+}
+
+// ---------------------------------------------------------------- minimap
+/**
+ * Where you are in a long guide.
+ *
+ * An editor's minimap is a shrunk picture of the text. A guide is not text, it
+ * is structure, so this is a shrunk picture of the structure: a band per
+ * section, a mark per block, and a dot wherever something is open or commented.
+ * That makes it useful for more than scrolling — you can see at a glance where
+ * the unanswered questions are without reading the whole thing.
+ */
+function renderMinimap() {
+  const m = $('minimap');
+  m.innerHTML = '';
+  const stage = $('stage');
+  if (!S.doc || !S.guide || S.view !== 'guide' || S.present || S.beside) {
+    m.style.display = 'none'; stage.onscroll = null; return;
+  }
+  const rows = [...stage.querySelectorAll('.item')];
+  if (rows.length < 8) { m.style.display = 'none'; stage.onscroll = null; return; }
+  m.style.display = '';
+
+  // Measured off the guide as it is actually laid out, so the map is a true
+  // miniature: a mark sits at the same fraction down the map as its block sits
+  // down the guide, and the viewport box lands on what it points at.
+  const total = stage.scrollHeight || 1;
+  const marks = el('div', 'mmarks');
+  m.appendChild(marks);
+
+  const place = (node, top, height) => {
+    node.style.top = (top / total * 100) + '%';
+    node.style.height = Math.max(0.35, height / total * 100) + '%';
+    marks.appendChild(node);
+  };
+
+  for (const cell of stage.querySelectorAll('.cell.sechead')) {
+    const band = el('div', 'mband');
+    const title = cell.querySelector('.sec-title');
+    const lbl = el('div', 'mlbl');
+    lbl.textContent = title ? title.textContent : '';
+    band.appendChild(lbl);
+    place(band, cell.offsetTop, cell.offsetHeight);
+  }
+
+  for (const item of rows) {
+    const rw = item._rw;
+    const bar = el('div', 'mrow');
+    if (item.classList.contains('visual')) bar.classList.add('m-visual');
+    if (item.classList.contains('divider')) bar.classList.add('m-divider');
+    if (rw && hasAction(rw.note)) bar.classList.add('m-open');
+    if (rw && rw.rid && commentsFor(S.doc, rw.rid).some((x) => !x.done)) bar.classList.add('m-cm');
+    // Width stands for how much the block carries, so the shape of the guide
+    // stays legible even shrunk this far.
+    const weight = rw ? 40 + (rw.realData ? 18 : 0)
+      + (rw.link.type || rw.form.type ? 18 : 0)
+      + Math.min(rw.note.length * 12, 24) : 50;
+    bar.style.width = Math.min(weight, 100) + '%';
+    place(bar, item.offsetTop, item.offsetHeight);
+  }
+
+  for (const r of stage.querySelectorAll('.ref')) {
+    const n = el('div', 'mref');
+    place(n, r.offsetTop, r.offsetHeight);
+  }
+
+  const view = el('div', 'mview');
+  m.appendChild(view);
+  const sync = () => {
+    const h = stage.scrollHeight || 1;
+    view.style.top = (stage.scrollTop / h * 100) + '%';
+    view.style.height = Math.max(5, Math.min(100, stage.clientHeight / h * 100)) + '%';
+  };
+  sync();
+  stage.onscroll = sync;
+
+  // Pressing anywhere on the map goes there; dragging scrubs.
+  const goTo = (clientY) => {
+    const r = m.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (clientY - r.top) / r.height));
+    stage.scrollTop = frac * stage.scrollHeight - stage.clientHeight / 2;
+    sync();
+  };
+  m.onmousedown = (e) => {
+    e.preventDefault();
+    goTo(e.clientY);
+    const move = (ev) => goTo(ev.clientY);
+    const up = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
   };
 }
 
@@ -1984,6 +2150,166 @@ function sectionMenu(anchor, g, sec) {
   ]);
 }
 
+// ---------------------------------------------------------------- comments
+/**
+ * Notes to yourself, pinned to a block.
+ *
+ * Distinct from a Note, which is part of the guide and travels to whoever reads
+ * it. A comment is working material — a question to come back to, a thing to
+ * check — so it can be switched off entirely, and the guide underneath is
+ * exactly what it was.
+ */
+function commentBubble(ctx) {
+  const { g, sec, table, rw } = ctx;
+  const mine = rw.rid ? commentsFor(S.doc, rw.rid) : [];
+  const open = mine.filter((c) => !c.done).length;
+  if (!mine.length && (S.readOnly || S.present)) return null;
+
+  const b = el('button', 'bubble' + (open ? ' has' : mine.length ? ' done' : ' none'));
+  b.appendChild(icon('bubble', 12));
+  if (mine.length) b.appendChild(el('span', null, String(open || mine.length)));
+  b.title = mine.length
+    ? `${mine.length} comment${mine.length === 1 ? '' : 's'}${open ? `, ${open} open` : ', all resolved'}`
+    : 'Comment on this block';
+  b.onclick = (e) => {
+    e.stopPropagation();
+    if (!rw.rid && !S.readOnly) { ensureRid(S.doc, rw, table, sec); mark(); }
+    openThread(b, ctx);
+  };
+  return b;
+}
+
+function openThread(anchor, ctx) {
+  closePop();
+  const { rw } = ctx;
+  const pop = el('div', 'pop thread');
+  const list = el('div', 'tlist');
+  pop.appendChild(el('div', 'pop-h', 'Comments'));
+  pop.appendChild(list);
+
+  const paint = () => {
+    list.innerHTML = '';
+    const mine = commentsFor(S.doc, rw.rid);
+    if (!mine.length) list.appendChild(el('div', 'rail-empty', 'Nothing yet.'));
+    const live = (i) => commentsFor(S.doc, rw.rid)[i] || null;
+    mine.forEach((c, i) => {
+      const card = el('div', 'tc' + (c.done ? ' done' : ''));
+
+      const tick = el('button', 'tick' + (c.done ? ' on' : ''));
+      tick.appendChild(icon(c.done ? 'tick' : 'circle', 12));
+      tick.title = c.done ? 'Reopen' : 'Resolve';
+      tick.onclick = () => {
+        const now = live(i);
+        if (now) resolveComment(S.doc, now);
+        mark(); paint(); renderCommentCounts();
+      };
+      card.appendChild(tick);
+
+      const t = el('div', 't');
+      t.textContent = c.text;
+      if (!S.readOnly) {
+        editableInPlace(t, c.text, (v) => {
+          const now = live(i);
+          if (!now) return;
+          if (!v) removeComment(S.doc, now); else setComment(S.doc, now, v);
+          mark(); paint(); renderCommentCounts();
+        });
+      }
+      card.appendChild(t);
+
+      if (!S.readOnly) {
+        const x = el('button', 'x', '×');
+        x.title = 'Delete this comment';
+        x.onclick = () => {
+          const now = live(i);
+          if (!now) return;
+          const was = { rid: now.rid, text: now.text, done: now.done };
+          removeComment(S.doc, now);
+          mark(); paint(); renderCommentCounts();
+          undoable('Comment', () => {
+            const back = addComment(S.doc, was.rid, was.text);
+            back.done = was.done;
+            paint(); renderCommentCounts();
+          });
+        };
+        card.appendChild(x);
+      }
+      list.appendChild(card);
+    });
+  };
+  paint();
+
+  if (!S.readOnly) {
+    const box = el('textarea', 'tnew');
+    box.placeholder = 'Leave a comment on this block';
+    box.rows = 2;
+    const send = el('button', 'btn primary', 'Comment');
+    const post = () => {
+      const v = box.value.trim();
+      if (!v) return;
+      addComment(S.doc, rw.rid, v);
+      box.value = '';
+      mark(); paint(); renderCommentCounts();
+    };
+    send.onclick = post;
+    box.onkeydown = (e) => {
+      if (e.metaKey || e.ctrlKey) { if (e.key === 'Enter') { e.preventDefault(); post(); } return; }
+      e.stopPropagation();
+      if (e.key === 'Escape') { closePop(); render(); }
+    };
+    const foot = el('div', 'tfoot');
+    foot.append(el('span', 'hint', '⌘↵'), send);
+    pop.append(box, foot);
+  }
+
+  document.body.appendChild(pop);
+  placePop(pop, anchor);
+  S.pop = pop;
+  pop.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') { closePop(); render(); }
+  };
+  setTimeout(() => {
+    document.addEventListener('mousedown', popAway);
+    const box = pop.querySelector('.tnew');
+    if (box) box.focus();
+  }, 0);
+}
+
+/**
+ * Edit in place without the guide-wide render that `editable` does — a thread
+ * repaints itself, and a full render would close the popover it lives in.
+ */
+function editableInPlace(node, current, commit) {
+  node.contentEditable = 'plaintext-only';
+  node.spellcheck = false;
+  node.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') { e.preventDefault(); node.textContent = current; node.blur(); }
+    if (e.key === 'Enter') { e.preventDefault(); node.blur(); }
+  };
+  node.onblur = () => {
+    const v = node.textContent.trim();
+    if (v !== current) commit(v);
+  };
+  return node;
+}
+
+/** Keep the bubbles and the header count honest without a full render. */
+function renderCommentCounts() {
+  const n = openComments(S.doc).length;
+  const c = $('comments');
+  if (c) {
+    c.classList.toggle('on', S.comments);
+    const badge = c.querySelector('.n');
+    if (badge) badge.textContent = n ? String(n) : '';
+  }
+  if (S.pop && S.pop.classList.contains('thread')) return;
+  render();
+}
+
 // ---------------------------------------------------------------- one row
 /**
  * The middle says what the thing is called and what its data actually looks
@@ -2005,6 +2331,7 @@ function paintRow(row, g, sec, table, rw) {
   // ---- a divider is a rule and nothing else
   if (kind === 'divider') {
     const item = el('div', 'item divider');
+    item._rw = rw;
     item.appendChild(el('div', 'rule'));
     row.host.appendChild(item);
     if (chosen && !S.readOnly && !S.present) item.appendChild(rowStrip(ctx, kind, null));
@@ -2054,6 +2381,7 @@ function paintRow(row, g, sec, table, rw) {
   if (rw.form.type === 'single select' || rw.form.type === 'multi select') {
     const ch = icon('chev', 13); ch.classList.add('chev'); box.appendChild(ch);
   }
+  if (S.comments) { const bb = commentBubble(ctx); if (bb) box.appendChild(bb); }
   item.appendChild(box);
 
   const openExample = () => {
@@ -2070,6 +2398,7 @@ function paintRow(row, g, sec, table, rw) {
   // thing it belongs to.
   const wantExample = cur ? null : openExample;
   if (chosen && !S.readOnly && !S.present) item.appendChild(rowStrip(ctx, kind, wantExample));
+  item._rw = rw;
   row.host.appendChild(item);
 
   if (!S.present) {
@@ -3693,12 +4022,14 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'f') { commitEditor(); S.view = 'flow'; render(); }
   else if (k === 'u') { commitEditor(); S.view = 'users'; render(); }
   else if (k === 'o') { commitEditor(); S.view = 'open'; render(); }
+  else if (k === 'k') { S.comments = !S.comments; render(); }
 });
 
 // ---------------------------------------------------------------- wiring
 $('file').onclick = pickFolder;
 $('save').onclick = save;
 $('present').onclick = () => { S.present = !S.present; S.editing = null; render(); };
+$('comments').onclick = () => { S.comments = !S.comments; render(); };
 $('capDone').onclick = () => toggleCapture(false);
 $('capIn').onkeydown = (e) => {
   if (e.key === 'Enter') {
