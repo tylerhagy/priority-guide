@@ -760,7 +760,7 @@ const pressAt = async (sel, dx, dy) => {
 for (const [what, sel, dx, dy] of [
   ['the section band', '.band', 8, 6],
   ['the guide beside the stack', '.guide', 4, 300],
-  ['the stage below everything', '#stage', 700, 700],
+  ['the stage margin beside the guide', '#stage', 8, 300],
   ['the page header', '#pagehead', 600, 10],
   ['the side panel', '#railR .pbody', 20, 300],
   ['a field in the side panel', '#railR .ctx dd', 10, 8],
@@ -784,7 +784,7 @@ await page.waitForTimeout(220);
 await grabRow('Time');
 ok('holding a row puts the caret in its name',
   await page.evaluate(() => document.activeElement.className.includes('lbl')));
-await pressAt('#stage', 700, 700);
+await pressAt('#stage', 8, 300);
 ok('and pressing dead space takes the caret out of it',
   await page.evaluate(() => !document.activeElement.isContentEditable));
 
@@ -1417,8 +1417,9 @@ ok('a case-different match reuses the existing type instead of making a second o
 // ---------------------------------------------------------------- present
 const titleSize = await page.evaluate(() =>
   getComputedStyle(document.querySelector('#pagehead h1')).fontSize);
-await page.mouse.click(700, 300);
-await page.waitForTimeout(150);
+// Out of any field first: a bare coordinate can land in a name now that the
+// guide is fluid, and then 'p' is a letter rather than a command.
+await pressAt('#stage', 8, 300);
 await page.keyboard.press('p');
 await page.waitForTimeout(250);
 eq('the present button becomes the way out', await text('#present'), 'Exit');

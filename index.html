@@ -1,12 +1,23 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>priority guide</title>
+<!-- Family mark: same rounded-square badge as ORCA/jobmap. Color is this
+     app's own --warn amber (shared across the suite); glyph is three
+     descending bars — content ranked by priority, the thing this app is for. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='rgb(154,103,0)'/><rect x='8' y='9' width='16' height='3.6' rx='1.8' fill='white'/><rect x='8' y='14.4' width='11.5' height='3.6' rx='1.8' fill='white'/><rect x='8' y='19.8' width='7' height='3.6' rx='1.8' fill='white'/></svg>">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{
-  --ink:#16181d; --dim:#6b7280; --faint:#9aa1ac;
-  --line:rgba(16,18,22,.11); --hover:rgba(16,18,22,.05);
-  --bg:#f6f7f9; --panel:#fff; --accent:#2563eb; --accent-soft:rgba(37,99,235,.10);
+  --ink:#101319; --dim:#525a67; --faint:#98a0ac;
+  /* Two hairlines, neither of them ink. A near-black outline on white is what
+     makes a spec read like a 2012 wireframe; containment comes from surface
+     and edge-light instead. */
+  --line:rgba(16,19,25,.085); --line-2:rgba(16,19,25,.15);
+  --hover:rgba(16,19,25,.045); --tint:rgba(16,19,25,.032);
+  --r-sm:6px; --r-md:9px; --r-lg:14px;
+  --sheet:0 0 0 1px var(--line), 0 1px 2px rgba(16,19,25,.04),
+    0 14px 34px -22px rgba(16,19,25,.30);
+  --bg:#f3f4f6; --panel:#fff; --accent:#2563eb; --accent-soft:rgba(37,99,235,.10);
   --ok:#177245; --warn:#9a6700; --none:#8a8f98; --flag:#b8541f; --act:#b3261e;
   --ease:cubic-bezier(.22,.61,.36,1);
 }
@@ -120,10 +131,13 @@ body.present #minimap,body.is-paired #minimap{display:none}
 #pagehead .sub .open{color:var(--flag);font-weight:500}
 
 /* ---------- the palette: the one place you drag from ---------- */
-#palette{flex:none;display:flex;align-items:center;gap:6px;padding:10px 24px;
-  border-top:1px solid var(--line);background:var(--panel);overflow-x:auto}
+/* Floating, the width of what it holds. A full-bleed strip pinned to the bottom
+   edge of the window is a status bar, and this is a set of tools. */
+#palette{flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;
+  margin:0 auto 16px;width:max-content;max-width:calc(100% - 40px);
+  border-radius:16px;background:var(--panel);box-shadow:var(--sheet);overflow-x:auto}
 #palette .lbl{color:var(--faint);font-size:11.5px;white-space:nowrap;margin-right:6px;flex:none}
-.ptool{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:9px;
+.ptool{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:10px;
   border:1px solid var(--line);background:var(--panel);color:var(--dim);font-size:12px;
   font-weight:500;white-space:nowrap;cursor:grab;user-select:none;flex:none}
 .ptool:hover{color:var(--ink);border-color:var(--dim);background:var(--hover)}
@@ -177,53 +191,83 @@ body.present .sec-title{font-size:15.5px}
    The middle is the guide itself — what each thing is called, and what its data
    actually looks like. Notes annotate it from the left, functionality from the
    right, each on a dotted leader to the one row it describes. */
-.guide{--lane-l:264px; --stack:340px; --lane-r:270px;
+/* Fluid, not fixed. A 340px stack was a phone-shaped guess; a priority guide is
+   an order of importance, not a mock, and on a wide screen a fixed column leaves
+   the page reading as a narrow strip adrift in grey. */
+.guide{--lane-l:clamp(190px,17vw,300px); --stack:clamp(360px,30vw,480px);
+  --lane-r:clamp(200px,18vw,310px);
   display:grid;grid-template-columns:var(--lane-l) var(--stack) var(--lane-r);
-  margin:0 auto;width:max-content;max-width:100%}
-body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
+  margin:0 auto;width:100%;max-width:1140px}
+body.present .guide{--lane-l:clamp(220px,20vw,340px); --stack:clamp(420px,34vw,560px);
+  --lane-r:clamp(230px,21vw,360px);max-width:1360px}
 
 /* Every row is a grid row so an annotation lines up with the one item it
    annotates. The stack reads as one continuous column because each middle cell
    carries the side borders and the ends carry the caps. */
-.cell{grid-column:2;border-left:1.5px solid var(--ink);border-right:1.5px solid var(--ink);
-  background:var(--panel);padding:0 10px;display:flex;flex-direction:column}
-.cell.top{border-top:1.5px solid var(--ink);padding-top:10px}
-.cell.bot{border-bottom:1.5px solid var(--ink);padding-bottom:10px}
-.cell.gap{height:10px}
-.band{background:var(--hover);padding:0 12px;flex:1;display:flex;flex-direction:column}
-.band.open{padding-top:9px;border-radius:2px 2px 0 0}
-.band.close{padding-bottom:9px;border-radius:0 0 2px 2px}
-.band > *{margin-bottom:6px}
+.cell{grid-column:2;background:var(--panel);padding:0 14px;display:flex;flex-direction:column;
+  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line),
+    -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22)}
+.cell.top{padding-top:16px;border-radius:var(--r-lg) var(--r-lg) 0 0;
+  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 -1px 0 var(--line),
+    -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22),
+    0 -8px 20px -16px rgba(16,19,25,.24)}
+.cell.bot{padding-bottom:16px;border-radius:0 0 var(--r-lg) var(--r-lg);
+  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 1px 0 var(--line),
+    -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22),
+    0 10px 24px -18px rgba(16,19,25,.28)}
+.cell.gap{height:12px}
+.band{background:var(--tint);padding:0 13px;flex:1;display:flex;flex-direction:column;
+  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line)}
+.band.open{padding-top:13px;border-radius:var(--r-md) var(--r-md) 0 0;
+  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 -1px 0 var(--line)}
+.band.close{padding-bottom:13px;border-radius:0 0 var(--r-md) var(--r-md);
+  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 1px 0 var(--line)}
+.band > *{margin-bottom:7px}
 .band.close > *:last-child{margin-bottom:0}
 .lane{display:flex;align-items:flex-start;min-height:1px;position:relative}
 .lane-l{grid-column:1;justify-content:flex-end}
 .lane-r{grid-column:3}
-.lead{flex:none;width:20px;border-top:1px dotted var(--faint);margin-top:12px}
+/* A solid hairline, not a dotted one: a leader is a tie, and a row of dots is
+   a table of contents from 1994. */
+.lead{flex:none;width:22px;border-top:1px solid var(--line-2);margin-top:16px;
+  transition:border-color .12s var(--ease)}
+.lane.rowhot{background:var(--hover);border-radius:var(--r-md)}
+.rowhot .lead{border-color:var(--accent)}
 
 /* ---------- one row in the stack ---------- */
 .item{padding:2px 0;position:relative}
-.item .box{cursor:grab;border:1px solid var(--ink);background:var(--panel);border-radius:2px;
-  padding:3px 8px;display:flex;align-items:center;gap:7px;min-height:24px}
+.item .box{cursor:grab;border:1px solid var(--line-2);background:var(--panel);
+  border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px;min-height:32px;
+  transition:border-color .12s var(--ease),box-shadow .12s var(--ease)}
+.item .box:hover{border-color:rgba(16,19,25,.26);box-shadow:0 1px 3px rgba(16,19,25,.07)}
 .boxin{flex:1;min-width:0}
-.item.plain .box,.item.linky .box{border-color:transparent;background:transparent;padding-left:2px}
+.item.plain .box,.item.linky .box{border-color:transparent;background:transparent;
+  padding:4px 4px 4px 3px;min-height:26px}
+.item.plain .box:hover,.item.linky .box:hover{border-color:transparent;box-shadow:none;
+  background:var(--hover)}
 .item.linky .lbl{text-decoration:underline;text-underline-offset:2px}
 
 /* A visual stands for something that will take up room on the screen, so it
    takes up room here. Reading the stack should tell you its shape. */
-.item.visual .box{border-style:dashed;color:var(--dim);min-height:74px;padding:12px;gap:11px;
-  background:repeating-linear-gradient(-45deg,transparent,transparent 7px,
-    rgba(16,18,22,.022) 7px,rgba(16,18,22,.022) 14px)}
+.item.visual .box{border-style:dashed;border-color:var(--line-2);border-radius:var(--r-md);
+  color:var(--dim);min-height:82px;padding:14px;gap:11px;
+  background:repeating-linear-gradient(-45deg,transparent,transparent 8px,
+    rgba(16,19,25,.026) 8px,rgba(16,19,25,.026) 16px)}
+.item.visual.chart .box{min-height:96px}
 .item.visual .kindmark{color:var(--faint)}
-.item.visual.chart .box{min-height:86px}
 .item.visual .lbl{font-weight:500}
-.lbl{flex:1;min-width:0;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere;
-  padding:1px 3px;margin-left:-3px;border-radius:4px}
-.lbl:hover{background:rgba(16,18,22,.06)}
+/* The name is the thing; the real data is the evidence under it. They were the
+   same size and the data was the fainter of the two, which put the least
+   contrast on the column that earns the artifact. */
+.lbl{flex:1;min-width:0;font-size:13px;font-weight:500;line-height:1.4;overflow-wrap:anywhere;
+  padding:1px 4px;margin-left:-4px;border-radius:var(--r-sm)}
+.lbl:hover{background:var(--hover)}
 .lbl:focus{outline:none;background:var(--accent-soft)}
 .lbl .unk{color:var(--flag);font-weight:500}
-.eg{font-size:11.5px;color:var(--dim);line-height:1.4;margin-top:2px;padding:1px 4px;
-  margin-left:-1px;border-radius:4px;overflow-wrap:anywhere}
-.eg:hover{background:rgba(16,18,22,.06)}
+.eg{font-size:12px;color:var(--dim);line-height:1.45;margin-top:3px;padding:1px 4px;
+  margin-left:-4px;border-radius:var(--r-sm);overflow-wrap:anywhere;
+  font-variant-numeric:tabular-nums}
+.eg:hover{background:var(--hover)}
 .eg:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
 .eg.none{color:var(--faint);font-style:italic}
 .eg.unk{color:var(--flag);font-weight:500;font-style:normal}
@@ -236,7 +280,8 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 
 /* ---------- notes, on the left ---------- */
 .notes{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:1;min-width:0}
-.note{border:1px solid var(--line);background:var(--panel);border-radius:6px;
+.note{border:1px solid var(--line);background:var(--panel);border-radius:var(--r-md);
+  box-shadow:0 1px 2px rgba(16,19,25,.035);
   padding:3px 7px;font-size:11px;line-height:1.4;color:var(--dim);
   display:flex;gap:6px;align-items:flex-start;max-width:100%}
 .note.act{border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.05);color:var(--act)}
@@ -277,14 +322,18 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .lane-l .lanelbl{text-align:right;width:100%}
 
 /* An empty lane still shows what belongs in it. */
+/* Still there at rest, so you can see a lane can hold something without
+   touching it — but as a mark, not as a dashed pill on every row. Nineteen
+   blocks meant thirty-eight of them, and that is most of what read as grey. */
 .slot,.fn.asslot{display:inline-flex;align-items:center;gap:0;font-size:10.5px;
-  color:var(--faint);padding:3px;border-radius:7px;border:1px dashed var(--line);
-  background:transparent;white-space:nowrap;line-height:1;cursor:pointer;opacity:.45;
-  transition:opacity .1s var(--ease),color .1s var(--ease),border-color .1s var(--ease)}
+  color:var(--faint);padding:4px;border-radius:var(--r-md);border:1px dashed transparent;
+  background:transparent;white-space:nowrap;line-height:1;cursor:pointer;opacity:.3;
+  transition:opacity .12s var(--ease),color .12s var(--ease),border-color .12s var(--ease)}
 .slot svg,.fn.asslot svg{color:var(--faint);flex:none}
 .slot span,.fn.asslot span{max-width:0;overflow:hidden;transition:max-width .12s var(--ease),
   margin .12s var(--ease)}
-.lane:hover .slot,.lane:hover .fn.asslot,.rowsel .slot,.rowsel .fn.asslot{opacity:1;padding:3px 8px}
+.lane:hover .slot,.lane:hover .fn.asslot,.rowsel .slot,.rowsel .fn.asslot{opacity:1;padding:4px 9px;
+  border-color:var(--line-2)}
 .lane:hover .slot span,.lane:hover .fn.asslot span,
 .rowsel .slot span,.rowsel .fn.asslot span{max-width:14ch;margin-left:5px}
 .slot:hover,.fn.asslot:hover{color:var(--ink);border-color:var(--dim)}
@@ -297,7 +346,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 
 /* ---------- a divider is a rule and nothing else ---------- */
 .item.divider{padding:8px 0}
-.item.divider .rule{border-top:1px solid var(--ink);opacity:.35}
+.item.divider .rule{border-top:1px solid var(--line-2)}
 .item .kindmark{color:var(--dim);flex:none}
 .item.visual .box{align-items:flex-start}
 
@@ -411,21 +460,21 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .tog.act.on{background:var(--act)}
 
 /* ---------- sections in the stack ---------- */
-.sec-title{font-size:12.5px;font-weight:500;text-align:center;margin:0;padding:2px 6px;
-  border-radius:5px}
-.sec-title:hover{background:rgba(16,18,22,.06)}
+.sec-title{font-size:13px;font-weight:600;letter-spacing:-.005em;text-align:center;margin:0;
+  padding:2px 6px;border-radius:var(--r-sm)}
+.sec-title:hover{background:var(--hover)}
 .sec-title:focus{outline:none;background:var(--accent-soft)}
 .sec-note{font-size:11px;color:var(--dim);text-align:center;font-style:italic;line-height:1.4;
   padding:2px 6px;border-radius:5px}
 .blurb{font-size:12.5px;color:var(--dim);line-height:1.5;margin-top:3px}
-.sec-note:hover{background:rgba(16,18,22,.06)}
+.sec-note:hover{background:var(--hover)}
 .sec-note:focus{outline:none;background:var(--accent-soft);font-style:normal;color:var(--ink)}
 .sec-note.none{color:var(--faint)}
-.sub{border-top:1px solid var(--line);margin-top:3px;padding-top:8px}
+.sub{border-top:1px solid var(--line-2);margin-top:5px;padding-top:10px}
 .sub-t{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--dim);text-align:center;padding:1px 4px;border-radius:4px}
 .sub-t:focus{outline:none;background:var(--accent-soft)}
-.ref{border:1px dashed var(--line);border-radius:2px;padding:7px 10px;font-size:11.5px;
+.ref{border:1px dashed var(--line-2);border-radius:var(--r-sm);padding:8px 11px;font-size:11.5px;
   color:var(--dim);text-align:center;line-height:1.45}
 .ref:focus{outline:none;background:var(--accent-soft)}
 .raw-table{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -2553,6 +2602,12 @@ function rowStrip(ctx, kind, openExample) {
 }
 
 function wireSelect(item, row, rw, ctx, kind, openExample) {
+  // Three columns, one row: hovering the block lights the two lanes that
+  // annotate it, so you never have to trace a hairline across an empty column
+  // to work out which note belongs to what.
+  const lanes = [row.l, row.r];
+  item.addEventListener('mouseenter', () => lanes.forEach((n) => n.classList.add('rowhot')));
+  item.addEventListener('mouseleave', () => lanes.forEach((n) => n.classList.remove('rowhot')));
   const hold = () => {
     if (S.sel === rw) return;
     S.sel = rw;
