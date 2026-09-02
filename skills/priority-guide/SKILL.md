@@ -81,6 +81,18 @@ one table row is one content block.
 
 > See [[Opportunity Detail]] — the customer fields are specified there.
 
+## Design
+
+`**Design:**` cites the artifacts a guide turned into — a Figma file, a
+prototype, a screenshot — using the same `[handle]` definitions as everything
+else. A Figma link can be opened beside a read-only copy of the guide, which is
+the only way to check one against the other without holding a screen in your
+head.
+
+```markdown
+**Design:** [week-layout]
+```
+
 ## Sources
 
 [brief]: https://example.com/wiki/pages/41007 "The brief"

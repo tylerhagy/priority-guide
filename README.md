@@ -190,6 +190,10 @@ that is how markdown reference definitions work.
 | **Open** | Every `ACTION:` and every `??`, with the block it came from. |
 | **Source** | The markdown. |
 
+Beside each guide sit four tabs: **Context** (what it is for, who for),
+**Design** (what it turned into — a Figma link can be opened in a split view
+next to a read-only copy of the guide), **Sources** and **Links**.
+
 ![Flow](screenshots/03-flow.png)
 
 ---

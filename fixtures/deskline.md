@@ -17,6 +17,7 @@ These guides capture what each screen needs before anything is laid out.
 **Primary users:** Everyone with a desk (primary) · Office manager
 **Notes:** The week view is the landing screen. A day view was asked for and deferred.
 **Sources:** [brief], [interviews]
+**Design:** [week-layout]
 
 ### The week
 
@@ -181,3 +182,4 @@ These guides capture what each screen needs before anything is laid out.
 [privacy]: https://example.com/wiki/spaces/DL/pages/43880 "What we show about other people"
 [policy]: ./decisions.md#late-cancellation "Late cancellation — decided 2026-08-14"
 [refs]: <./research/Booking reference format.md> "Why references are 4 digits plus a checksum"
+[week-layout]: https://www.figma.com/design/DesklineExample1/Deskline-week-view "Deskline — the week view"

@@ -45,9 +45,21 @@ const eq = (n, a, b) => ok(n, a === b, `expected ${JSON.stringify(b)}, got ${JSO
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const errors = [];
+const badLoads = [];
 page.on('dialog', (d) => d.accept());
 page.on('pageerror', (e) => errors.push(e.message));
-page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+page.on('console', (m) => {
+  if (m.type() !== 'error') return;
+  // The fixture points at a Figma file that does not exist, so its embed 404s.
+  // That is the network telling the truth about a made-up URL, not the app
+  // failing — anything the app itself serves is checked separately below.
+  if (/Failed to load resource/.test(m.text())) return;
+  errors.push('console: ' + m.text());
+});
+page.on('response', (r) => {
+  if (!r.url().startsWith(`http://localhost:${PORT}`)) return;
+  if (r.status() >= 400) badLoads.push(`${r.status()} ${r.url()}`);
+});
 
 await page.addInitScript((text) => {
   const store = { 'Priority Guides.md': text };
@@ -792,6 +804,50 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(250);
 eq('and the second lets go of the row', (await held()).rows, 0);
 
+// ---------------------------------------------------------------- what the guide became
+await page.evaluate(() => document.querySelector('#tabs button').click());
+await page.waitForTimeout(220);
+await page.evaluate(() => {
+  const b = [...document.querySelectorAll('#railL .g-item')].find((n) => n.textContent.includes('Bookings'));
+  if (b) b.click();
+});
+await page.waitForTimeout(250);
+await page.evaluate(() => [...document.querySelectorAll('#railR .ptabs button')]
+  .find((b) => b.textContent.startsWith('Design')).click());
+await page.waitForTimeout(300);
+ok('a guide can say what it turned into', (await count('.dcard')) >= 1);
+ok('a Figma link offers to open beside the guide', await page.$('.sidebyside') !== null);
+
+await page.click('.sidebyside');
+await page.waitForTimeout(700);
+eq('which puts the guide and the design on one screen', await count('.bside'), 2);
+ok('the design is embedded rather than linked away to',
+  await page.$eval('.bframe', (n) => n.src.startsWith('https://embed.figma.com/')));
+ok('the guide beside it is the real one, drawn by the same code',
+  (await count('.beside .item')) > 5);
+ok('but read-only, because this is the checking pass',
+  (await count('.beside [contenteditable]')) === 0 && (await count('.beside .rowstrip')) === 0);
+
+ok('the page does not overflow the window',
+  await page.evaluate(() => document.body.getBoundingClientRect().width <= window.innerWidth + 1),
+  'body ' + await page.evaluate(() => Math.round(document.body.getBoundingClientRect().width))
+    + ' vs window ' + await page.evaluate(() => window.innerWidth));
+ok('and the functionality lane is not cut off the edge of its pane',
+  await page.evaluate(() => {
+    const pane = document.querySelector('.bscroll').getBoundingClientRect();
+    const lanes = [...document.querySelectorAll('.bscroll .lane-r')];
+    return lanes.length > 0 && lanes.every((l) => l.getBoundingClientRect().right <= pane.right + 1);
+  }));
+ok('the two panes sit side by side, the same height',
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll('.bside')].map((n) => n.getBoundingClientRect());
+    return b.length === 2 && b[0].x < b[1].x && Math.abs(b[0].height - b[1].height) < 4;
+  }));
+
+await page.keyboard.press('Escape');
+await page.waitForTimeout(400);
+ok('escape comes back to the guide', await page.$('.beside') === null && (await count('.item')) > 5);
+
 // ---------------------------------------------------------------- capture
 // A shortcut must not fire while the caret is in a field, so let go first.
 await pressAt('#stage', 700, 700);
@@ -985,12 +1041,12 @@ ok('the panel steps out of the way of a file-wide view',
 // ---------------------------------------------------------------- sources
 await page.click('#tabs button:nth-child(1)');
 await page.waitForTimeout(250);
-eq('the panel has three tabs, all at the guide\'s own altitude', await count('#railR .ptabs button'), 3);
+eq('the panel has four tabs, all at the guide\'s own altitude', await count('#railR .ptabs button'), 4);
 ok('context opens first, because it is what you need to read the guide',
   (await text('#railR .ptabs button.on')).startsWith('Context'));
 ok('and it holds the goals, the users and the notes',
   (await text('#railR .pbody')).includes('User goal') && (await text('#railR .pbody')).includes('Primary users'));
-await panel(1);
+await panel(2);
 await page.waitForTimeout(200);
 ok('the rail lists what is attached here', (await count('#railR .src')) >= 2);
 ok('a source is a title you can click', (await count('#railR .src .title')) >= 2);
@@ -1035,7 +1091,7 @@ await page.evaluate(() => {
   b.click();
 });
 await page.waitForTimeout(250);
-await panel(2);
+await panel(3);
 await page.waitForTimeout(200);
 ok('the links tab says what this guide leads to', (await text('#railR .pbody')).includes('Goes to'));
 ok('and what leads here — the thing a design tool cannot tell you',
@@ -1129,6 +1185,7 @@ eq('dragging a block lands it where it was dropped', dragged.index, 3);
 
 // ---------------------------------------------------------------- no errors
 ok('no uncaught errors anywhere in the session', errors.length === 0, errors.slice(0, 4).join('\n       '));
+ok('and everything the app itself asked for loaded', badLoads.length === 0, badLoads.slice(0, 4).join('\n       '));
 
 await browser.close();
 server.kill();

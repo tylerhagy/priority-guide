@@ -519,6 +519,49 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .src .x:hover{color:var(--act)}
 .src .quiet{margin-top:4px;display:block}
 
+/* ---------- design ---------- */
+.dcard{padding:9px 10px;border-radius:9px;margin-bottom:4px;border:1px solid var(--line)}
+.dcard:hover{border-color:var(--dim)}
+.dcard .h{display:flex;align-items:center;gap:6px}
+.dcard .title{font-weight:500;text-align:left;flex:1;min-width:0}
+.dcard .x{margin-left:auto;color:var(--faint);font-size:14px;line-height:1;padding:0 3px;
+  border-radius:4px}
+.dcard .x:hover{color:var(--act);background:rgba(179,38,30,.1)}
+.dcard .u{font-size:11.5px;color:var(--faint);word-break:break-all;display:block;margin-top:2px}
+.sidebyside{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:11.5px;
+  color:var(--accent);padding:4px 8px;border-radius:7px;background:var(--accent-soft);
+  font-weight:500}
+.sidebyside:hover{filter:brightness(.96)}
+.sidebyside svg{color:currentColor}
+
+/* ---------- the guide and what it became, on one screen ---------- */
+.beside{display:grid;grid-template-columns:minmax(0,564px) minmax(0,1fr);
+  gap:14px;height:100%;min-height:0}
+.bside{display:flex;flex-direction:column;min-height:0;min-width:0;
+  border:1px solid var(--line);border-radius:11px;background:var(--panel);overflow:hidden}
+.bhead{flex:none;display:flex;align-items:baseline;gap:9px;padding:9px 13px;
+  border-bottom:1px solid var(--line)}
+.bhead .n{font-weight:600;font-size:13px;letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bhead .m{font-size:11.5px;color:var(--faint);margin-left:auto;white-space:nowrap}
+.bback{color:var(--dim);padding:2px;border-radius:6px;display:flex;transform:rotate(90deg)}
+.bback:hover{color:var(--ink);background:var(--hover)}
+.bscroll{flex:1;overflow:auto;min-height:0;padding:14px 10px 24px}
+/* Three lanes at full width are wider than half a screen, so the copy beside
+   the design is drawn tighter. It is the same guide, read at arm's length. */
+/* No cap here: on a window too narrow for the lanes the pane scrolls rather
+   than cutting the functionality off the right-hand edge. */
+.bscroll .guide{--lane-l:150px; --stack:232px; --lane-r:158px;font-size:12px;max-width:none}
+.bscroll .lbl{font-size:11.5px}
+.bscroll .eg,.bscroll .note,.bscroll .fn{font-size:10.5px}
+.bscroll .sec-title{font-size:11.5px}
+.bscroll .sec-note{font-size:10px}
+.bscroll .lanelbl{font-size:8.5px}
+.bscroll .item.visual .box{min-height:56px}
+.bscroll .item.visual.chart .box{min-height:64px}
+.bframe{flex:1;border:0;width:100%;min-height:0;background:var(--bg)}
+body.is-paired #stage{padding:16px 20px;overflow:hidden}
+
 /* ---------- users ---------- */
 .usr{margin:0 0 26px}
 .usr-h{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line);
@@ -613,6 +656,7 @@ import {
   parseUsers, renderUsers, userTypes, renameUserType, handleFor, isWebUrl, refsIn, hasAction,
   moveGuide, placeGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
   guideRefs, addGuideRef, setGuideRef, removeGuideRef,
+  designLinks, figmaEmbed, isFigma,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -958,6 +1002,7 @@ function isUnknown(v) { return String(v || '').trim() === '??'; }
 // ---------------------------------------------------------------- render
 function render() {
   document.body.classList.toggle('present', S.present);
+  document.body.classList.toggle('is-paired', !!S.beside && S.view === 'guide');
   renderBar();
   renderUserBar();
   renderPageHead();
@@ -965,7 +1010,8 @@ function render() {
   if (!S.doc) { renderHello(); return; }
   renderRailLeft();
   $('stage').innerHTML = '';
-  if (S.view === 'guide') renderGuide();
+  if (S.view === 'guide' && S.beside) renderBeside();
+  else if (S.view === 'guide') renderGuide();
   else if (S.view === 'flow') renderFlow();
   else if (S.view === 'users') renderUsersView();
   else if (S.view === 'open') renderOpen();
@@ -1269,6 +1315,7 @@ const GLYPH = {
   note: 'M3.5 2h9v12h-9zM6 5.5h4.5M6 8h4.5M6 10.5h3',
   source: 'M9 7.2a3.4 3.4 0 010 4.8l-1.6 1.6a3.4 3.4 0 01-4.8-4.8l1-1M7 8.8a3.4 3.4 0 010-4.8l1.6-1.6a3.4 3.4 0 014.8 4.8l-1 1',
   chev: 'M4.5 6.5L8 10l3.5-3.5',
+  sideby: 'M2 3h5.2v10H2zM8.8 3H14v10H8.8z',
   folder: 'M1.5 3.5h4.2l1.4 2h7.4v7.5a1 1 0 01-1 1H2.5a1 1 0 01-1-1z',
   plus: 'M8 3.5v9M3.5 8h9',
   info: 'M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2zM8 7.2v4M8 5.1v.01',
@@ -1728,8 +1775,8 @@ function addAt(what, spot, after) {
 }
 
 // ---------------------------------------------------------------- guide view
-function renderGuide() {
-  const stage = $('stage');
+function renderGuide(host) {
+  const stage = host || $('stage');
   // Clicking the page around the guide lets go of whatever was selected.
   if (!S.guide) { stage.appendChild(el('div', 'rail-empty', 'No guide selected.')); return; }
   const g = S.guide;
@@ -2626,10 +2673,12 @@ function renderRailRight() {
   const out = links_out(S.guide);
   const counts = {
     context: 0,
+    design: designLinks(S.doc, S.guide).length,
     sources: sourceUsage(S.doc).all.filter((s) => s.cites.some((c) => c.guide === S.guide.name)).length,
     links: links.routes.length + links.references.length + out.length
   };
-  for (const [k, label] of [['context', 'Context'], ['sources', 'Sources'], ['links', 'Links']]) {
+  for (const [k, label] of [['context', 'Context'], ['design', 'Design'],
+    ['sources', 'Sources'], ['links', 'Links']]) {
     const b = el('button', (S.panel || 'context') === k ? 'on' : '');
     b.textContent = label + (counts[k] ? ` ${counts[k]}` : '');
     b.onclick = () => { S.panel = k; render(); };
@@ -2638,6 +2687,7 @@ function renderRailRight() {
   r.append(tabs, body);
 
   if ((S.panel || 'context') === 'context') panelContext(body);
+  else if (S.panel === 'design') panelDesign(body);
   else if (S.panel === 'sources') panelSources(body);
   else panelLinks(body, links, out);
 }
@@ -2895,6 +2945,135 @@ function sourceCard(s, here) {
     c.appendChild(a);
   }
   return c;
+}
+
+// ---------------------------------------------------------------- design tab
+/**
+ * What this guide turned into.
+ *
+ * A priority guide is the thing you agree before anything is laid out, so the
+ * layout it produced is the one artifact worth keeping a hand on. A Figma link
+ * can be opened beside the guide, which is the only way to check one against
+ * the other without holding a screen in your head.
+ */
+function panelDesign(body) {
+  const g = S.guide;
+  const links = designLinks(S.doc, g);
+
+  if (!links.length) {
+    body.appendChild(el('div', 'rail-empty',
+      'Nothing linked yet. A Figma file, a prototype, a screenshot — whatever this guide became.'));
+  }
+
+  for (const d of links) {
+    const c = el('div', 'dcard' + (d.figma ? ' figma' : ''));
+    const head = el('div', 'h');
+    const link = outLink(d.url, d.title, d.url);
+    link.classList.add('title');
+    head.appendChild(link);
+    if (!S.readOnly) {
+      const x = el('button', 'x', '×');
+      x.title = 'Unlink from this guide. The source stays in the file.';
+      x.onclick = () => {
+        const left = refsIn(g.fields.design).filter((h) => h !== d.handle);
+        setField(g, 'design', left.map((h) => `[${h}]`).join(', '));
+        mark(); render();
+      };
+      head.appendChild(x);
+    }
+    c.appendChild(head);
+    c.appendChild(el('div', 'u', shortUrl(d.url)));
+
+    if (d.figma) {
+      const b = el('button', 'sidebyside');
+      b.appendChild(icon('sideby', 13));
+      b.appendChild(el('span', null, 'Open beside the guide'));
+      b.onclick = () => { S.beside = d; render(); };
+      c.appendChild(b);
+    }
+    body.appendChild(c);
+  }
+
+  if (S.readOnly) return;
+  const add = el('button', 'rail-add', '+  Link a design');
+  add.onclick = async () => {
+    const url = await askText({
+      title: 'Link a design',
+      body: 'A Figma file, a prototype, a screenshot — anything this guide turned into. '
+        + 'A Figma link can be opened beside the guide.',
+      placeholder: 'https://www.figma.com/design/…',
+      action: 'Link'
+    });
+    if (!url) return;
+    const title = await askText({
+      title: 'What is it?',
+      placeholder: isFigma(url) ? 'Deskline — booking flow' : 'Name for this artifact',
+      value: isFigma(url) ? guessFigmaName(url) : '',
+      action: 'Link'
+    });
+    const entry = addSource(S.doc, { handle: handleFor(title || url, S.doc), url, title: title || '' });
+    const cur = (g.fields.design || '').trim();
+    setField(g, 'design', cur ? `${cur}, [${entry.handle}]` : `[${entry.handle}]`);
+    mark(); render();
+  };
+  body.appendChild(add);
+}
+
+/** Figma puts the file name in the path, so offer it rather than an empty box. */
+function guessFigmaName(url) {
+  try {
+    const parts = new URL(url).pathname.split('/').filter(Boolean);
+    return decodeURIComponent(parts[2] || '').replace(/-/g, ' ').trim();
+  } catch { return ''; }
+}
+
+// ---------------------------------------------------------------- side by side
+/**
+ * The guide and the design it produced, on one screen.
+ *
+ * The guide is read-only here on purpose: this is the checking pass, not the
+ * writing one, and an accidental edit while you are looking at something else
+ * is the kind of change nobody remembers making.
+ */
+function renderBeside() {
+  const stage = $('stage');
+  const d = S.beside;
+  const wrap = el('div', 'beside');
+
+  const left = el('div', 'bside');
+  const lh = el('div', 'bhead');
+  lh.appendChild(el('span', 'n', S.guide.name));
+  lh.appendChild(el('span', 'm', 'read-only'));
+  left.appendChild(lh);
+  const scroll = el('div', 'bscroll');
+  left.appendChild(scroll);
+
+  const right = el('div', 'bside');
+  const rh = el('div', 'bhead');
+  const back = el('button', 'bback');
+  back.appendChild(icon('chev', 13));
+  back.title = 'Back to the guide (Esc)';
+  back.onclick = () => { S.beside = null; render(); };
+  lh.insertBefore(back, lh.firstChild);
+  rh.appendChild(el('span', 'n', d.title));
+  const open = outLink(d.url, 'Open in Figma', d.url);
+  open.classList.add('m');
+  rh.appendChild(open);
+  right.appendChild(rh);
+  const frame = el('iframe', 'bframe');
+  frame.src = d.figma;
+  frame.setAttribute('allowfullscreen', '');
+  frame.setAttribute('loading', 'lazy');
+  right.appendChild(frame);
+
+  wrap.append(left, right);
+  stage.appendChild(wrap);
+
+  // The guide, drawn by the same code that draws it anywhere else — read-only
+  // so this cannot become a second way to edit that behaves differently.
+  const was = S.readOnly;
+  S.readOnly = true;
+  try { renderGuide(scroll); } finally { S.readOnly = was; }
 }
 
 // ---------------------------------------------------------------- links tab
@@ -3410,6 +3589,7 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape') {
     if (S.scrim) { const f = S.scrim; S.scrim = null; f(); return; }
+    if (S.beside) { S.beside = null; render(); return; }
     if (S.pop) { closePop(); return; }
     if (document.activeElement && document.activeElement.isContentEditable) {
       document.activeElement.blur();

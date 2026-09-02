@@ -29,7 +29,7 @@ export const FORM_TYPES = ['none', 'date picker', 'single line', 'multi line',
 export const CAPABILITIES = ['search', 'filter', 'sort', 'edit'];
 
 // Header fields on a guide, in the order they are written when a guide is new.
-export const GUIDE_FIELDS = ['type', 'userGoal', 'businessGoal', 'primaryUsers', 'notes', 'sources'];
+export const GUIDE_FIELDS = ['type', 'userGoal', 'businessGoal', 'primaryUsers', 'notes', 'sources', 'design'];
 
 const FIELD_LABELS = {
   type: 'Type',
@@ -37,7 +37,8 @@ const FIELD_LABELS = {
   businessGoal: 'Business goal',
   primaryUsers: 'Primary users',
   notes: 'Notes',
-  sources: 'Sources'
+  sources: 'Sources',
+  design: 'Design'
 };
 
 const FIELD_ALIASES = {
@@ -46,7 +47,8 @@ const FIELD_ALIASES = {
   businessGoal: ['business goal', 'business goals'],
   primaryUsers: ['primary users', 'users', 'primary user'],
   notes: ['notes', 'general notes', 'note'],
-  sources: ['sources', 'source', 'docs', 'supporting docs']
+  sources: ['sources', 'source', 'docs', 'supporting docs'],
+  design: ['design', 'designs', 'artifact', 'artifacts']
 };
 
 // Column names are matched by NAME, never position. This is what lets the
@@ -793,6 +795,7 @@ export function sourceUsage(doc) {
 
   for (const g of guides(doc)) {
     for (const h of refsIn(g.fields.sources)) note(h, g, 'guide');
+    for (const h of refsIn(g.fields.design)) note(h, g, 'design');
     for (const h of refsIn(g.fields.notes)) note(h, g, 'guide notes');
     for (const sec of g.sections) {
       if (sec.kind !== 'section') continue;
@@ -923,6 +926,35 @@ export function handleFor(title, doc) {
  */
 export function isWebUrl(url) {
   return /^(https?|mailto|obsidian):/i.test(String(url || '').trim());
+}
+
+/**
+ * A Figma link, and the embed that goes with it.
+ *
+ * Figma serves an embeddable copy of a file at embed.figma.com with the same
+ * path, so the artifact can sit beside the guide it came from rather than in
+ * another tab.
+ */
+export function figmaEmbed(url) {
+  let u;
+  try { u = new URL(String(url || '')); } catch { return null; }
+  if (!/(^|\.)figma\.com$/i.test(u.hostname)) return null;
+  if (!/^\/(file|design|board|proto|slides|deck)\//i.test(u.pathname)) return null;
+  const e = new URL(u.toString());
+  e.hostname = 'embed.figma.com';
+  e.searchParams.set('embed-host', 'priority-guide');
+  return e.toString();
+}
+
+export function isFigma(url) { return figmaEmbed(url) !== null; }
+
+/** The design artifacts a guide points at, in the order they are cited. */
+export function designLinks(doc, guide) {
+  return refsIn(guide.fields.design)
+    .map((h) => ({ handle: h, def: resolveSource(doc, guide, h) }))
+    .filter((x) => x.def)
+    .map((x) => ({ handle: x.handle, url: x.def.url, title: x.def.title || x.handle,
+      figma: figmaEmbed(x.def.url) }));
 }
 
 // ---------------------------------------------------------------- the referee
