@@ -929,13 +929,36 @@ ok('and the source itself was never deleted from the file',
   (await current()).includes('[week-layout]:'));
 
 // ---------------------------------------------------------------- comments
-eq('comments are off until you ask for them', await gcount('.bubble'), 0);
-await page.click('#comments');
+/**
+ * Comments are true of one guide and of nothing else, so they live with the
+ * guide: a tab in the panel, a switch for the markers, and a count beside the
+ * guide's name. Nothing about them belongs in the app bar, which is also above
+ * Flow, Users, Open and Source.
+ */
+ok('comments are not in the app bar', await page.$('#bar #comments') === null);
+const cTab = () => page.$('#railR .ptabs button[data-panel="comments"]');
+ok('they are a tab on the guide instead', await cTab() !== null);
+
+await (await cTab()).click();
+await page.waitForTimeout(300);
+ok('the tab holds the switch for the markers', await page.$('.markers') !== null);
+eq('which are off until you ask for them', await gcount('.bubble'), 0);
+await page.click('.markers');
 await page.waitForTimeout(300);
 ok('turning them on puts one on every block', (await gcount('.bubble')) > 5);
+ok('and the switch reads as on', await page.$('.markers.on') !== null);
 
+// The bug: a comment was written to the file but did not appear on the guide
+// until the markers were switched off and on again.
+const bubbleOn = (name) => page.evaluate((n) => {
+  const it = [...document.querySelectorAll('#stage .item')].find((x) => x.querySelector('.lbl')
+    && x.querySelector('.lbl').textContent.trim() === n);
+  const b = it && it.querySelector('.bubble');
+  return b ? b.textContent.trim() : null;
+}, name);
+eq('a block with no comments shows no number', await bubbleOn('Status'), '');
 await page.evaluate(() => {
-  const it = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl')
+  const it = [...document.querySelectorAll('#stage .item')].find((x) => x.querySelector('.lbl')
     && x.querySelector('.lbl').textContent.trim() === 'Status');
   it.querySelector('.bubble').click();
 });
@@ -944,11 +967,18 @@ await page.fill('.tnew', 'Is this one from a list?');
 await page.click('.thread .btn.primary');
 await page.waitForTimeout(300);
 eq('a comment can be left on a block', await count('.tc'), 1);
+eq('and it shows on the block straight away, with the thread still open',
+  await bubbleOn('Status'), '1');
 await save();
 ok('and the file records it as a plain task list',
   (await current()).split('\n').some((l) => /^- \[ \] `[a-z0-9]+` Is this one from a list\?$/.test(l)));
 ok('with the block carrying an id nothing else can see',
   /^\| Status <!--#[a-z0-9]+--> \|/m.test(await current()));
+
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+eq('closing the thread leaves the marker showing what it says',
+  await bubbleOn('Status'), '1');
 
 // the whole point: the comment is pinned to the block, not to a place
 const ridOf = async () => (await current()).match(/\| Status <!--#([a-z0-9]+)-->/)[1];
@@ -957,38 +987,143 @@ await dragBlock('Status', 'Nothing booked this week');
 await save();
 ok('moving the block to another section keeps its comment',
   (await current()).includes(`\`${rid}\``) && (await current()).includes(`<!--#${rid}-->`));
-ok('and the comment still points at that block',
-  await page.evaluate((r) => {
-    const line = [...document.querySelectorAll('.item')]
-      .find((x) => x.outerHTML.includes('Status'));
-    return !!line;
-  }, rid));
 await dragBlock('Status', 'Space');
 await save();
 
+// ---- the list
+/**
+ * Opening every bubble in turn to find out what a reviewer said is excavating,
+ * not reading. The list is the readable form.
+ */
 await page.evaluate(() => {
-  const it = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl')
-    && x.querySelector('.lbl').textContent.trim() === 'Status');
+  const it = [...document.querySelectorAll('#stage .item')].find((x) => x.querySelector('.lbl')
+    && x.querySelector('.lbl').textContent.trim() === 'Time');
   it.querySelector('.bubble').click();
 });
 await page.waitForSelector('.thread');
-await page.evaluate(() => document.querySelector('.tc .tick').click());
+await page.fill('.tnew', 'Is All day a separate thing, or a value?');
+await page.click('.thread .btn.primary');
 await page.waitForTimeout(250);
-await save();
-ok('a comment can be resolved', (await current()).split('\n').some((l) => l.startsWith('- [x] `')));
-await page.$eval('.tc .t', (n) => { n.focus(); n.textContent = 'One from a list, or many?'; n.blur(); });
-await page.waitForTimeout(300);
-await save();
-ok('and edited', (await current()).includes('One from a list, or many?'));
-await page.evaluate(() => document.querySelector('.tc .x').click());
-await page.waitForTimeout(300);
-eq('and deleted', await count('.tc'), 0);
-ok('with a way back', await page.$('.toast button') !== null);
 await page.keyboard.press('Escape');
-await page.waitForTimeout(250);
-await page.click('#comments');
-await page.waitForTimeout(250);
-eq('and they can be switched off again', await gcount('.bubble'), 0);
+await page.waitForTimeout(350);
+
+const listText = () => page.$eval('#railR .pbody', (n) => n.textContent);
+eq('the list groups by block', await count('#railR .cgroup'), 2);
+ok('and says what each one is on',
+  (await listText()).includes('Status') && (await listText()).includes('Time'));
+ok('with the words readable without opening anything',
+  (await listText()).includes('Is this one from a list?')
+  && (await listText()).includes('Is All day a separate thing, or a value?'));
+ok('and a count of what is still open', (await listText()).includes('2 open of 2'));
+eq('the tab carries the same number',
+  await page.$eval('#railR .ptabs button[data-panel="comments"] .n', (n) => n.textContent), '2');
+ok('and so does the guide in the rail, so you can see it from outside',
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll('#railL .g-item')].find((x) => x.classList.contains('on'));
+    const c = b && b.querySelector('.cn');
+    return !!c && c.textContent.trim() === '2';
+  }));
+
+await page.evaluate(() => document.querySelectorAll('#railR .cgroup .tick')[0].click());
+await page.waitForTimeout(350);
+await save();
+ok('a comment can be resolved from the list', (await current()).split('\n').some((l) => l.startsWith('- [x] `')));
+ok('and the counts come down with it', (await listText()).includes('1 open of 2'));
+
+await page.$eval('#railR .cgroup .tc .t', (n) => {
+  n.focus(); n.textContent = 'One from a list, or many?'; n.blur();
+});
+await page.waitForTimeout(350);
+await save();
+ok('and edited there', (await current()).includes('One from a list, or many?'));
+
+await page.evaluate(() => document.querySelector('#railR .cgroup .cg-h').click());
+await page.waitForTimeout(400);
+ok('pressing an entry holds its block on the guide',
+  await page.evaluate(() => !!document.querySelector('#stage .rowsel')));
+
+await page.evaluate(() => document.querySelectorAll('#railR .cgroup .tc .x')[0].click());
+await page.waitForTimeout(350);
+ok('and deleted, with a way back', await page.$('.toast button') !== null);
+
+await page.click('.markers');
+await page.waitForTimeout(300);
+eq('the markers can be switched off again', await gcount('.bubble'), 0);
+ok('while the comments themselves are untouched',
+  (await listText()).includes('One from a list, or many?')
+  || (await listText()).includes('All day'));
+
+// ---------------------------------------------------------------- zoom
+/**
+ * A guide is a wide document and a laptop is not a wide screen.
+ */
+const zoomNow = () => page.evaluate(() =>
+  parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom')) || 1);
+// Zooming out does not narrow the guide — it keeps filling the page and fits
+// MORE of itself on screen. So what has to change is how big a block renders
+// and how tall the whole thing is, not the column width.
+const blockH = () => page.$eval('#stage .item .box', (n) => n.getBoundingClientRect().height);
+const frameH = () => page.$eval('#stage .gzoom', (n) => n.getBoundingClientRect().height);
+ok('there is a zoom control on the guide', await page.$('#pagehead .zoom') !== null);
+eq('it starts at 100%', await page.$eval('.zpct', (n) => n.textContent), '100%');
+const h100 = await blockH();
+const tall100 = await frameH();
+await page.click('#pagehead .zoom .zb:first-child');
+await page.waitForTimeout(300);
+ok('zooming out fits more of the guide on screen',
+  (await zoomNow()) < 1 && (await blockH()) < h100 - 1 && (await frameH()) < tall100 - 20);
+eq('and the control says so', await page.$eval('.zpct', (n) => n.textContent), '90%');
+await page.click('#pagehead .zoom .zb:last-child');
+await page.click('#pagehead .zoom .zb:last-child');
+await page.waitForTimeout(300);
+ok('zooming in makes it bigger to read', (await blockH()) > h100 + 1);
+await page.click('.zpct');
+await page.waitForTimeout(300);
+eq('and the readout is the way back to 100%', await zoomNow(), 1);
+await page.keyboard.down('Meta'); await page.keyboard.press('0'); await page.keyboard.up('Meta');
+await page.waitForTimeout(300);
+eq('and the keyboard resets it', await zoomNow(), 1);
+
+// Fit means all three lanes on screen at once — the thing a laptop loses first.
+await page.setViewportSize({ width: 1060, height: 800 });
+await page.waitForTimeout(500);
+await page.click('.zpct');
+await page.waitForTimeout(400);
+ok('fit puts every lane on screen at once',
+  await page.evaluate(() => {
+    const st = document.getElementById('stage');
+    const g = document.querySelector('#stage .guide');
+    return g.getBoundingClientRect().width <= st.clientWidth + 2;
+  }), `zoom ${await zoomNow()}`);
+ok('and never so small it cannot be read', (await zoomNow()) >= 0.5);
+await page.setViewportSize({ width: 1600, height: 1000 });
+await page.waitForTimeout(400);
+await page.keyboard.down('Meta'); await page.keyboard.press('0'); await page.keyboard.up('Meta');
+await page.waitForTimeout(300);
+
+// The bug this fixes: fixed lane minimums could not shrink, so on a laptop the
+// guide overflowed its column and ran underneath the minimap.
+await page.setViewportSize({ width: 1280, height: 800 });
+await page.waitForTimeout(500);
+ok('every lane fits inside the stage, at any window width',
+  await page.evaluate(() => {
+    const st = document.getElementById('stage');
+    const cells = [...document.querySelectorAll('#stage .lane-r')];
+    const right = Math.max(...cells.map((n) => n.getBoundingClientRect().right));
+    return right <= st.getBoundingClientRect().right - 20;
+  }));
+ok('on a laptop the guide never runs under the minimap',
+  await page.evaluate(() => {
+    const m = document.getElementById('minimap');
+    const g = document.querySelector('#stage .guide');
+    if (!g) return false;
+    if (getComputedStyle(m).display === 'none') return true;
+    return g.getBoundingClientRect().right <= m.getBoundingClientRect().left + 1;
+  }));
+ok('and nothing is clipped away — it scrolls instead',
+  await page.$eval('#stage', (n) => getComputedStyle(n).overflowX !== 'hidden'));
+await page.setViewportSize({ width: 1600, height: 1000 });
+await page.waitForTimeout(400);
 
 // ---------------------------------------------------------------- the panel tabs
 /**
@@ -999,13 +1134,13 @@ ok('every tab label sits on the same baseline',
   await page.evaluate(() => {
     const tops = [...document.querySelectorAll('#railR .ptabs button .l')]
       .map((n) => Math.round(n.getBoundingClientRect().top));
-    return tops.length === 4 && Math.max(...tops) - Math.min(...tops) <= 1;
+    return tops.length === 5 && Math.max(...tops) - Math.min(...tops) <= 1;
   }));
 ok('and no tab wraps onto a second line',
   await page.evaluate(() => {
     const bs = [...document.querySelectorAll('#railR .ptabs button')];
     const h = bs.map((b) => b.getBoundingClientRect().height);
-    return bs.length === 4 && Math.max(...h) - Math.min(...h) <= 1 && Math.max(...h) < 34;
+    return bs.length === 5 && Math.max(...h) - Math.min(...h) <= 1 && Math.max(...h) < 34;
   }));
 ok('the tabs are one row inside the panel',
   await page.evaluate(() => {
@@ -1324,7 +1459,7 @@ ok('the panel steps out of the way of a file-wide view',
 // ---------------------------------------------------------------- sources
 await page.click('#tabs button:nth-child(1)');
 await page.waitForTimeout(250);
-eq('the panel has four tabs, all at the guide\'s own altitude', await count('#railR .ptabs button'), 4);
+eq("the panel has five tabs, all at the guide's own altitude", await count('#railR .ptabs button'), 5);
 ok('context opens first, because it is what you need to read the guide',
   (await text('#railR .ptabs button.on')).startsWith('Context'));
 ok('and it holds the goals, the users and the notes',
@@ -1479,8 +1614,10 @@ if (process.env.SHOTS) {
   });
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(HERE, 'screenshots', 'guide.png') });
+  const cb = await page.$('#railR .ptabs button[data-panel="comments"]');
+  if (cb) { await cb.click(); await page.waitForTimeout(400); }
   const rail = await page.$('#railR');
-  if (rail) await rail.screenshot({ path: path.join(HERE, 'screenshots', 'panel-tabs.png') });
+  if (rail) await rail.screenshot({ path: path.join(HERE, 'screenshots', 'comments-panel.png') });
   const map = await page.$('#minimap');
   if (map) {
     const r = await map.boundingBox();

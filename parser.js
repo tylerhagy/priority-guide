@@ -1092,6 +1092,39 @@ export function removeComment(doc, comment) {
   return true;
 }
 
+/**
+ * Every comment on one guide, grouped by the block it is pinned to, in the
+ * order the blocks appear. This is what a list of comments has to be built
+ * from: a comment belongs to a block, and a block belongs to exactly one guide.
+ */
+export function commentsInGuide(doc, guide) {
+  const out = [];
+  const seen = new Set();
+  for (const { row, section, table } of rowsOf(guide)) {
+    if (!row.rid || seen.has(row.rid)) continue;
+    seen.add(row.rid);
+    const mine = commentsFor(doc, row.rid);
+    if (mine.length) out.push({ row, section, table, comments: mine });
+  }
+  return out;
+}
+
+/** Open comments on one guide — the number worth putting next to its name. */
+export function openCommentCount(doc, guide) {
+  let n = 0;
+  for (const g of commentsInGuide(doc, guide)) n += g.comments.filter((c) => !c.done).length;
+  return n;
+}
+
+/**
+ * Comments whose block is gone — deleted, or an id edited by hand. They are
+ * still in the file, so they are still shown; silently dropping someone's
+ * question because the row it was about moved on would be the worse failure.
+ */
+export function orphanComments(doc) {
+  return commentList(doc).filter((c) => !commentTarget(doc, c.rid));
+}
+
 /** Where a comment's block lives now, so the list can say what it is on. */
 export function commentTarget(doc, rid) {
   for (const g of guides(doc)) {

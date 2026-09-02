@@ -79,7 +79,7 @@ a:hover{text-decoration:underline}
 main{height:calc(100% - 52px);display:flex;overflow:hidden}
 #railL{width:214px;flex:none;border-right:1px solid var(--line);background:var(--panel);
   overflow-y:auto;padding:14px 10px 40px}
-#railR{width:296px;flex:none;border-left:1px solid var(--line);background:var(--panel);
+#railR{width:340px;flex:none;border-left:1px solid var(--line);background:var(--panel);
   display:flex;flex-direction:column;min-height:0}
 #mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
 #midrow{flex:1;display:flex;min-height:0;min-width:0}
@@ -109,7 +109,9 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
   pointer-events:none;min-height:10px}
 #minimap:hover .mview{background:rgba(37,99,235,.2)}
 body.present #minimap,body.is-paired #minimap{display:none}
-#stage{flex:1;overflow-y:auto;padding:22px 30px 40px;min-width:0}
+/* And if it still cannot fit — a very narrow window, or zoomed in — it scrolls
+   sideways rather than hiding under anything. */
+#stage{flex:1;overflow:auto;padding:22px 30px 40px;min-width:0}
 .wrap{max-width:760px;margin:0 auto}
 
 /* ---------- page header: which guide, always ---------- */
@@ -194,12 +196,28 @@ body.present .sec-title{font-size:15.5px}
 /* Fluid, not fixed. A 340px stack was a phone-shaped guess; a priority guide is
    an order of importance, not a mock, and on a wide screen a fixed column leaves
    the page reading as a narrow strip adrift in grey. */
-.guide{--lane-l:clamp(190px,17vw,300px); --stack:clamp(360px,30vw,480px);
-  --lane-r:clamp(200px,18vw,310px);
-  display:grid;grid-template-columns:var(--lane-l) var(--stack) var(--lane-r);
+/* The minimums have to be small enough to survive a laptop. Anything larger and
+   the grid overflows its own column instead of shrinking, which is what put the
+   functionality lane underneath the minimap. */
+/* Shares of the guide, not of the viewport. A vw-based lane sizes itself from a
+   window that includes both rails and the minimap, so on a laptop the three
+   columns added up to more than the stage could hold and the functionality lane
+   ran off the edge. fr divides the room the guide actually has. */
+.guide{display:grid;
+  grid-template-columns:minmax(118px,1.05fr) minmax(264px,1.5fr) minmax(126px,1.15fr);
   margin:0 auto;width:100%;max-width:1140px}
-body.present .guide{--lane-l:clamp(220px,20vw,340px); --stack:clamp(420px,34vw,560px);
-  --lane-r:clamp(230px,21vw,360px);max-width:1360px}
+body.present .guide{grid-template-columns:minmax(150px,1.05fr) minmax(320px,1.5fr) minmax(160px,1.15fr);
+  max-width:1360px}
+/* Chromium's `zoom` scales layout, not just paint, so scroll heights, hit
+   testing and the minimap's own arithmetic all stay true — which a transform
+   would not. This app is Chromium-only anyway (File System Access). */
+/* A transform, not `zoom`: `zoom` resolves a percentage width against a
+   containing block that is itself zoomed, so a fluid guide comes out exactly
+   the same size at every level. */
+.gzoom{position:relative;width:100%;max-width:1140px;margin:0 auto}
+.gzoom > .guide{transform:scale(var(--zoom,1));transform-origin:top left;
+  width:calc(100% / var(--zoom,1));max-width:none;margin:0}
+body.present .gzoom{max-width:1360px}
 
 /* Every row is a grid row so an annotation lines up with the one item it
    annotates. The stack reads as one continuous column because each middle cell
@@ -460,6 +478,56 @@ body.present .guide{--lane-l:clamp(220px,20vw,340px); --stack:clamp(420px,34vw,5
 .tog.act.on{background:var(--act)}
 
 /* ---------- sections in the stack ---------- */
+/* ---------- comments ---------- */
+#railL .g-item{position:relative}
+#railL .g-item .cn{position:absolute;right:8px;top:10px;display:inline-flex;align-items:center;
+  gap:3px;font-size:10.5px;font-weight:600;color:var(--accent);
+  background:var(--accent-soft);border-radius:999px;padding:2px 6px;line-height:1;
+  font-variant-numeric:tabular-nums}
+#railL .g-item .cn svg{opacity:.85}
+#railL .g-item .more ~ .cn,#railL .g-item.on .cn{right:8px}
+
+.markers{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;margin-bottom:12px;
+  border:1px solid var(--line);border-radius:var(--r-md);color:var(--dim);font-size:12px;
+  background:var(--panel)}
+.markers .l{flex:1;text-align:left}
+.markers svg{color:var(--faint);flex:none}
+.markers .sw{flex:none;width:28px;height:16px;border-radius:999px;background:rgba(16,19,25,.16);
+  position:relative;transition:background .14s var(--ease)}
+.markers .sw:after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(16,19,25,.3);
+  transition:transform .14s var(--ease)}
+.markers:hover{border-color:var(--line-2);color:var(--ink)}
+.markers.on{color:var(--ink);border-color:var(--accent-soft);background:rgba(37,99,235,.04)}
+.markers.on svg{color:var(--accent)}
+.markers.on .sw{background:var(--accent)}
+.markers.on .sw:after{transform:translateX(12px)}
+
+/* ---------- zoom ---------- */
+.zoom{margin-left:auto;display:inline-flex;align-items:center;gap:1px;flex:none;
+  border:1px solid var(--line);border-radius:999px;padding:1px;background:var(--panel)}
+.zb{display:inline-flex;align-items:center;justify-content:center;width:22px;height:20px;
+  border-radius:999px;color:var(--faint)}
+.zb:hover{color:var(--ink);background:var(--hover)}
+.zpct{font-size:11px;font-variant-numeric:tabular-nums;color:var(--dim);min-width:38px;
+  height:20px;border-radius:999px;padding:0 4px}
+.zpct:hover{color:var(--ink);background:var(--hover)}
+#pagehead .sub{align-items:center}
+
+.csum{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:8px}
+.cgroup{margin-bottom:14px}
+.cg-h{display:flex;align-items:baseline;gap:6px;width:100%;text-align:left;font-size:12px;
+  font-weight:600;color:var(--ink);padding:4px 6px;margin:0 -6px 4px;border-radius:var(--r-sm);
+  line-height:1.35}
+.cg-h .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cg-h .o{flex:none;font-size:10px;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);border-radius:999px;padding:1px 6px}
+.cg-h:hover{background:var(--hover)}
+.cg-h.static{font-weight:500;color:var(--dim);cursor:default}
+.cg-h.static:hover{background:none}
+.cgroup.orphan .tc{opacity:.75}
+
 .sec-title{font-size:13px;font-weight:600;letter-spacing:-.005em;text-align:center;margin:0;
   padding:2px 6px;border-radius:var(--r-sm)}
 .sec-title:hover{background:var(--hover)}
@@ -482,12 +550,12 @@ body.present .guide{--lane-l:clamp(220px,20vw,340px); --stack:clamp(420px,34vw,5
 
 
 /* ---------- right panel ---------- */
-#railR .ptabs{flex:none;display:flex;gap:1px;padding:10px 10px 0;border-bottom:1px solid var(--line)}
+#railR .ptabs{flex:none;display:flex;gap:0;padding:10px 8px 0;border-bottom:1px solid var(--line)}
 /* One line of text per tab, always. A count that wraps under its label lifts
    that label off the baseline the others sit on, and four tabs stop reading as
    one row. It goes beside the word instead, where it is read as part of it. */
-#railR .ptabs button{display:flex;align-items:baseline;gap:4px;white-space:nowrap;
-  padding:6px 8px;border-radius:7px 7px 0 0;color:var(--dim);font-size:12.5px;
+#railR .ptabs button{display:flex;align-items:baseline;gap:3px;white-space:nowrap;
+  padding:6px 6px;border-radius:7px 7px 0 0;color:var(--dim);font-size:11.5px;
   font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
 #railR .ptabs button .n{font-size:10.5px;font-weight:600;color:var(--faint);
   font-variant-numeric:tabular-nums}
@@ -748,7 +816,6 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   <div class="spacer"></div>
   <div class="tabs" id="tabs"></div>
   <span class="count" id="open"></span>
-  <button class="btn" id="comments" title="Comments (K)"></button>
   <button class="btn" id="present" title="Present (P)">Present</button>
   <button class="btn primary" id="save" disabled>Save</button>
 </div>
@@ -790,7 +857,7 @@ import {
   guideRefs, addGuideRef, setGuideRef, removeGuideRef,
   designLinks, figmaEmbed, isFigma, setSourceTitle,
   commentsFor, commentList, openComments, addComment, setComment, resolveComment,
-  removeComment, commentTarget, ensureRid,
+  removeComment, commentTarget, ensureRid, commentsInGuide, openCommentCount, orphanComments,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -822,8 +889,15 @@ const S = {
   readOnly: false, dirty: false,
   guide: null, sel: null, editing: null,
   view: 'guide', present: false, capture: false, captured: 0,
-  userFilter: null, shownField: null
+  userFilter: null, shownField: null,
+  zoom: 1
 };
+// Restored before the first render: a guide that snaps from 100% to 70% after
+// it has already been read once is worse than not remembering at all.
+try {
+  const z = parseFloat(localStorage.getItem('pg-zoom'));
+  if (z > 0) { S.zoom = z; document.documentElement.style.setProperty('--zoom', String(z)); }
+} catch { /* private window, or site data blocked */ }
 
 // ---------------------------------------------------------------- storage
 const DB = 'priority-guide';
@@ -1196,15 +1270,6 @@ function renderBar() {
     sv.appendChild(el('span', null, 'Saved'));
     sv.title = 'Everything is written to the file';
   }
-  const cm = $('comments');
-  cm.innerHTML = '';
-  cm.appendChild(icon('bubble', 13));
-  const openN = S.doc ? openComments(S.doc).length : 0;
-  cm.appendChild(el('span', 'n', openN ? String(openN) : ''));
-  cm.classList.toggle('on', S.comments);
-  cm.title = S.comments ? 'Hide comments (K)' : 'Show comments (K)';
-  cm.style.display = S.doc && !S.present ? '' : 'none';
-
   $('present').classList.toggle('on', S.present);
   $('present').textContent = S.present ? 'Exit' : 'Present';
   $('present').title = S.present ? 'Leave present mode (Esc)' : 'Present (P)';
@@ -1359,9 +1424,19 @@ function renderRailLeft() {
     b.appendChild(nm);
     const n = rowsOf(g).length;
     const o = guideOpenCount(g);
+    const cN = openCommentCount(S.doc, g);
     const m = el('div', 'm');
     m.innerHTML = `${n} block${n === 1 ? '' : 's'}` + (o ? ` · <span class="o">${o} open</span>` : '');
     b.appendChild(m);
+    // A comment is someone waiting on you, so it belongs next to the name
+    // rather than only inside the guide it was left on.
+    if (cN) {
+      const cm = el('div', 'cn');
+      cm.appendChild(icon('bubble', 10));
+      cm.appendChild(el('span', null, String(cN)));
+      cm.title = `${cN} open comment${cN === 1 ? '' : 's'}`;
+      b.appendChild(cm);
+    }
     const go = () => {
       if (S.renaming) return;
       commitEditor(); S.guide = g; S.sel = null;
@@ -1465,6 +1540,7 @@ const GLYPH = {
   grip: 'M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01',
   folder: 'M1.5 3.5h4.2l1.4 2h7.4v7.5a1 1 0 01-1 1H2.5a1 1 0 01-1-1z',
   plus: 'M8 3.5v9M3.5 8h9',
+  minus: 'M3.5 8h9',
   info: 'M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2zM8 7.2v4M8 5.1v.01',
   up: 'M8 12.5v-9M4.5 7L8 3.5 11.5 7',
   down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
@@ -1724,6 +1800,75 @@ function renderPageHead() {
   const open = guideOpenCount(g);
   if (open) add(`${open} open`, 'open');
   h.appendChild(sub);
+  if (!S.present && !S.beside) sub.appendChild(zoomControl());
+}
+
+const ZOOMS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5];
+/**
+ * A guide is a wide document, and a laptop is not a wide screen. Zoom is the
+ * difference between reading three lanes at once and scrolling sideways to
+ * find out what the right one said.
+ */
+/**
+ * A transform does not change layout, so the scroll area has to be told what
+ * the scaled guide actually occupies — otherwise the page scrolls to the wrong
+ * depth and the minimap's arithmetic goes with it.
+ */
+function sizeZoomFrame(frame, grid) {
+  const f = frame || document.querySelector('.gzoom');
+  const g = grid || (f && f.querySelector('.guide'));
+  if (!f || !g) return;
+  const z = S.zoom || 1;
+  f.style.height = (g.offsetHeight * z) + 'px';
+}
+
+document.documentElement.style.setProperty('--zoom', String(S.zoom || 1));
+function setZoom(z) {
+  S.zoom = Math.min(ZOOMS[ZOOMS.length - 1], Math.max(ZOOMS[0], z));
+  document.documentElement.style.setProperty('--zoom', String(S.zoom));
+  try { localStorage.setItem('pg-zoom', String(S.zoom)); } catch { /* private window */ }
+  sizeZoomFrame();
+  renderMinimap();
+}
+function stepZoom(dir) {
+  const at = ZOOMS.findIndex((z) => Math.abs(z - S.zoom) < 0.001);
+  const i = at === -1 ? ZOOMS.indexOf(1) : at;
+  setZoom(ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, i + dir))]);
+  renderPageHead();
+}
+/**
+ * Fit means fit the width — all three lanes on screen at once, which is the
+ * thing you lose first on a laptop. Fitting the height instead would mean
+ * shrinking a long guide to 50% and no longer being able to read it.
+ */
+function zoomToFit() {
+  const stage = $('stage');
+  const guide = stage.querySelector('.guide');
+  if (!guide) return;
+  const room = stage.clientWidth - 60;
+  // The guide's own minimum, independent of what it is currently scaled to.
+  const wide = (guide.scrollWidth || guide.offsetWidth || 1);
+  setZoom(Math.floor(Math.min(1, room / wide) * 20) / 20);
+  renderPageHead();
+}
+function zoomControl() {
+  const z = el('div', 'zoom');
+  const b = (glyph, title, fn) => {
+    const x = el('button', 'zb');
+    x.appendChild(icon(glyph, 12));
+    x.title = title;
+    x.onclick = fn;
+    return x;
+  };
+  z.appendChild(b('minus', 'Zoom out (\u2318\u2212)', () => stepZoom(-1)));
+  const pct = el('button', 'zpct', Math.round(S.zoom * 100) + '%');
+  pct.title = 'Fit the width \u2014 press again for 100%';
+  pct.onclick = () => {
+    if (Math.abs(S.zoom - 1) < 0.001) zoomToFit(); else { setZoom(1); renderPageHead(); }
+  };
+  z.appendChild(pct);
+  z.appendChild(b('plus', 'Zoom in (\u2318+)', () => stepZoom(1)));
+  return z;
 }
 
 function blankTable() {
@@ -1761,6 +1906,9 @@ function renderMinimap() {
   // A map is for when you cannot hold the guide in your head. Under about a
   // screenful hidden, scrolling is one flick and a map is furniture.
   if (!guide || stage.scrollHeight < stage.clientHeight * 1.75) { m.style.display = 'none'; return; }
+  // On a laptop the guide needs every pixel of the stage more than it needs a
+  // map of itself.
+  if (stage.clientWidth < 820) { m.style.display = 'none'; return; }
   m.style.display = '';
 
   // The picture is the guide itself, cloned and shrunk. Drawing a second,
@@ -2152,7 +2300,13 @@ function renderGuide(host) {
     stage.appendChild(el('div', 'rail-empty', 'Nothing here yet. Add a section from the toolbar below.'));
     return;
   }
-  stage.appendChild(grid);
+  // The zoom frame. The guide lays out at 1/zoom of the frame's width and is
+  // then scaled back onto it, so zooming out really does fit more on screen
+  // rather than just drawing the same columns smaller.
+  const frame = el('div', 'gzoom');
+  frame.appendChild(grid);
+  stage.appendChild(frame);
+  sizeZoomFrame(frame, grid);
 }
 
 /** A reference that belongs to the guide rather than to one of its sections. */
@@ -2246,7 +2400,67 @@ function commentBubble(ctx) {
     if (!rw.rid && !S.readOnly) { ensureRid(S.doc, rw, table, sec); mark(); }
     openThread(b, ctx);
   };
+  b.dataset.rid = rw.rid || '';
   return b;
+}
+
+/**
+ * One comment, wherever it is shown. The thread on a block and the list in the
+ * panel are two views of the same thing, so they are one piece of code — a
+ * resolve that behaved differently in the list than on the block would be a bug
+ * waiting to happen.
+ *
+ * Comments are looked up fresh by position at click time: a save re-parses the
+ * file, and the object this card was built from is gone by then.
+ */
+function commentCard(rid, i, repaint) {
+  const live = () => commentsFor(S.doc, rid)[i] || null;
+  const c = live();
+  if (!c) return null;
+  const card = el('div', 'tc' + (c.done ? ' done' : ''));
+
+  const tick = el('button', 'tick' + (c.done ? ' on' : ''));
+  tick.appendChild(icon(c.done ? 'tick' : 'circle', 12));
+  tick.title = c.done ? 'Reopen' : 'Resolve';
+  tick.onclick = (e) => {
+    e.stopPropagation();
+    const now = live();
+    if (now) resolveComment(S.doc, now);
+    mark(); repaint();
+  };
+  card.appendChild(tick);
+
+  const t = el('div', 't');
+  t.textContent = c.text;
+  if (!S.readOnly) {
+    editableInPlace(t, c.text, (v) => {
+      const now = live();
+      if (!now) return;
+      if (!v) removeComment(S.doc, now); else setComment(S.doc, now, v);
+      mark(); repaint();
+    });
+  }
+  card.appendChild(t);
+
+  if (!S.readOnly) {
+    const x = el('button', 'x', '×');
+    x.title = 'Delete this comment';
+    x.onclick = (e) => {
+      e.stopPropagation();
+      const now = live();
+      if (!now) return;
+      const was = { rid: now.rid, text: now.text, done: now.done };
+      removeComment(S.doc, now);
+      mark(); repaint();
+      undoable('Comment', () => {
+        const back = addComment(S.doc, was.rid, was.text);
+        back.done = was.done;
+        repaint();
+      });
+    };
+    card.appendChild(x);
+  }
+  return card;
 }
 
 function openThread(anchor, ctx) {
@@ -2261,50 +2475,9 @@ function openThread(anchor, ctx) {
     list.innerHTML = '';
     const mine = commentsFor(S.doc, rw.rid);
     if (!mine.length) list.appendChild(el('div', 'rail-empty', 'Nothing yet.'));
-    const live = (i) => commentsFor(S.doc, rw.rid)[i] || null;
     mine.forEach((c, i) => {
-      const card = el('div', 'tc' + (c.done ? ' done' : ''));
-
-      const tick = el('button', 'tick' + (c.done ? ' on' : ''));
-      tick.appendChild(icon(c.done ? 'tick' : 'circle', 12));
-      tick.title = c.done ? 'Reopen' : 'Resolve';
-      tick.onclick = () => {
-        const now = live(i);
-        if (now) resolveComment(S.doc, now);
-        mark(); paint(); renderCommentCounts();
-      };
-      card.appendChild(tick);
-
-      const t = el('div', 't');
-      t.textContent = c.text;
-      if (!S.readOnly) {
-        editableInPlace(t, c.text, (v) => {
-          const now = live(i);
-          if (!now) return;
-          if (!v) removeComment(S.doc, now); else setComment(S.doc, now, v);
-          mark(); paint(); renderCommentCounts();
-        });
-      }
-      card.appendChild(t);
-
-      if (!S.readOnly) {
-        const x = el('button', 'x', '×');
-        x.title = 'Delete this comment';
-        x.onclick = () => {
-          const now = live(i);
-          if (!now) return;
-          const was = { rid: now.rid, text: now.text, done: now.done };
-          removeComment(S.doc, now);
-          mark(); paint(); renderCommentCounts();
-          undoable('Comment', () => {
-            const back = addComment(S.doc, was.rid, was.text);
-            back.done = was.done;
-            paint(); renderCommentCounts();
-          });
-        };
-        card.appendChild(x);
-      }
-      list.appendChild(card);
+      const card = commentCard(rw.rid, i, () => { paint(); renderCommentCounts(anchor, rw.rid); });
+      if (card) list.appendChild(card);
     });
   };
   paint();
@@ -2319,7 +2492,7 @@ function openThread(anchor, ctx) {
       if (!v) return;
       addComment(S.doc, rw.rid, v);
       box.value = '';
-      mark(); paint(); renderCommentCounts();
+      mark(); paint(); renderCommentCounts(anchor, rw.rid);
     };
     send.onclick = post;
     box.onkeydown = (e) => {
@@ -2367,17 +2540,124 @@ function editableInPlace(node, current, commit) {
   return node;
 }
 
-/** Keep the bubbles and the header count honest without a full render. */
-function renderCommentCounts() {
-  const n = openComments(S.doc).length;
-  const c = $('comments');
-  if (c) {
-    c.classList.toggle('on', S.comments);
-    const badge = c.querySelector('.n');
-    if (badge) badge.textContent = n ? String(n) : '';
+/**
+ * A full render would tear down the open thread mid-edit, so while one is open
+ * the two things it changes — its own bubble and the panel's count — are
+ * updated in place. Leaving them stale until the next render was the bug where
+ * a new comment did not appear on the guide until comments were toggled off
+ * and on again.
+ */
+function renderCommentCounts(anchor, rid) {
+  if (S.pop && S.pop.classList.contains('thread')) {
+    if (anchor && rid) paintBubble(anchor, rid);
+    paintPanelCommentCount();
+    return;
   }
-  if (S.pop && S.pop.classList.contains('thread')) return;
   render();
+}
+
+/** A bubble says how many, and whether any are still open. */
+function paintBubble(b, rid) {
+  const mine = commentsFor(S.doc, rid);
+  const open = mine.filter((c) => !c.done).length;
+  b.className = 'bubble' + (open ? ' has' : mine.length ? ' done' : ' none');
+  let n = b.querySelector('span');
+  if (mine.length) {
+    if (!n) { n = el('span'); b.appendChild(n); }
+    n.textContent = String(open || mine.length);
+  } else if (n) n.remove();
+  b.title = mine.length
+    ? `${mine.length} comment${mine.length === 1 ? '' : 's'}${open ? `, ${open} open` : ', all resolved'}`
+    : 'Comment on this block';
+}
+
+function paintPanelCommentCount() {
+  if (!S.doc || !S.guide) return;
+  const tab = [...document.querySelectorAll('#railR .ptabs button')]
+    .find((b) => b.dataset.panel === 'comments');
+  if (!tab) return;
+  const n = openCommentCount(S.doc, S.guide);
+  let badge = tab.querySelector('.n');
+  if (n) {
+    if (!badge) { badge = el('span', 'n'); tab.appendChild(badge); }
+    badge.textContent = String(n);
+  } else if (badge) badge.remove();
+}
+
+// ---------------------------------------------------------------- the comments panel
+/**
+ * Every comment on this guide, in one list, in block order.
+ *
+ * Opening each bubble in turn to find out what was said is not reading a
+ * review, it is excavating one. The list is the readable form; the bubbles on
+ * the guide say where each one is. Pressing an entry goes to its block.
+ */
+function panelComments(body) {
+  const groups = commentsInGuide(S.doc, S.guide);
+  const orphans = orphanComments(S.doc);
+  const total = groups.reduce((n, g) => n + g.comments.length, 0);
+  const open = groups.reduce((n, g) => n + g.comments.filter((c) => !c.done).length, 0);
+
+  // Markers on the guide are a working state, not a property of the file, so
+  // the switch for them sits with the comments rather than in the app bar —
+  // where it was also true of Flow, Users, Open and Source, and it is not.
+  const sw = el('button', 'markers' + (S.comments ? ' on' : ''));
+  sw.appendChild(icon('bubble', 12));
+  sw.appendChild(el('span', 'l', 'Markers on the guide'));
+  sw.appendChild(el('span', 'sw'));
+  sw.title = 'Show a comment marker on every block (K)';
+  sw.onclick = () => { S.comments = !S.comments; render(); };
+  body.appendChild(sw);
+
+  if (!total && !orphans.length) {
+    body.appendChild(el('div', 'rail-empty',
+      'No comments yet. Turn markers on, then press the marker on any block to leave one.'));
+    return;
+  }
+
+  const sum = el('div', 'csum');
+  sum.textContent = open
+    ? `${open} open of ${total}`
+    : `${total} comment${total === 1 ? '' : 's'}, all resolved`;
+  body.appendChild(sum);
+
+  const repaint = () => { render(); };
+
+  for (const g of groups) {
+    const sec = el('div', 'cgroup');
+    const h = el('button', 'cg-h');
+    const nm = el('span', 'nm');
+    nm.textContent = renderContentCell(g.row.content) || '(unnamed block)';
+    h.appendChild(nm);
+    const openN = g.comments.filter((c) => !c.done).length;
+    if (openN) h.appendChild(el('span', 'o', String(openN)));
+    h.title = 'Go to this block';
+    h.onclick = () => {
+      S.sel = g.row;
+      S.comments = true;
+      render();
+      const hit = [...$('stage').querySelectorAll('.item')].find((n) => n.closest('.rowsel'));
+      if (hit) hit.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+    sec.appendChild(h);
+    g.comments.forEach((c, i) => {
+      const card = commentCard(g.row.rid, i, repaint);
+      if (card) sec.appendChild(card);
+    });
+    body.appendChild(sec);
+  }
+
+  if (orphans.length) {
+    const sec = el('div', 'cgroup orphan');
+    sec.appendChild(el('div', 'cg-h static',
+      `${orphans.length} on block${orphans.length === 1 ? '' : 's'} that no longer exist`));
+    orphans.forEach((c) => {
+      const all = commentsFor(S.doc, c.rid);
+      const card = commentCard(c.rid, all.indexOf(c), repaint);
+      if (card) sec.appendChild(card);
+    });
+    body.appendChild(sec);
+  }
 }
 
 // ---------------------------------------------------------------- one row
@@ -3010,8 +3290,10 @@ function popAway(e) {
   if (S.pop && !S.pop.contains(e.target) && !e.target.closest('.fn')) { closePop(); }
 }
 function closePop() {
+  const wasThread = !!(S.pop && S.pop.classList.contains('thread'));
   if (S.pop) S.pop.remove();
   S.pop = null; S.popRow = null;
+  if (wasThread) setTimeout(() => { if (!S.pop) render(); }, 0);
   document.querySelectorAll('.more.open').forEach((n) => n.classList.remove('open'));
   document.removeEventListener('mousedown', popAway);
 }
@@ -3092,11 +3374,13 @@ function renderRailRight() {
     context: 0,
     design: designLinks(S.doc, S.guide).length,
     sources: sourceUsage(S.doc).all.filter((s) => s.cites.some((c) => c.guide === S.guide.name)).length,
-    links: links.routes.length + links.references.length + out.length
+    links: links.routes.length + links.references.length + out.length,
+    comments: openCommentCount(S.doc, S.guide)
   };
   for (const [k, label] of [['context', 'Context'], ['design', 'Design'],
-    ['sources', 'Sources'], ['links', 'Links']]) {
+    ['sources', 'Sources'], ['links', 'Links'], ['comments', 'Comments']]) {
     const b = el('button', (S.panel || 'context') === k ? 'on' : '');
+    b.dataset.panel = k;
     b.appendChild(el('span', 'l', label));
     if (counts[k]) b.appendChild(el('span', 'n', String(counts[k])));
     b.onclick = () => { S.panel = k; render(); };
@@ -3107,6 +3391,7 @@ function renderRailRight() {
   if ((S.panel || 'context') === 'context') panelContext(body);
   else if (S.panel === 'design') panelDesign(body);
   else if (S.panel === 'sources') panelSources(body);
+  else if (S.panel === 'comments') panelComments(body);
   else panelLinks(body, links, out);
 }
 
@@ -4099,14 +4384,23 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'f') { commitEditor(); S.view = 'flow'; render(); }
   else if (k === 'u') { commitEditor(); S.view = 'users'; render(); }
   else if (k === 'o') { commitEditor(); S.view = 'open'; render(); }
-  else if (k === 'k') { S.comments = !S.comments; render(); }
+  else if ((e.metaKey || e.ctrlKey) && (k === '=' || k === '+')) { e.preventDefault(); stepZoom(1); }
+  else if ((e.metaKey || e.ctrlKey) && k === '-') { e.preventDefault(); stepZoom(-1); }
+  else if ((e.metaKey || e.ctrlKey) && k === '0') { e.preventDefault(); setZoom(1); renderPageHead(); }
+  else if (k === 'k') {
+    // Comments live on a guide, so K goes there — and shows the markers, since
+    // asking for comments and not seeing them on the page is never the intent.
+    if (S.view !== 'guide') S.view = 'guide';
+    if (S.panel === 'comments' && S.comments) { S.comments = false; S.panel = 'context'; }
+    else { S.panel = 'comments'; S.comments = true; }
+    render();
+  }
 });
 
 // ---------------------------------------------------------------- wiring
 $('file').onclick = pickFolder;
 $('save').onclick = save;
 $('present').onclick = () => { S.present = !S.present; S.editing = null; render(); };
-$('comments').onclick = () => { S.comments = !S.comments; render(); };
 $('capDone').onclick = () => toggleCapture(false);
 $('capIn').onkeydown = (e) => {
   if (e.key === 'Enter') {
