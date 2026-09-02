@@ -702,7 +702,99 @@ await page.waitForTimeout(200);
 await typeInto('.rowsel .lbl', 'Status');
 await save();
 
+// ---------------------------------------------------------------- clicking away lets go
+/**
+ * With a real mouse, at real coordinates — the way a person does it. Synthetic
+ * events on a container miss the case that actually bit: a press that lands on
+ * some other live element entirely.
+ */
+const held = () => page.evaluate(() => ({
+  rows: document.querySelectorAll('.rowsel').length,
+  strips: document.querySelectorAll('.rowstrip').length
+}));
+const grabRow = async (name) => {
+  // A real click needs the row on screen, so put it there first.
+  await page.evaluate((n) => {
+    const it = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl')
+      && x.querySelector('.lbl').textContent.trim() === n);
+    if (it) it.scrollIntoView({ block: 'center' });
+  }, name);
+  await page.waitForTimeout(150);
+  const at = await page.evaluate((n) => {
+    const it = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl')
+      && x.querySelector('.lbl').textContent.trim() === n);
+    if (!it) return null;
+    const r = it.querySelector('.lbl').getBoundingClientRect();
+    return { x: r.x + 12, y: r.y + r.height / 2 };
+  }, name);
+  if (!at) throw new Error('no row ' + name);
+  await page.mouse.click(at.x, at.y);
+  await page.waitForTimeout(300);
+};
+const pressAt = async (sel, dx, dy) => {
+  const box = await page.evaluate((q) => {
+    const n = document.querySelector(q);
+    if (!n) return null;
+    const r = n.getBoundingClientRect();
+    return { x: r.x, y: r.y };
+  }, sel);
+  if (!box) throw new Error('no target ' + sel);
+  await page.mouse.click(box.x + dx, box.y + dy);
+  await page.waitForTimeout(300);
+};
+
+for (const [what, sel, dx, dy] of [
+  ['the section band', '.band', 8, 6],
+  ['the guide beside the stack', '.guide', 4, 300],
+  ['the stage below everything', '#stage', 700, 700],
+  ['the page header', '#pagehead', 600, 10],
+  ['the side panel', '#railR .pbody', 20, 300],
+  ['a field in the side panel', '#railR .ctx dd', 10, 8],
+  ['a tab in the side panel', '#railR .ptabs button', 12, 10],
+  ['the guides rail', '#railL', 100, 700],
+  ['another guide in the rail', '#railL .g-item:nth-child(3)', 40, 12],
+  ['the palette', '#palette .ptool', 20, 12]
+]) {
+  await page.evaluate(() => document.querySelector('#tabs button').click());
+  await page.waitForTimeout(220);
+  await grabRow('Time');
+  ok(`a row is held before pressing ${what}`, (await held()).rows > 0);
+  await pressAt(sel, dx, dy);
+  const now = await held();
+  ok(`pressing ${what} lets go`, now.rows === 0 && now.strips === 0,
+    `rows ${now.rows}, strips ${now.strips}`);
+}
+
+await page.evaluate(() => document.querySelector('#tabs button').click());
+await page.waitForTimeout(220);
+await grabRow('Time');
+ok('holding a row puts the caret in its name',
+  await page.evaluate(() => document.activeElement.className.includes('lbl')));
+await pressAt('#stage', 700, 700);
+ok('and pressing dead space takes the caret out of it',
+  await page.evaluate(() => !document.activeElement.isContentEditable));
+
+await grabRow('Time');
+await grabRow('Status');
+ok('pressing another row moves the hold rather than dropping it',
+  await page.evaluate(() => {
+    const s2 = document.querySelector('.rowsel .lbl');
+    return !!s2 && s2.textContent.trim() === 'Status';
+  }));
+eq('and only ever one row is held', (await held()).rows, 3);
+eq('with only one strip on screen', (await held()).strips, 1);
+
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+ok('the first escape leaves the field but keeps the row',
+  (await held()).rows > 0 && await page.evaluate(() => !document.activeElement.isContentEditable));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(250);
+eq('and the second lets go of the row', (await held()).rows, 0);
+
 // ---------------------------------------------------------------- capture
+// A shortcut must not fire while the caret is in a field, so let go first.
+await pressAt('#stage', 700, 700);
 await page.keyboard.press('c');
 await page.waitForSelector('#cap:not([hidden])');
 await page.fill('#capIn', 'Occupancy right now');

@@ -259,7 +259,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
   margin .12s var(--ease)}
 .lane:hover .slot,.lane:hover .fn.asslot,.rowsel .slot,.rowsel .fn.asslot{opacity:1;padding:3px 8px}
 .lane:hover .slot span,.lane:hover .fn.asslot span,
-.rowsel .slot span,.rowsel .fn.asslot span{max-width:9ch;margin-left:5px}
+.rowsel .slot span,.rowsel .fn.asslot span{max-width:14ch;margin-left:5px}
 .slot:hover,.fn.asslot:hover{color:var(--ink);border-color:var(--dim)}
 .slot:hover svg,.fn.asslot:hover svg{color:var(--ink)}
 .fn.asslot{flex-direction:row;text-align:left}
@@ -335,6 +335,9 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .refopt .n{font-size:12.5px;font-weight:500}
 .refopt .m{font-size:11px;color:var(--faint);line-height:1.35;margin-top:1px}
 .ref{position:relative}
+.band.guidelevel{background:transparent;padding-top:2px;padding-bottom:2px}
+.cell.emptytop{min-height:14px}
+.band.guidelevel .ref{margin:0 0 2px}
 .ref.unset{color:var(--faint);border-style:dashed}
 .ref[role=button]{cursor:pointer}
 .ref[role=button]:hover{border-color:var(--dim);color:var(--ink)}
@@ -609,6 +612,7 @@ import {
   parseNoteCell, renderNoteCell,
   parseUsers, renderUsers, userTypes, renameUserType, handleFor, isWebUrl, refsIn, hasAction,
   moveGuide, placeGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
+  guideRefs, addGuideRef, setGuideRef, removeGuideRef,
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
 } from './parser.js';
@@ -1170,7 +1174,7 @@ function renderRailLeft() {
     b.appendChild(m);
     const go = () => {
       if (S.renaming) return;
-      commitEditor(); S.guide = g; S.sel = null; S.selSection = null;
+      commitEditor(); S.guide = g; S.sel = null;
       S.shownField = null; S.view = 'guide'; render();
     };
     b.onclick = (e) => { if (e.target.closest('.more,[contenteditable]')) return; go(); };
@@ -1623,6 +1627,7 @@ function dropZone(cell, spot) {
 /** Where a drop lands, expressed as a table and an index inside it. */
 function resolveSpot(spot, after) {
   const { g, sec } = spot;
+  if (spot.guideLevel) return { g, sec: null, table: null, at: 0, guideLevel: true };
   if (spot.row) {
     const at = spot.table.rows.indexOf(spot.row) + (after ? 1 : 0);
     return { g, sec, table: spot.table, at };
@@ -1640,15 +1645,56 @@ function resolveSpot(spot, after) {
 }
 
 function moveRowTo(row, spot, after) {
-  const { g, sec, table, at } = resolveSpot(spot, after);
+  const { g, sec, table, at, guideLevel } = resolveSpot(spot, after);
+  if (guideLevel) { toast('A block has to live in a section'); return; }
   dropRow(g, row, table, sec, at);
   S.sel = row; mark(); render(); keepVisible();
 }
 
 const NEW_CONTENT = { content: '', visual: '[Visual] ', chart: '[Chart] ', divider: '[Divider]' };
 
+/**
+ * Put a chunk between two rows, splitting the table around it.
+ *
+ * A subsection and a reference are both things that sit between rows rather
+ * than in the row list, so placing one means cutting the table at that point
+ * and putting the new chunk in the gap. Dropped at either end, nothing is cut.
+ */
+function splitAt(sec, table, at, chunk) {
+  const chunks = sec.chunks;
+  let insertAt = chunks.indexOf(table) + 1;
+  if (at <= 0) {
+    insertAt = chunks.indexOf(table);
+  } else if (at < table.rows.length) {
+    const rest = table.rows.splice(at);
+    table.dirty = true;
+    chunks.splice(insertAt, 0, {
+      kind: 'table',
+      headerSrc: table.headerSrc ? table.headerSrc.slice() : null,
+      dividerSrc: table.dividerSrc ? table.dividerSrc.slice() : null,
+      cols: table.cols, rows: rest, dirty: true
+    });
+  }
+  chunks.splice(insertAt, 0, { kind: 'raw', src: [''], dirty: false }, chunk,
+    { kind: 'raw', src: [''], dirty: false });
+  return chunk;
+}
+
 function addAt(what, spot, after) {
-  const { g, sec, table, at } = resolveSpot(spot, after);
+  const { g, sec, table, at, guideLevel } = resolveSpot(spot, after);
+
+  if (guideLevel) {
+    // Only a reference can stand on its own outside a section — everything
+    // else is content, and content lives in one.
+    if (what !== 'reference') {
+      toast('Only a reference can sit outside a section');
+      return;
+    }
+    addGuideRef(g, 'See [[]] — why');
+    mark(); render();
+    setTimeout(() => { const r = document.querySelector('.ref.unset'); if (r) r.click(); }, 30);
+    return;
+  }
 
   if (NEW_CONTENT[what] !== undefined) {
     const rw = addRow(table, sec, { content: NEW_CONTENT[what], at });
@@ -1657,40 +1703,17 @@ function addAt(what, spot, after) {
     return;
   }
 
-  if (what === 'subsection') {
-    const chunks = sec.chunks;
-    let insertAt = chunks.indexOf(table) + 1;
-    if (at > 0 && at < table.rows.length) {
-      const rest = table.rows.splice(at);
-      const t2 = {
-        kind: 'table',
-        headerSrc: table.headerSrc ? table.headerSrc.slice() : null,
-        dividerSrc: table.dividerSrc ? table.dividerSrc.slice() : null,
-        cols: table.cols, rows: rest, dirty: true
-      };
-      table.dirty = true;
-      chunks.splice(insertAt, 0, t2);
-    } else if (at === 0) {
-      insertAt = chunks.indexOf(table);
-    }
-    const sub = { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true };
-    chunks.splice(insertAt, 0, { kind: 'raw', src: [''], dirty: false }, sub,
-      { kind: 'raw', src: [''], dirty: false });
+  if (what === 'subsection' || what === 'reference') {
+    const made = splitAt(sec, table, at, what === 'subsection'
+      ? { kind: 'sub', src: ['#### Actions'], title: 'Actions', dirty: true }
+      : { kind: 'ref', src: ['> See [[]] — why'], target: '', text: 'See [[]] — why', refs: [], dirty: true });
     sec.dirty = true; mark(); render();
-    focusSoon('.guide .sub-t');
-    return;
-  }
-
-  if (what === 'reference') {
-    const chunks = sec.chunks;
-    const c = { kind: 'ref', src: ['> See [[]] — why'], target: '', text: 'See [[]] — why', refs: [], dirty: true };
-    chunks.splice(chunks.indexOf(table) + 1, 0, { kind: 'raw', src: [''], dirty: false }, c);
-    sec.dirty = true; mark(); render();
-    setTimeout(() => {
-      const r = [...document.querySelectorAll('.ref')].find((n) => n.classList.contains('unset'));
+    if (what === 'subsection') focusSoon('.guide .sub-t');
+    else setTimeout(() => {
+      const r = [...document.querySelectorAll('.ref.unset')][0];
       if (r) r.click();
     }, 30);
-    return;
+    return made;
   }
 
   if (what === 'section') {
@@ -1708,10 +1731,6 @@ function addAt(what, spot, after) {
 function renderGuide() {
   const stage = $('stage');
   // Clicking the page around the guide lets go of whatever was selected.
-  stage.onmousedown = (e) => {
-    if (e.target.closest('.guide,.pop,.palette')) return;
-    if (S.sel) { S.sel = null; render(); }
-  };
   if (!S.guide) { stage.appendChild(el('div', 'rail-empty', 'No guide selected.')); return; }
   const g = S.guide;
   const grid = el('div', 'guide');
@@ -1737,6 +1756,15 @@ function renderGuide() {
     head.c.className = 'lanehead';
     head.l.appendChild(el('div', 'lanelbl', 'Notes'));
     head.r.appendChild(el('div', 'lanelbl', 'Functionality'));
+  }
+
+  const heads = guideRefs(g);
+  if (heads.length || (!S.readOnly && !S.present)) {
+    const top = gridRow('');
+    top.band.classList.add('open', 'close', 'guidelevel');
+    if (!heads.length) top.c.classList.add('emptytop');
+    heads.forEach((r, i) => top.host.appendChild(guideRefCard(g, r, i)));
+    if (!S.readOnly && !S.present) dropZone(top.c, { g, guideLevel: true });
   }
 
   for (const sec of g.sections) {
@@ -1832,6 +1860,37 @@ function renderGuide() {
   stage.appendChild(grid);
 }
 
+/** A reference that belongs to the guide rather than to one of its sections. */
+function guideRefCard(g, r, i) {
+  const p = el('div', 'ref' + (r.target ? '' : ' unset'));
+  if (r.target) setLinked(p, r.text, g);
+  else p.textContent = S.readOnly ? 'Reference — nothing chosen' : 'Choose what this references';
+  if (S.readOnly || S.present) return p;
+
+  p.setAttribute('role', 'button');
+  p.tabIndex = 0;
+  p.title = 'Choose the guide this points at';
+  const chunk = {
+    get text() { return guideRefs(g)[i] ? guideRefs(g)[i].text : ''; },
+    set text(v) { setGuideRef(g, i, v); },
+    get target() { return guideRefs(g)[i] ? guideRefs(g)[i].target : ''; },
+    set target(v) { /* written through text */ },
+    set refs(v) { /* derived */ },
+    set dirty(v) { /* headerSrc is the source */ },
+    set src(v) { /* headerSrc is the source */ }
+  };
+  p.onclick = (e) => { if (e.target.closest('a')) return; openRefPicker(p, g, null, chunk); };
+  const del = el('button', 'refx', '×');
+  del.title = 'Remove this reference';
+  del.onclick = (e) => {
+    e.stopPropagation();
+    removeGuideRef(g, i);
+    mark(); render();
+  };
+  p.appendChild(del);
+  return p;
+}
+
 function sectionTitle(g, sec) {
   const t = el('h2', 'sec-title');
   t.textContent = sec.title;
@@ -1889,8 +1948,8 @@ function paintRow(row, g, sec, table, rw) {
     const item = el('div', 'item divider');
     item.appendChild(el('div', 'rule'));
     row.host.appendChild(item);
-    if (chosen && !S.readOnly && !S.present) row.host.appendChild(rowStrip(ctx, kind, null));
-    if (!S.readOnly && !S.present) { wireSelect(item, row, rw); wireDrag(row, ctx); }
+    if (chosen && !S.readOnly && !S.present) item.appendChild(rowStrip(ctx, kind, null));
+    if (!S.readOnly && !S.present) { wireSelect(item, row, rw, ctx, kind, null); wireDrag(row, ctx); }
     return;
   }
 
@@ -1950,9 +2009,8 @@ function paintRow(row, g, sec, table, rw) {
 
   // The strip sits in the row's own flow, under it, so it can never cover the
   // thing it belongs to.
-  if (chosen && !S.readOnly && !S.present) {
-    item.appendChild(rowStrip(ctx, kind, cur ? null : openExample));
-  }
+  const wantExample = cur ? null : openExample;
+  if (chosen && !S.readOnly && !S.present) item.appendChild(rowStrip(ctx, kind, wantExample));
   row.host.appendChild(item);
 
   if (!S.present) {
@@ -1985,7 +2043,11 @@ function paintRow(row, g, sec, table, rw) {
     }
   }
   row.l.appendChild(notes);
-  if (rw.note.length) row.l.appendChild(el('div', 'lead'));
+  // The lane always ends with a leader, transparent when there is nothing to
+  // lead to, so the gap before the stack matches the one after it.
+  const lLead = el('div', 'lead');
+  if (!rw.note.length) lLead.style.borderColor = 'transparent';
+  row.l.appendChild(lLead);
 
   // ---- right: functionality only
   const hasFn = !!(rw.link.type || rw.form.type || rw.capabilities.length);
@@ -1995,7 +2057,7 @@ function paintRow(row, g, sec, table, rw) {
   row.r.appendChild(fnCard(ctx));
 
   if (S.readOnly || S.present) return;
-  wireSelect(item, row, rw);
+  wireSelect(item, row, rw, ctx, kind, wantExample);
   wireDrag(row, ctx);
 }
 
@@ -2081,21 +2143,22 @@ function rowStrip(ctx, kind, openExample) {
   return strip;
 }
 
-function wireSelect(item, row, rw) {
-  item.onmousedown = (e) => {
-    if (!e.target.closest('.lbl,.eg')) return;
+function wireSelect(item, row, rw, ctx, kind, openExample) {
+  const hold = () => {
     if (S.sel === rw) return;
-    // Select without a re-render, so the click that follows lands on the text
-    // and the caret is not stolen.
     S.sel = rw;
     document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
+    document.querySelectorAll('.rowstrip').forEach((n) => n.remove());
     [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
-    setTimeout(() => { if (S.sel === rw && !document.querySelector('.rowsel .rowstrip')) render(); }, 260);
+    // Appended in place rather than re-rendered, so the caret in the field you
+    // just pressed into stays exactly where you put it.
+    if (!item.querySelector('.rowstrip')) item.appendChild(rowStrip(ctx, kind, openExample));
   };
+  item.onmousedown = (e) => { if (e.target.closest('.lbl,.eg')) hold(); };
   item.onclick = (e) => {
     if (e.target.closest('.lbl,.eg,a,button')) return;
     e.stopPropagation();
-    if (S.sel !== rw) { S.sel = rw; render(); }
+    hold();
   };
 }
 
@@ -2193,11 +2256,14 @@ function openRefPicker(anchor, g, sec, chunk) {
 
   const write = (name) => {
     const w = why.value.trim();
+    const text = `See [[${name}]]${w ? ` — ${w}` : ''}`;
     chunk.target = name;
-    chunk.text = `See [[${name}]]${w ? ` — ${w}` : ''}`;
-    chunk.src = [`> ${chunk.text}`];
-    chunk.refs = refsIn(chunk.text);
-    chunk.dirty = true; sec.dirty = true;
+    chunk.text = text;
+    if (sec) {
+      chunk.src = [`> ${text}`];
+      chunk.refs = refsIn(text);
+      chunk.dirty = true; sec.dirty = true;
+    }
     mark();
   };
 
@@ -2259,6 +2325,17 @@ function noteCard(ctx, n, i) {
 
   const body = el('div', 'nbody');
   if (n.action) body.appendChild(el('div', 'k', 'ACTION'));
+  // A note belongs to its row, so pressing one selects that row rather than
+  // reading as a press on dead space.
+  card.onmousedown = () => {
+    if (S.sel === rw) return;
+    S.sel = rw;
+    document.querySelectorAll('.rowsel').forEach((x) => x.classList.remove('rowsel'));
+    const lane = card.closest('.lane');
+    if (lane) [lane.previousElementSibling, lane, lane.nextElementSibling]
+      .forEach((x) => x && x.classList.add('rowsel'));
+  };
+
   const t = el('div', 't');
   setLinked(t, n.text, g);
   if (!n.text) blankable(t, '', 'A rule, a link, or something said in the session');
@@ -3338,7 +3415,7 @@ document.addEventListener('keydown', (e) => {
       document.activeElement.blur();
       return;
     }
-    if (S.sel) { S.sel = null; render(); return; }
+    if (S.sel) { letGo(); return; }
     if (S.capture) { toggleCapture(false); return; }
     if (S.present) { S.present = false; render(); return; }
     return;
@@ -3385,6 +3462,39 @@ $('capIn').onkeydown = (e) => {
     toggleCapture(false);
   }
 };
+
+/**
+ * Letting go of a row, without re-rendering.
+ *
+ * Re-rendering on the way out is what made this fragile: it tore the element
+ * out from under a click that was still in flight, so the old handler had to
+ * exempt every button and field — and that left the row held whenever you
+ * pressed anything else on the page. Taking the classes and the strip off by
+ * hand is safe from anywhere, so nothing has to be exempt.
+ */
+function letGo() {
+  S.newRowNote = null;
+  if (!S.sel) return;
+  S.sel = null;
+  document.querySelectorAll('.rowstrip').forEach((n) => n.remove());
+  document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
+}
+
+/**
+ * Pressing anywhere outside the row you are holding lets go of it, and takes
+ * the caret out of whatever field you were in. Overlays are exempt because they
+ * sit on top of the page and manage their own dismissal.
+ */
+document.addEventListener('mousedown', (e) => {
+  if (!S.doc) return;
+  const t = e.target;
+  if (t.closest('.pop,.scrim,.toast')) return;
+  if (t.closest('.rowsel')) return;
+
+  const active = document.activeElement;
+  if (active && active.isContentEditable && active !== t && !active.contains(t)) active.blur();
+  letGo();
+});
 
 // A link to another guide, wherever it appears, goes there.
 document.addEventListener('click', (e) => {

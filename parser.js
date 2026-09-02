@@ -721,6 +721,11 @@ export function links(doc) {
         via: renderContentCell(row.content), type: row.link.type, section: section.title, row
       });
     }
+    for (const r of guideRefs(g)) {
+      if (!r.target) continue;
+      const to = names.get(lower(r.target));
+      references.push({ from: g.name, to: to || r.target, resolved: !!to, text: r.text, section: '', chunk: null });
+    }
     for (const sec of g.sections) {
       if (sec.kind !== 'section') continue;
       for (const c of sec.chunks) {
@@ -1125,6 +1130,58 @@ export function addGuide(doc, name) {
   doc.segments.splice(last === -1 ? doc.segments.length : last + 1, 0, guide);
   addSection(guide, 'Content');
   return guide;
+}
+
+/**
+ * References that belong to the whole guide rather than to one section.
+ *
+ * In markdown everything after a `###` belongs to that section, so the only
+ * place a guide-level block can live is above the first one — in the guide's
+ * own header, after its fields. They are kept at the end of that block so the
+ * field lines keep their positions.
+ */
+export function guideRefs(guide) {
+  const out = [];
+  const src = guide.headerSrc || [];
+  let i = 0;
+  while (i < src.length) {
+    if (!/^\s*>/.test(src[i])) { i++; continue; }
+    const from = i;
+    while (i < src.length && /^\s*>/.test(src[i])) i++;
+    const text = src.slice(from, i).map((l) => l.replace(/^\s*>\s?/, '')).join(' ').trim();
+    const m = /\[\[([^\]]+)\]\]/.exec(text);
+    out.push({ text, target: m ? norm(m[1]) : '', from, to: i });
+  }
+  return out;
+}
+
+export function addGuideRef(guide, text) {
+  const src = guide.headerSrc;
+  let end = src.length;
+  while (end > 0 && norm(src[end - 1]) === '') end--;
+  src.splice(end, 0, '', `> ${norm(text)}`);
+  guide.dirty = true;
+  return guideRefs(guide).slice(-1)[0];
+}
+
+export function setGuideRef(guide, index, text) {
+  const refs = guideRefs(guide);
+  const r = refs[index];
+  if (!r) return false;
+  guide.headerSrc.splice(r.from, r.to - r.from, `> ${norm(text)}`);
+  guide.dirty = true;
+  return true;
+}
+
+export function removeGuideRef(guide, index) {
+  const refs = guideRefs(guide);
+  const r = refs[index];
+  if (!r) return false;
+  let from = r.from;
+  if (from > 0 && norm(guide.headerSrc[from - 1]) === '') from--;
+  guide.headerSrc.splice(from, r.to - from);
+  guide.dirty = true;
+  return true;
 }
 
 /** Reorder the guides in the file. */
