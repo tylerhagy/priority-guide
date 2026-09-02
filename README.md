@@ -19,6 +19,12 @@ a guide can contain, you drag one onto the guide and it lands where you dropped
 it, and moving a block anywhere, including into another section, is the same
 gesture. There are no forms and nothing to save except the file.
 
+Nothing important hides behind hover: the two side lanes are labelled, and a row
+with no note or no functionality still shows where one would go. Selecting a row
+puts its controls in the row's own space, under it, where they cannot sit on top
+of what you are reading. **Deleting anything is one click and always undoable**,
+which is why the app never has to stop and ask you a question.
+
 ![The guide view](screenshots/01-guide.png)
 
 ---
@@ -196,7 +202,8 @@ that is how markdown reference definitions work.
 | Click | Edit whatever you clicked — a name, an example, a note, a heading |
 | Drag | Add anything from the palette, or move a block anywhere |
 | `Tab` | From a name, start its example |
-| `Esc` | Let go — of a field, a menu, or the selected block |
+| `Esc` | Let go — of a dialog, a field, a menu, then the selected block |
+| `⌘S` | Save, including while you are still typing |
 | `←` `→` | In present mode, the previous and next screen |
 | `C` | Capture — type a line, `Enter`, next line |
 | `P` | Present — big type, chrome out of the way |

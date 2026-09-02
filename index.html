@@ -41,6 +41,11 @@ a:hover{text-decoration:underline}
 .btn.on{background:var(--ink);color:var(--panel)}
 .btn.on:hover{background:var(--ink);filter:brightness(1.35)}
 .btn.primary{background:var(--accent);color:#fff}
+.btn.save{display:inline-flex;align-items:center;gap:6px}
+.btn.save svg{color:var(--ok)}
+.btn.save[disabled]{opacity:1;color:var(--faint)}
+.btn.save .dot{width:6px;height:6px;border-radius:99px;background:#fff;opacity:.9;flex:none}
+.btn.save .kbd{font-size:10.5px;opacity:.7;font-variant-numeric:tabular-nums}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn[disabled]{opacity:.4;pointer-events:none}
 .count{color:var(--dim);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -110,7 +115,6 @@ body.dragging .item{cursor:grabbing}
 /* ---------- bottom toolbar: the creator tools ---------- */
 body.present #railL,body.present #railR,body.present #palette{display:none}
 body.present #pagehead{padding:22px 30px 16px}
-body.present #pagehead h1{font-size:28px}
 body.present #stage{padding:30px 30px 90px}
 body.present{font-size:15px}
 body.present .sec-title{font-size:15.5px}
@@ -170,12 +174,21 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .lead{flex:none;width:20px;border-top:1px dotted var(--faint);margin-top:12px}
 
 /* ---------- one row in the stack ---------- */
-.item{padding:2px 0}
+.item{padding:2px 0;position:relative}
 .item .box{cursor:grab;border:1px solid var(--ink);background:var(--panel);border-radius:2px;
-  padding:3px 8px;display:flex;align-items:center;gap:6px;min-height:24px}
+  padding:3px 8px;display:flex;align-items:center;gap:7px;min-height:24px}
+.boxin{flex:1;min-width:0}
 .item.plain .box,.item.linky .box{border-color:transparent;background:transparent;padding-left:2px}
 .item.linky .lbl{text-decoration:underline;text-underline-offset:2px}
-.item.visual .box{border-style:dashed;color:var(--dim)}
+
+/* A visual stands for something that will take up room on the screen, so it
+   takes up room here. Reading the stack should tell you its shape. */
+.item.visual .box{border-style:dashed;color:var(--dim);min-height:74px;padding:12px;gap:11px;
+  background:repeating-linear-gradient(-45deg,transparent,transparent 7px,
+    rgba(16,18,22,.022) 7px,rgba(16,18,22,.022) 14px)}
+.item.visual .kindmark{color:var(--faint)}
+.item.visual.chart .box{min-height:86px}
+.item.visual .lbl{font-weight:500}
 .lbl{flex:1;min-width:0;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere;
   padding:1px 3px;margin-left:-3px;border-radius:4px}
 .lbl:hover{background:rgba(16,18,22,.06)}
@@ -217,24 +230,43 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .note .tools button{color:var(--faint);font-size:11px;line-height:1;padding:1px 3px;border-radius:4px}
 .note .tools button:hover{color:var(--ink);background:var(--hover)}
 .note a{color:var(--accent)}
-/* Out of flow, so hovering a row cannot move the row below it. */
-.item{position:relative}
-/* On the label line, which has slack — the example line under it does not. */
-.rowtools{position:absolute;right:-2px;top:-3px;z-index:3;display:flex;gap:1px;align-items:center;
-  background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px;
-  opacity:0;pointer-events:none;transition:opacity .1s var(--ease);
-  box-shadow:0 2px 8px rgba(0,0,0,.09)}
-.item:hover .rowtools,.rowsel .rowtools,.rowtools:hover{opacity:1;pointer-events:auto}
-.rowtools button{font-size:10.5px;color:var(--dim);padding:2px 6px;border-radius:5px;white-space:nowrap}
-.rowtools button:hover{color:var(--ink);background:var(--hover)}
-.rowtools button.ic{padding:3px;display:flex}
-.rowtools button.ic svg{color:var(--dim)}
-.rowtools button.ic:hover svg{color:var(--ink)}
-.rowtools button[disabled]{opacity:.3;pointer-events:none}
-.rowtools .kind{color:var(--ink);font-weight:500;border-left:1px solid var(--line);
-  margin-left:2px;padding-left:8px}
-.rowtools .more{opacity:1;padding:3px 4px}
-.rowtools .kind:after{content:" ▾";color:var(--faint)}
+/* In the row's own flow, under it: it can never sit on top of what it belongs to. */
+.rowstrip{display:flex;flex-wrap:wrap;gap:2px;margin-top:5px;padding-top:5px;
+  border-top:1px dashed var(--line)}
+.sbtn{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--dim);
+  padding:4px 8px;border-radius:7px;white-space:nowrap;line-height:1}
+.sbtn:hover{color:var(--ink);background:rgba(16,18,22,.07)}
+.sbtn svg{color:var(--faint)}
+.sbtn:hover svg{color:var(--ink)}
+.sbtn.kind{color:var(--ink);font-weight:500}
+.sbtn .caret{color:var(--faint);font-size:9px}
+.sbtn.danger:hover{color:var(--act);background:rgba(179,38,30,.09)}
+.sbtn.danger:hover svg{color:var(--act)}
+
+/* ---------- what a lane holds, said once at the top ---------- */
+.lanehead{grid-column:2;height:26px}
+.lanelbl{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);padding:0 4px 8px}
+.lane-l .lanelbl{text-align:right;width:100%}
+
+/* An empty lane still shows what belongs in it. */
+.slot,.fn.asslot{display:inline-flex;align-items:center;gap:0;font-size:10.5px;
+  color:var(--faint);padding:3px;border-radius:7px;border:1px dashed var(--line);
+  background:transparent;white-space:nowrap;line-height:1;cursor:pointer;opacity:.45;
+  transition:opacity .1s var(--ease),color .1s var(--ease),border-color .1s var(--ease)}
+.slot svg,.fn.asslot svg{color:var(--faint);flex:none}
+.slot span,.fn.asslot span{max-width:0;overflow:hidden;transition:max-width .12s var(--ease),
+  margin .12s var(--ease)}
+.lane:hover .slot,.lane:hover .fn.asslot,.rowsel .slot,.rowsel .fn.asslot{opacity:1;padding:3px 8px}
+.lane:hover .slot span,.lane:hover .fn.asslot span,
+.rowsel .slot span,.rowsel .fn.asslot span{max-width:9ch;margin-left:5px}
+.slot:hover,.fn.asslot:hover{color:var(--ink);border-color:var(--dim)}
+.slot:hover svg,.fn.asslot:hover svg{color:var(--ink)}
+.fn.asslot{flex-direction:row;text-align:left}
+.lanemore{opacity:0;display:inline-flex;padding:2px 5px;border-radius:6px;color:var(--faint);
+  border:1px dashed var(--line);transition:opacity .1s var(--ease)}
+.lane-l:hover .lanemore,.rowsel .lanemore{opacity:.8}
+.lanemore:hover{opacity:1;color:var(--ink);border-color:var(--dim)}
 
 /* ---------- a divider is a rule and nothing else ---------- */
 .item.divider{padding:8px 0}
@@ -310,13 +342,6 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
   padding:1px 4px;border-radius:4px;opacity:0;transition:opacity .1s var(--ease)}
 .ref:hover .refx{opacity:1}
 .refx:hover{color:var(--act);background:rgba(179,38,30,.1)}
-.addnote{opacity:0;font-size:11px;color:var(--dim);padding:3px 8px;border-radius:7px;
-  border:1px dashed var(--line);background:var(--panel);transition:opacity .12s var(--ease);
-  display:inline-flex;align-items:center;gap:4px}
-.addnote svg{color:var(--faint)}
-.lane-l:hover .addnote,.rowsel .addnote{opacity:1}
-.addnote:hover{color:var(--ink);border-color:var(--dim);background:var(--hover)}
-.addnote:hover svg{color:var(--ink)}
 /* A brand-new note is a field, not a hairline. */
 .note.fresh{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);min-width:190px}
 .note.fresh .t{min-height:32px}
@@ -335,8 +360,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .fn .tgt.dead{color:var(--flag)}
 .fn .req{color:var(--act);font-weight:600}
 .fn .caps{color:var(--dim);font-size:11px;letter-spacing:.01em}
-.fn.empty{border-style:dashed;color:var(--faint);opacity:0;transition:opacity .12s var(--ease)}
-.lane-r:hover .fn.empty,.rowsel .fn.empty{opacity:1}
+
 
 /* ---------- functionality popover ---------- */
 .pop{position:fixed;z-index:20;background:var(--panel);border:1px solid var(--line);
@@ -434,6 +458,35 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 .linkrow .n{font-weight:500;color:var(--accent)}
 .linkrow .m{color:var(--faint);font-size:11.5px;display:block;margin-top:1px}
 
+/* ---------- asked in the app, never by the browser ---------- */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(16,18,22,.28);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+  animation:fade .12s var(--ease)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.dialog{background:var(--panel);border-radius:14px;padding:20px;width:400px;max-width:100%;
+  box-shadow:0 16px 50px rgba(0,0,0,.22)}
+.dialog h2{font-size:15.5px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.dialog p{font-size:13px;line-height:1.55;color:var(--dim);margin:0 0 14px}
+.dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
+  background:var(--panel);font-size:13.5px;margin-bottom:14px}
+.dialog input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.dfoot{display:flex;justify-content:flex-end;gap:8px}
+.dfoot .btn{padding:7px 14px;border-radius:9px}
+.dfoot .btn:not(.primary):not(.danger){background:var(--hover);color:var(--ink)}
+.dfoot .btn.danger{background:var(--act);color:#fff}
+
+/* ---------- what just happened, and how to take it back ---------- */
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:30;
+  display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:12px;background:var(--ink);
+  color:#fff;font-size:12.5px;padding:8px 10px 8px 14px;border-radius:10px;
+  box-shadow:0 6px 24px rgba(0,0,0,.24);animation:rise .14s var(--ease)}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.toast.going{opacity:0;transition:opacity .4s var(--ease)}
+.toast button{color:#9dc0ff;font-weight:500;padding:2px 4px;border-radius:5px}
+.toast button:hover{color:#fff;background:rgba(255,255,255,.14)}
+.toast .x{color:rgba(255,255,255,.5);font-size:15px;line-height:1}
+
 /* ---------- capture ---------- */
 #cap{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--panel);
   border-top:1px solid var(--line);padding:12px 30px;box-shadow:0 -6px 24px rgba(0,0,0,.06)}
@@ -525,6 +578,7 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
   <button class="btn primary" id="save" disabled>Save</button>
 </div>
 <div id="banners"></div>
+<div id="toasts"></div>
 <main>
   <div id="railL"></div>
   <div id="mid">
@@ -625,6 +679,117 @@ async function backup(name, text) {
   const ring = (await kvGet('backups')) || [];
   ring.unshift({ name, text, at: new Date().toISOString() });
   await kvSet('backups', ring.slice(0, 10));
+}
+
+// ---------------------------------------------------------------- undo
+/**
+ * Deleting is one click, and always recoverable.
+ *
+ * A confirm box asks a question the answer to which is nearly always yes, and
+ * makes the common case cost two clicks to protect against the rare one. Undo
+ * inverts that: the common case is instant, and the rare mistake is one click
+ * back. It also means nothing in this app needs a browser dialog.
+ */
+function undoable(label, undo) {
+  S.undo = { label, undo, at: Date.now() };
+  toast(`${label} deleted`, 'Undo', () => {
+    const u = S.undo;
+    S.undo = null;
+    if (u) u.undo();
+    mark(); render();
+  });
+}
+
+/** A quiet line that says what happened and how to take it back. */
+function toast(text, actionLabel, action) {
+  const host = $('toasts');
+  host.innerHTML = '';
+  const t = el('div', 'toast');
+  t.appendChild(el('span', null, text));
+  if (actionLabel) {
+    const b = el('button', null, actionLabel);
+    b.onclick = () => { t.remove(); action(); };
+    t.appendChild(b);
+  }
+  const x = el('button', 'x', '×');
+  x.title = 'Dismiss';
+  x.onclick = () => t.remove();
+  t.appendChild(x);
+  host.appendChild(t);
+  setTimeout(() => { if (t.isConnected) t.classList.add('going'); }, 7000);
+  setTimeout(() => t.remove(), 7400);
+  return t;
+}
+
+// ---------------------------------------------------------------- dialogs
+/**
+ * The one question the app genuinely has to ask — your copy or the one on
+ * disk — asked inside the app, in the app's own language. A browser dialog
+ * would be the only thing here that does not look like the rest of it.
+ */
+function ask({ title, body, choices }) {
+  return new Promise((resolve) => {
+    const back = el('div', 'scrim');
+    const bail = () => {
+      back.remove(); S.scrim = null;
+      const c = choices.find((x) => x.cancel);
+      resolve(c ? c.value : null);
+    };
+    S.scrim = bail;
+    const box = el('div', 'dialog');
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.appendChild(el('h2', null, title));
+    if (body) box.appendChild(el('p', null, body));
+    const foot = el('div', 'dfoot');
+    choices.forEach((c, i) => {
+      const b = el('button', 'btn' + (c.primary ? ' primary' : c.danger ? ' danger' : ''), c.label);
+      b.onclick = () => { back.remove(); S.scrim = null; resolve(c.value); };
+      foot.appendChild(b);
+      if (i === choices.length - 1) setTimeout(() => b.focus(), 0);
+    });
+    box.appendChild(foot);
+    back.appendChild(box);
+    back.onmousedown = (e) => { if (e.target === back) bail(); };
+    box.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') bail(); };
+    document.body.appendChild(back);
+  });
+}
+
+/** A single line of text, asked in the app rather than by the browser. */
+function askText({ title, body, placeholder, value, action }) {
+  return new Promise((resolve) => {
+    const back = el('div', 'scrim');
+    const done = (v) => { back.remove(); S.scrim = null; resolve(v); };
+    S.scrim = () => done(null);
+    const box = el('div', 'dialog');
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.appendChild(el('h2', null, title));
+    if (body) box.appendChild(el('p', null, body));
+    const inp = el('input');
+    inp.type = 'text';
+    inp.placeholder = placeholder || '';
+    inp.value = value || '';
+    box.appendChild(inp);
+    const foot = el('div', 'dfoot');
+    const cancel = el('button', 'btn', 'Cancel');
+    const ok = el('button', 'btn primary', action || 'Add');
+    cancel.onclick = () => done(null);
+    ok.onclick = () => done(inp.value.trim() || null);
+    foot.append(cancel, ok);
+    box.appendChild(foot);
+    back.appendChild(box);
+    back.onmousedown = (e) => { if (e.target === back) done(null); };
+    box.onkeydown = (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') done(null);
+      if (e.key === 'Enter') { e.preventDefault(); done(inp.value.trim() || null); }
+    };
+    document.body.appendChild(back);
+    // After the click that opened it has finished with the button it came from.
+    requestAnimationFrame(() => { inp.focus(); inp.select(); });
+  });
 }
 
 // ---------------------------------------------------------------- banners
@@ -731,9 +896,17 @@ async function save() {
   }
   const onDisk = await (await S.file.handle.getFile()).text();
   if (onDisk !== S.originalText) {
-    const keepMine = confirm('This file changed on disk since you opened it (Obsidian?).\n\n'
-      + 'OK = overwrite with your version.\nCancel = discard yours and reload from disk.');
-    if (!keepMine) return openFile(S.file);
+    const keep = await ask({
+      title: 'This file changed on disk',
+      body: 'Something else edited it since you opened it — Obsidian, most likely. '
+        + 'Keep your version, or throw yours away and take what is on disk?',
+      choices: [
+        { label: 'Reload from disk', value: false, cancel: true },
+        { label: 'Keep mine', value: true, primary: true }
+      ]
+    });
+    if (keep === null) return;
+    if (!keep) return openFile(S.file);
   }
   const text = serializeDocument(S.doc);
   const rt = verifyRoundTrip(text);
@@ -823,9 +996,21 @@ function renderBar() {
   f.appendChild(icon('folder', 13));
   f.appendChild(el('span', null, S.file ? S.file.name : (S.dir ? S.dir.name : '')));
   $('file').style.display = S.dir ? '' : 'none';
-  $('save').disabled = !S.dirty || S.readOnly;
-  $('save').className = 'btn' + (S.dirty && !S.readOnly ? ' primary' : '');
-  $('save').textContent = S.readOnly ? 'Read-only' : (S.dirty ? 'Save' : 'Saved');
+  const sv = $('save');
+  sv.disabled = !S.dirty || S.readOnly;
+  sv.className = 'btn save' + (S.dirty && !S.readOnly ? ' primary' : '');
+  sv.innerHTML = '';
+  if (S.readOnly) sv.textContent = 'Read-only';
+  else if (S.dirty) {
+    sv.appendChild(el('span', 'dot'));
+    sv.appendChild(el('span', null, 'Save'));
+    sv.appendChild(el('span', 'kbd', '⌘S'));
+    sv.title = 'Unsaved changes — write them to the file';
+  } else {
+    sv.appendChild(icon('tick', 12));
+    sv.appendChild(el('span', null, 'Saved'));
+    sv.title = 'Everything is written to the file';
+  }
   $('present').classList.toggle('on', S.present);
   $('present').textContent = S.present ? 'Exit' : 'Present';
   $('present').title = S.present ? 'Leave present mode (Esc)' : 'Present (P)';
@@ -940,12 +1125,15 @@ function guideMenu(anchor, g, i, total) {
       fn: () => { if (moveGuide(S.doc, g, 1)) { mark(); render(); } } },
     { sep: true },
     { glyph: 'trash', label: 'Delete guide', danger: true, fn: () => {
-      const blocks = rowsOf(g).length;
-      if (!confirm(`Delete “${g.name}”${blocks ? ` and its ${blocks} block${blocks === 1 ? '' : 's'}` : ''}?`
-        + '\n\nAnything routing to it will be reported as pointing nowhere.')) return;
+      const back = S.doc.segments.indexOf(g);
+      const was = S.guide;
       removeGuide(S.doc, g);
       if (S.guide === g) S.guide = guides(S.doc)[0] || null;
       S.sel = null; mark(); render();
+      undoable(`“${g.name}”`, () => {
+        S.doc.segments.splice(back, 0, g);
+        g.dirty = true; S.guide = was;
+      });
     } }
   ]);
 }
@@ -1036,11 +1224,16 @@ function renderRailLeft() {
   }
   if (S.readOnly) return;
   const add = el('button', 'rail-add', '+  New guide');
-  add.onclick = () => {
-    const name = prompt('What is this screen called?\n\nUse the name the team uses, including the mode — "Bookings — Manager view".');
+  add.onclick = async () => {
+    const name = await askText({
+      title: 'New guide',
+      body: 'Use the name the team uses for the screen, including the mode.',
+      placeholder: 'Bookings — Manager view',
+      action: 'Create'
+    });
     if (!name) return;
     S.guide = addGuide(S.doc, name);
-    S.view = 'guide'; mark(); render();
+    S.view = 'guide'; S.sel = null; mark(); render();
   };
   r.appendChild(add);
 }
@@ -1078,6 +1271,8 @@ const GLYPH = {
   up: 'M8 12.5v-9M4.5 7L8 3.5 11.5 7',
   down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
   trash: 'M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9M6.5 7v4M9.5 7v4',
+  copy: 'M5.5 5.5h8v8h-8zM2.5 10.5v-8h8',
+  tick: 'M3 8.4l3.2 3.1L13 4.8',
   rule: 'M1.5 8h13',
   pie: 'M8 2.2a5.8 5.8 0 105.8 5.8H8z',
   bar: 'M2.5 13.5v-4M6.2 13.5V6M9.8 13.5V3.2M13.5 13.5V8',
@@ -1536,6 +1731,14 @@ function renderGuide() {
   const drops = [];
   const gap = () => { const { c } = gridRow(); c.classList.add('gap'); };
 
+  if (!S.present) {
+    const head = gridRow();
+    cells.pop();                       // the labels sit above the stack, not in it
+    head.c.className = 'lanehead';
+    head.l.appendChild(el('div', 'lanelbl', 'Notes'));
+    head.r.appendChild(el('div', 'lanelbl', 'Functionality'));
+  }
+
   for (const sec of g.sections) {
     if (sec.kind === 'sources') continue;
     const mine = [];
@@ -1655,10 +1858,10 @@ function sectionProse(g, sec, chunk) {
 function sectionMenu(anchor, g, sec) {
   openMenu(anchor, [
     { glyph: 'trash', label: 'Delete section', danger: true, fn: () => {
-      const n = sec.chunks.filter((c) => c.kind === 'table').reduce((a, c) => a + c.rows.length, 0);
-      if (!confirm(`Delete “${sec.title}”${n ? ` and its ${n} block${n === 1 ? '' : 's'}` : ''}?`)) return;
-      g.sections.splice(g.sections.indexOf(sec), 1);
+      const back = g.sections.indexOf(sec);
+      g.sections.splice(back, 1);
       g.dirty = true; S.sel = null; mark(); render();
+      undoable(`“${sec.title}”`, () => { g.sections.splice(back, 0, sec); g.dirty = true; });
     } }
   ]);
 }
@@ -1669,13 +1872,15 @@ function sectionMenu(anchor, g, sec) {
  * like. The right says what it does. The left holds everything else — a rule, a
  * link, something someone said, a follow-up.
  *
- * Every control that acts on a row lives on the row, revealed on hover and
- * positioned out of flow, so nothing moves and nothing has to be hunted for at
- * the bottom of the screen.
+ * Nothing important is hidden behind hover. Both side lanes always show where a
+ * note or a piece of functionality would go, so you can see what a row can hold
+ * without touching it. The controls that act on a row appear in the row's own
+ * space when you select it, so they never sit on top of what you are reading.
  */
 function paintRow(row, g, sec, table, rw) {
   const ctx = { g, sec, table, rw };
-  if (rw === S.sel) [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
+  const chosen = rw === S.sel;
+  if (chosen) [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
 
   const kind = rw.content.kind || (rw.content.type === 'Visual' ? 'visual' : 'text');
 
@@ -1683,8 +1888,8 @@ function paintRow(row, g, sec, table, rw) {
   if (kind === 'divider') {
     const item = el('div', 'item divider');
     item.appendChild(el('div', 'rule'));
-    if (!S.readOnly && !S.present) item.appendChild(rowTools(ctx, kind));
     row.host.appendChild(item);
+    if (chosen && !S.readOnly && !S.present) row.host.appendChild(rowStrip(ctx, kind, null));
     if (!S.readOnly && !S.present) { wireSelect(item, row, rw); wireDrag(row, ctx); }
     return;
   }
@@ -1692,13 +1897,20 @@ function paintRow(row, g, sec, table, rw) {
   const hasForm = !!rw.form.type;
   const hasLink = !!rw.link.type;
   const visual = kind === 'visual' || kind === 'chart';
-  const item = el('div', 'item' + (visual ? ' visual' : hasForm ? '' : hasLink ? ' linky' : ' plain'));
+  const item = el('div', 'item'
+    + (visual ? ' visual' : hasForm ? '' : hasLink ? ' linky' : ' plain')
+    + (kind === 'chart' ? ' chart' : ''));
+
   const box = el('div', 'box');
   if (visual) {
-    const gl = icon(kind === 'chart' ? (CHART_GLYPH[rw.content.chart] || 'chartother') : 'visual', 14);
+    // A visual is a placeholder for something that will take up room, so it
+    // takes up room here. Reading the stack should tell you the shape of the
+    // screen, and a chart is not the same size as a line of text.
+    const gl = icon(kind === 'chart' ? (CHART_GLYPH[rw.content.chart] || 'chartother') : 'visual', 22);
     gl.classList.add('kindmark');
     box.appendChild(gl);
   }
+  const inner = el('div', 'boxin');
   const lbl = el('div', 'lbl');
   const label = rw.content.text.trim();
   if (isUnknown(label)) lbl.innerHTML = '<span class="unk">?? not known</span>';
@@ -1707,33 +1919,40 @@ function paintRow(row, g, sec, table, rw) {
     rw.content = { ...rw.content, text: v };
     touchRow(rw, table, sec);
   });
-  box.appendChild(lbl);
-  if (rw.form.type === 'single select' || rw.form.type === 'multi select') {
-    const ch = icon('chev', 13); ch.classList.add('chev'); box.appendChild(ch);
-  }
-  item.appendChild(box);
+  inner.appendChild(lbl);
 
   const cur = rw.realData;
   const makeExample = (value) => {
     const eg = el('div', 'eg');
     if (isUnknown(value)) { eg.classList.add('unk'); eg.textContent = value; }
     else if (value) setLinked(eg, value, g);
+    else blankable(eg, '', visual ? 'What it shows' : 'For example…');
     editable(eg, value, (v) => { rw.realData = v; touchRow(rw, table, sec); });
     return eg;
   };
-  if (cur) item.appendChild(makeExample(cur));
+  if (cur) inner.appendChild(makeExample(cur));
+  box.appendChild(inner);
+
+  if (rw.form.type === 'single select' || rw.form.type === 'multi select') {
+    const ch = icon('chev', 13); ch.classList.add('chev'); box.appendChild(ch);
+  }
+  item.appendChild(box);
 
   const openExample = () => {
     if (item.querySelector('.eg')) { focusSoon(item.querySelector('.eg')); return; }
     const eg = makeExample('');
-    item.insertBefore(eg, item.querySelector('.rowtools') || null);
+    inner.appendChild(eg);
     focusSoon(eg);
   };
   lbl.addEventListener('keydown', (e) => {
     if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); lbl.blur(); openExample(); }
   });
 
-  if (!S.readOnly && !S.present) item.appendChild(rowTools(ctx, kind, cur ? null : openExample));
+  // The strip sits in the row's own flow, under it, so it can never cover the
+  // thing it belongs to.
+  if (chosen && !S.readOnly && !S.present) {
+    item.appendChild(rowStrip(ctx, kind, cur ? null : openExample));
+  }
   row.host.appendChild(item);
 
   if (!S.present) {
@@ -1750,17 +1969,20 @@ function paintRow(row, g, sec, table, rw) {
   const notes = el('div', 'notes');
   rw.note.forEach((n, i) => notes.appendChild(noteCard(ctx, n, i)));
   if (!S.readOnly && !S.present) {
-    const add = el('button', 'addnote');
-    add.appendChild(icon('plus', 11));
-    add.appendChild(el('span', null, 'note'));
-    add.title = 'A rule, a link, something said in a session, or a follow-up';
-    add.onclick = (e) => {
-      e.stopPropagation();
+    const addNote = () => {
       rw.note.push({ text: '', action: false });
       S.sel = rw; S.newRowNote = rw; render();
       focusSoon('.rowsel .note.fresh .t');
     };
-    notes.appendChild(add);
+    if (rw.note.length) {
+      const more = el('button', 'lanemore');
+      more.appendChild(icon('plus', 11));
+      more.title = 'Another note on this block';
+      more.onclick = (e) => { e.stopPropagation(); addNote(); };
+      notes.appendChild(more);
+    } else {
+      notes.appendChild(slot('note', 'Note', addNote));
+    }
   }
   row.l.appendChild(notes);
   if (rw.note.length) row.l.appendChild(el('div', 'lead'));
@@ -1777,73 +1999,103 @@ function paintRow(row, g, sec, table, rw) {
   wireDrag(row, ctx);
 }
 
+/**
+ * An empty lane still shows what belongs in it. A dotted slot beside a labelled
+ * column is a thing you can read without touching, which is the whole point.
+ */
+function slot(glyph, label, fn) {
+  const b = el('button', 'slot');
+  b.appendChild(icon(glyph, 11));
+  b.appendChild(el('span', null, label));
+  b.onclick = (e) => { e.stopPropagation(); fn(); };
+  return b;
+}
+
 const CHART_GLYPH = {
   pie: 'pie', bar: 'bar', line: 'linechart', table: 'gridicon',
   number: 'number', map: 'mapicon', other: 'chartother'
 };
-const KIND_LABEL = { text: 'text', visual: 'visual', chart: 'data visual', divider: 'divider' };
+const KIND_LABEL = { text: 'Content', visual: 'Visual', chart: 'Data visual', divider: 'Divider' };
 
-/** What a row's own controls are: move it, add after it, change what it is. */
-function rowTools(ctx, kind, openExample) {
+/**
+ * What you can do to the row you selected, in the row, in reading order, with
+ * every target a real button. Delete is one click because it is undoable.
+ */
+function rowStrip(ctx, kind, openExample) {
   const { g, sec, table, rw } = ctx;
-  const tools = el('div', 'rowtools');
-  const rows = table.rows;
-  const k = el('button', 'kind');
-  k.textContent = kind === 'chart'
-    ? (rw.content.chart ? rw.content.chart : 'data visual')
-    : KIND_LABEL[kind];
-  k.title = 'What this block is. Changing it keeps everything else.';
-  k.onclick = (e) => { e.stopPropagation(); S.sel = rw; openKindPicker(k, ctx); };
-  tools.appendChild(k);
+  const strip = el('div', 'rowstrip');
 
-  const more = menuButton('rowmore', 'More for this block');
-  more.onclick = (e) => {
+  const k = el('button', 'sbtn kind');
+  k.appendChild(icon(kind === 'chart' ? (CHART_GLYPH[rw.content.chart] || 'chartother')
+    : kind === 'visual' ? 'visual' : kind === 'divider' ? 'rule' : 'line1', 12));
+  k.appendChild(el('span', null, kind === 'chart'
+    ? (rw.content.chart ? rw.content.chart : 'Data visual')
+    : KIND_LABEL[kind]));
+  k.appendChild(el('span', 'caret', '▾'));
+  k.title = 'What this block is. Changing it keeps everything else.';
+  k.onclick = (e) => { e.stopPropagation(); openKindPicker(k, ctx); };
+  strip.appendChild(k);
+
+  if (openExample && kind !== 'divider') {
+    const b = el('button', 'sbtn');
+    b.appendChild(icon('plus', 12));
+    b.appendChild(el('span', null, 'Example'));
+    b.title = 'What the data really looks like. Optional.';
+    b.onclick = (e) => { e.stopPropagation(); openExample(); };
+    strip.appendChild(b);
+  }
+
+  const dup = el('button', 'sbtn');
+  dup.appendChild(icon('copy', 12));
+  dup.appendChild(el('span', null, 'Duplicate'));
+  dup.onclick = (e) => {
     e.stopPropagation();
-    S.sel = rw;
-    openMenu(more, [
-      ...(openExample && kind !== 'divider'
-        ? [{ glyph: 'line1', label: 'Add an example', hint: 'What the data really looks like', fn: openExample }]
-        : []),
-      { glyph: 'note', label: 'Add a note', hint: 'A rule, a link, or a follow-up', fn: () => {
-        rw.note.push({ text: '', action: false });
-        S.newRowNote = rw; render();
-        focusSoon('.rowsel .note.fresh .t');
-      } },
-      { glyph: 'plus', label: 'Duplicate', fn: () => {
-        const copy = addRow(table, sec, { at: rows.indexOf(rw) + 1 });
-        copy.content = { ...rw.content };
-        copy.realData = rw.realData;
-        copy.capabilities = rw.capabilities.slice();
-        copy.link = { ...rw.link };
-        copy.form = { ...rw.form };
-        copy.note = rw.note.map((n) => ({ ...n }));
-        touchRow(copy, table, sec);
-        S.sel = copy; mark(); render(); focusSoon('.rowsel .lbl');
-      } },
-      { sep: true },
-      { glyph: 'trash', label: 'Delete block', danger: true, fn: () => {
-        rows.splice(rows.indexOf(rw), 1);
-        table.dirty = true; sec.dirty = true;
-        S.sel = null; mark(); render();
-      } }
-    ]);
+    const copy = addRow(table, sec, { at: table.rows.indexOf(rw) + 1 });
+    copy.content = { ...rw.content };
+    copy.realData = rw.realData;
+    copy.capabilities = rw.capabilities.slice();
+    copy.link = { ...rw.link };
+    copy.form = { ...rw.form };
+    copy.note = rw.note.map((n) => ({ ...n }));
+    touchRow(copy, table, sec);
+    S.sel = copy; mark(); render(); focusSoon('.rowsel .lbl');
   };
-  tools.appendChild(more);
-  return tools;
+  strip.appendChild(dup);
+
+  const del = el('button', 'sbtn danger');
+  del.appendChild(icon('trash', 12));
+  del.appendChild(el('span', null, 'Delete'));
+  del.title = 'Delete this block. You can undo it.';
+  del.onclick = (e) => {
+    e.stopPropagation();
+    const at = table.rows.indexOf(rw);
+    table.rows.splice(at, 1);
+    table.dirty = true; sec.dirty = true;
+    S.sel = null; mark(); render();
+    undoable(rw.content.text ? `“${rw.content.text}”` : 'Block', () => {
+      table.rows.splice(at, 0, rw);
+      table.dirty = true; sec.dirty = true; S.sel = rw;
+    });
+  };
+  strip.appendChild(del);
+  return strip;
 }
 
 function wireSelect(item, row, rw) {
-  const lightSelect = () => {
+  item.onmousedown = (e) => {
+    if (!e.target.closest('.lbl,.eg')) return;
     if (S.sel === rw) return;
+    // Select without a re-render, so the click that follows lands on the text
+    // and the caret is not stolen.
     S.sel = rw;
     document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
     [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
+    setTimeout(() => { if (S.sel === rw && !document.querySelector('.rowsel .rowstrip')) render(); }, 260);
   };
-  item.onmousedown = (e) => { if (e.target.closest('.lbl,.eg')) lightSelect(); };
   item.onclick = (e) => {
     if (e.target.closest('.lbl,.eg,a,button')) return;
     e.stopPropagation();
-    if (S.sel !== rw || S.selSection) { S.sel = rw; S.selSection = null; render(); }
+    if (S.sel !== rw) { S.sel = rw; render(); }
   };
 }
 
@@ -2053,8 +2305,13 @@ function fnCard(ctx) {
   card.tabIndex = S.readOnly || S.present ? -1 : 0;
 
   if (!hasAny) {
-    card.textContent = S.readOnly ? '' : '+ functionality';
-    card.title = 'What does this do — go somewhere, take input, or let someone search it?';
+    if (S.readOnly || S.present) { card.textContent = ''; }
+    else {
+      card.classList.add('asslot');
+      card.appendChild(icon('plus', 11));
+      card.appendChild(el('span', null, 'Functionality'));
+      card.title = 'What does this do — go somewhere, take input, or let someone search it?';
+    }
   } else {
     if (rw.link.type) {
       const l = el('div', 'l');
@@ -3075,6 +3332,7 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
 
   if (e.key === 'Escape') {
+    if (S.scrim) { const f = S.scrim; S.scrim = null; f(); return; }
     if (S.pop) { closePop(); return; }
     if (document.activeElement && document.activeElement.isContentEditable) {
       document.activeElement.blur();

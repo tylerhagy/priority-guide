@@ -345,7 +345,7 @@ ok('escape closes the picker', await page.$('.pop') === null);
 const noteRows = await count('.note');
 await pick('Status');
 await page.waitForTimeout(150);
-await page.click('.rowsel .addnote');
+await page.evaluate(() => document.querySelector('.rowsel .slot, .rowsel .lanemore').click());
 await page.waitForTimeout(200);
 await typeInto('.rowsel .note:last-of-type .t', 'Half-days were cut in review');
 eq('a note can be added to any row', await count('.note'), noteRows + 1);
@@ -394,7 +394,7 @@ ok('a section carries no way to add anything — dragging is the only way',
   }));
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
-ok('and a block carries no arrows', (await count('.rowtools button.ic')) === 0);
+ok('and a block carries no arrows', (await count('.rowstrip .ic')) === 0);
 
 const blocksBefore = await count('.item');
 await dragOnto('Content', 'Status');
@@ -457,8 +457,8 @@ ok('and into another section entirely', (await current()) !== guideText
 // ---------------------------------------------------------------- what a block is
 await pick('A new thing');
 await page.waitForTimeout(200);
-eq('every row says what it is', await text('.rowsel .rowtools .kind'), 'text');
-await page.evaluate(() => document.querySelector('.rowsel .rowtools .kind').click());
+ok('a selected row says what it is', (await text('.rowsel .rowstrip .kind')).includes('Content'));
+await page.evaluate(() => document.querySelector('.rowsel .rowstrip .kind').click());
 await page.waitForSelector('.kindpop');
 ok('and offers the others', (await count('.kindopt')) === 3 && (await count('.chartopt')) === 7);
 await page.evaluate(() => [...document.querySelectorAll('.chartopt')]
@@ -470,13 +470,13 @@ ok('a data visual records the kind that was chosen',
 
 await pick('A new thing');
 await page.waitForTimeout(200);
-await page.click('.rowsel .addnote');
+await page.evaluate(() => document.querySelector('.rowsel .slot, .rowsel .lanemore').click());
 await page.waitForTimeout(250);
 await typeInto('.rowsel .note.fresh .t', 'Ideas: split by building');
 await save();
 await pick('A new thing');
 await page.waitForTimeout(200);
-await page.evaluate(() => document.querySelector('.rowsel .rowtools .kind').click());
+await page.evaluate(() => document.querySelector('.rowsel .rowstrip .kind').click());
 await page.waitForSelector('.kindpop');
 await page.evaluate(() => [...document.querySelectorAll('.kindopt')]
   .find((b) => b.textContent.includes('Visual')).click());
@@ -556,7 +556,9 @@ ok('a block with no example says nothing about it',
 eq('and nothing on the guide is flagged for missing one', await count('.flag'), 0);
 await pick('Room or desk');
 await page.waitForTimeout(200);
-await menu('.rowsel .rowtools .more', 'Add an example');
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
+  .find((b) => b.textContent.includes('Example')).click());
+await page.waitForTimeout(250);
 ok('but there is a quiet way to add one', await page.$('.rowsel .eg') !== null);
 await typeInto('.rowsel .eg', 'Desk 4-118');
 await save();
@@ -566,13 +568,17 @@ ok('and it lands in the file', (await current()).includes('| Room or desk | Desk
 const dupBefore = await count('.item');
 await pick('Who it is for');
 await page.waitForTimeout(200);
-await menu('.rowsel .rowtools .more', 'Duplicate');
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
+  .find((b) => b.textContent.includes('Duplicate')).click());
+await page.waitForTimeout(300);
 eq('a block can be duplicated', await count('.item'), dupBefore + 1);
 await save();
 eq('with everything it carried, notes included',
   (await current()).split('\n')
     .filter((l) => l.startsWith('| Who it is for |') && l.includes('Only office managers')).length, 2);
-await menu('.rowsel .rowtools .more', 'Delete block');
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
+  .find((b) => b.textContent.includes('Delete')).click());
+await page.waitForTimeout(300);
 await save();
 eq('and removed again',
   (await current()).split('\n')
@@ -603,6 +609,95 @@ await page.waitForTimeout(500);
 ok('Cmd-S works while you are typing, which is when you want it',
   (await current()).includes('| Status of the booking |'), await text('#save'));
 await pick('Status of the booking');
+await page.waitForTimeout(200);
+await typeInto('.rowsel .lbl', 'Status');
+await save();
+
+// ---------------------------------------------------------------- nothing hides behind hover
+ok('the lanes say what they hold, once, at the top',
+  await page.evaluate(() => [...document.querySelectorAll('.lanelbl')]
+    .map((n) => n.textContent).join('|') === 'Notes|Functionality'));
+ok('and the labels sit above the stack rather than inside it',
+  await page.evaluate(() => {
+    const head = document.querySelector('.lanehead');
+    return head && !head.classList.contains('cell') && !head.classList.contains('top');
+  }));
+ok('a row with no note still shows where one would go, without being touched',
+  await page.evaluate(() => {
+    const s2 = document.querySelector('.lane-l .slot');
+    return !!s2 && getComputedStyle(s2).opacity > 0.2 && s2.getBoundingClientRect().width > 8;
+  }));
+ok('and so does a row with no functionality',
+  await page.evaluate(() => {
+    const f = document.querySelector('.fn.asslot');
+    return !!f && getComputedStyle(f).opacity > 0.2;
+  }));
+
+// ---------------------------------------------------------------- the controls do not cover the row
+await pick('Status');
+await page.waitForTimeout(250);
+ok('a selected row puts its controls in its own space',
+  await page.evaluate(() => {
+    const strip = document.querySelector('.rowsel .rowstrip');
+    const box = document.querySelector('.rowsel .box');
+    if (!strip || !box) return false;
+    const a = strip.getBoundingClientRect(), b = box.getBoundingClientRect();
+    return a.top >= b.bottom - 1;   // below it, never on top of it
+  }));
+ok('every control in it is a real target, not a sliver',
+  await page.$$eval('.rowsel .rowstrip .sbtn', (ns) => ns.length > 0
+    && ns.every((n) => n.getBoundingClientRect().height >= 20 && n.getBoundingClientRect().width >= 44)));
+
+// ---------------------------------------------------------------- delete is one click, and undoable
+const beforeDelete = await current();
+const itemsBefore = await count('.item');
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
+  .find((b) => b.textContent.includes('Delete')).click());
+await page.waitForTimeout(300);
+eq('one click deletes a block', await count('.item'), itemsBefore - 1);
+ok('and says so, with a way back', await page.$('.toast button') !== null);
+await page.evaluate(() => [...document.querySelectorAll('.toast button')]
+  .find((b) => b.textContent === 'Undo').click());
+await page.waitForTimeout(300);
+eq('which puts it back', await count('.item'), itemsBefore);
+await save();
+eq('exactly as it was', await current(), beforeDelete);
+
+// ---------------------------------------------------------------- the app asks its own questions
+ok('nothing calls a browser dialog',
+  await page.evaluate(() => {
+    const src = document.documentElement.innerHTML;
+    return !/[^.\w]confirm\(/.test(src) && !/[^.\w]prompt\(/.test(src);
+  }));
+await page.click('#railL .rail-add');
+await page.waitForSelector('.dialog', { timeout: 4000 });
+ok('naming a new guide is asked inside the app', await page.$('.scrim .dialog input') !== null);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+ok('and escape backs out of it', await page.$('.scrim') === null);
+
+// ---------------------------------------------------------------- a visual takes up room
+ok('a visual block is bigger than a line of text, because it stands for something that is',
+  await page.evaluate(() => {
+    const h = (sel) => [...document.querySelectorAll(sel)]
+      .map((n) => n.getBoundingClientRect().height);
+    const vis = h('.item.visual .box');
+    const txt = h('.item.plain .box');
+    if (!vis.length || !txt.length) return false;
+    return Math.min(...vis) >= 70 && Math.min(...vis) > Math.max(...txt);
+  }));
+
+// ---------------------------------------------------------------- saving is legible
+ok('the save button says what state it is in', (await text('#save')).includes('Saved'));
+await pick('Status');
+await page.waitForTimeout(200);
+await typeInto('.rowsel .lbl', 'Status of it');
+ok('and changes to an unmistakable one when there is something to save',
+  (await text('#save')).includes('Save') && (await text('#save')).includes('⌘S'));
+ok('which is the only primary button on the bar',
+  await page.$eval('#save', (n) => n.className.includes('primary')));
+await save();
+await pick('Status of it');
 await page.waitForTimeout(200);
 await typeInto('.rowsel .lbl', 'Status');
 await save();
@@ -889,11 +984,16 @@ ok('a case-different match reuses the existing type instead of making a second o
   JSON.stringify(userLines));
 
 // ---------------------------------------------------------------- present
+const titleSize = await page.evaluate(() =>
+  getComputedStyle(document.querySelector('#pagehead h1')).fontSize);
 await page.mouse.click(700, 300);
 await page.waitForTimeout(150);
 await page.keyboard.press('p');
 await page.waitForTimeout(250);
 eq('the present button becomes the way out', await text('#present'), 'Exit');
+eq('the guide title is the same size wherever you are',
+  await page.evaluate(() => getComputedStyle(document.querySelector('#pagehead h1')).fontSize),
+  titleSize);
 ok('present mode hides both rails',
   await page.evaluate(() => getComputedStyle(document.getElementById('railL')).display === 'none'));
 ok('and the tabs, which are not for the room',
