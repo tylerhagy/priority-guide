@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
+const srv = createServer((q,r)=>{const f=q.url==='/'?'/index.html':q.url.split('?')[0];
+  try{const b=readFileSync('.'+f);r.writeHead(200,{'content-type':f.endsWith('.js')||f.endsWith('.mjs')?'text/javascript':f.endsWith('.html')?'text/html':'text/plain'});r.end(b);}catch{r.writeHead(404);r.end();}});
+await new Promise(r=>srv.listen(8199,r));
+const b = await chromium.launch();
+const p = await b.newPage({viewport:{width:1600,height:950}});
+await p.goto('http://localhost:8199/?test=1');
+await p.evaluate(async () => { const t = await fetch('/fixtures/deskline.md').then(r=>r.text()); window.__loadText(t, 'PG.md'); });
+await p.waitForTimeout(700);
+await p.evaluate(()=>{[...document.querySelectorAll('#railL .g-item')].find(x=>x.textContent.includes('Find a space')).click();});
+await p.waitForTimeout(600);
+await p.screenshot({path:'screenshots/19-tabs-minimap.png'});
+await p.screenshot({path:'screenshots/19-tabs-crop.png', clip:{x:1290,y:50,width:310,height:120}});
+await b.close(); srv.close();

@@ -90,6 +90,8 @@ await page.waitForSelector('.item', { timeout: 8000 });
 
 const text = (sel) => page.$eval(sel, (n) => n.textContent.trim()).catch(() => null);
 const count = (sel) => page.$$eval(sel, (n) => n.length);
+/** Scoped to the real guide: the minimap holds a copy of every element. */
+const gcount = (sel) => page.$$eval('#stage ' + sel, (n) => n.length);
 const written = () => page.evaluate(() => window.__written || null);
 const current = () => page.evaluate(() => window.__store['Priority Guides.md']);
 const line = async (prefix) => (await current()).split('\n').find((l) => l.startsWith(prefix)) || '';
@@ -202,7 +204,7 @@ ok('and how much of it there is, without repeating what the panel already says',
   (await text('#pagehead .sub')).includes('13 blocks')
   && !(await text('#pagehead .sub')).includes('Everyone with a desk'));
 ok('the guide itself carries no context block', await page.$('.guide .ghead') === null);
-eq('its blocks render as items in the stack', await count('.item'), 13);
+eq('its blocks render as items in the stack', await gcount('.item'), 13);
 ok('the open count is shown', (await text('#open')).includes('11 open'));
 
 // ---------------------------------------------------------------- the three lanes
@@ -210,10 +212,10 @@ ok('the guide is a three-lane grid',
   await page.$eval('.guide', (n) => getComputedStyle(n).gridTemplateColumns.split(' ').length === 3));
 ok('the stack sits in the middle lane',
   await page.$eval('.cell', (n) => getComputedStyle(n).gridColumnStart === '2'));
-ok('notes annotate from the left', (await count('.lane-l .note')) >= 3);
-ok('functionality annotates from the right', (await count('.lane-r .fn:not(.empty)')) >= 8);
-ok('each annotation is joined to its row by a leader', (await count('.lead')) >= 10);
-ok('an action item is styled as one', (await count('.lane-l .note.act')) >= 1);
+ok('notes annotate from the left', (await gcount('.lane-l .note')) >= 3);
+ok('functionality annotates from the right', (await gcount('.lane-r .fn:not(.empty)')) >= 8);
+ok('each annotation is joined to its row by a leader', (await gcount('.lead')) >= 10);
+ok('an action item is styled as one', (await gcount('.lane-l .note.act')) >= 1);
 ok('a row can carry more than one note',
   await page.evaluate(() => [...document.querySelectorAll('.notes')].some((n) => n.querySelectorAll('.note').length > 1)));
 ok('a tall annotation does not tear a hole in the section panel',
@@ -222,12 +224,12 @@ ok('a tall annotation does not tear a hole in the section panel',
     .every((b) => Math.abs(b.getBoundingClientRect().height - b.parentElement.getBoundingClientRect().height) < 2)));
 
 // ---------------------------------------------------------------- the stack itself
-ok('a data point with no control is plain text, not a box', (await count('.item.plain')) >= 4);
+ok('a data point with no control is plain text, not a box', (await gcount('.item.plain')) >= 4);
 ok('a field with a form type renders as a control',
-  (await count('.item:not(.plain):not(.linky):not(.visual)')) >= 1);
-ok('a link renders as a link', (await count('.item.linky')) >= 2);
-ok('a visual is marked as one', (await count('.item.visual')) >= 1);
-ok('a select shows it has more behind it', (await count('.item .chev')) >= 1);
+  (await gcount('.item:not(.plain):not(.linky):not(.visual)')) >= 1);
+ok('a link renders as a link', (await gcount('.item.linky')) >= 2);
+ok('a visual is marked as one', (await gcount('.item.visual')) >= 1);
+ok('a select shows it has more behind it', (await gcount('.item .chev')) >= 1);
 ok('the example sits under the name it belongs to, in the middle',
   await page.evaluate(() => {
     const it = [...document.querySelectorAll('.item')].find((n) => n.textContent.includes('Riverside, Northgate, Depot'));
@@ -239,7 +241,7 @@ ok('and never in the functionality lane',
     .some((n) => n.textContent.includes('Riverside, Northgate, Depot'))));
 
 // ---------------------------------------------------------------- icons
-ok('functionality carries an icon', (await count('.fn .l svg')) >= 8);
+ok('functionality carries an icon', (await gcount('.fn .l svg')) >= 8);
 ok('and says in plain words what the thing does',
   await page.evaluate(() => [...document.querySelectorAll('.fn')].some((n) => n.textContent.includes('Opens'))
     && [...document.querySelectorAll('.fn')].some((n) => n.textContent.includes('Takes one from a list'))
@@ -354,13 +356,13 @@ await page.waitForTimeout(150);
 ok('escape closes the picker', await page.$('.pop') === null);
 
 // ---------------------------------------------------------------- notes
-const noteRows = await count('.note');
+const noteRows = await gcount('.note');
 await pick('Status');
 await page.waitForTimeout(150);
 await page.evaluate(() => document.querySelector('.rowsel .slot, .rowsel .lanemore').click());
 await page.waitForTimeout(200);
 await typeInto('.rowsel .note:last-of-type .t', 'Half-days were cut in review');
-eq('a note can be added to any row', await count('.note'), noteRows + 1);
+eq('a note can be added to any row', await gcount('.note'), noteRows + 1);
 await page.evaluate(() => {
   const n = [...document.querySelectorAll('.note')].find((x) => x.textContent.includes('Half-days were cut in review'));
   n.querySelector('.tools button').click();
@@ -379,7 +381,7 @@ await page.evaluate(() => {
   n.querySelectorAll('.tools button')[1].click();
 });
 await page.waitForTimeout(250);
-eq('and deleted again', await count('.note'), noteRows);
+eq('and deleted again', await gcount('.note'), noteRows);
 
 // ---------------------------------------------------------------- the prose under a heading
 await save();
@@ -408,9 +410,9 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
 ok('and a block carries no arrows', (await count('.rowstrip .ic')) === 0);
 
-const blocksBefore = await count('.item');
+const blocksBefore = await gcount('.item');
 await dragOnto('Content', 'Status');
-eq('dragging content onto a block adds one', await count('.item'), blocksBefore + 1);
+eq('dragging content onto a block adds one', await gcount('.item'), blocksBefore + 1);
 eq('right where it was dropped', (await labels())[(await labels()).indexOf('Status') + 1], '');
 ok('and starts you naming it', await page.evaluate(() => document.activeElement.className.includes('lbl')));
 await typeInto('.rowsel .lbl', 'A new thing');
@@ -429,9 +431,9 @@ await typeInto('.rowsel .lbl', 'A picture of something');
 await save();
 ok('a visual is dropped in as one', (await current()).includes('| [Visual] A picture of something |'));
 
-const secBefore = await count('.sec-title');
+const secBefore = await gcount('.sec-title');
 await dragOnto('Section', 'A new thing');
-eq('a section can be dragged in too', await count('.sec-title'), secBefore + 1);
+eq('a section can be dragged in too', await gcount('.sec-title'), secBefore + 1);
 await page.evaluate(() => {
   const t = [...document.querySelectorAll('.sec-title')].find((n) => n.textContent === 'New section');
   t.closest('.cell').querySelector('.more').click();
@@ -439,11 +441,11 @@ await page.evaluate(() => {
 await page.waitForSelector('.menu');
 await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Delete section')).click());
 await page.waitForTimeout(300);
-eq('and deleted again', await count('.sec-title'), secBefore);
+eq('and deleted again', await gcount('.sec-title'), secBefore);
 
-const subBefore = await count('.sub-t');
+const subBefore = await gcount('.sub-t');
 await dragOnto('Subsection', 'Status');
-eq('a subsection splits the section where it lands', await count('.sub-t'), subBefore + 1);
+eq('a subsection splits the section where it lands', await gcount('.sub-t'), subBefore + 1);
 await save();
 ok('and the file still round-trips', !(await text('#save')).includes('Read-only'));
 ok('with the split written as a heading', (await current()).includes('#### Actions'));
@@ -519,7 +521,7 @@ ok('and the flow map picks it up as a reference',
 const refsInFile = (t) => t.split('\n').filter((l) => l.startsWith('> See')).length;
 const refsBeforeRemoval = refsInFile(await current());
 await page.evaluate(() => {
-  const r = [...document.querySelectorAll('.ref')].pop();
+  const r = [...document.querySelectorAll('#stage .ref')].pop();
   if (r && r.querySelector('.refx')) r.querySelector('.refx').click();
 });
 await page.waitForTimeout(250);
@@ -565,7 +567,7 @@ ok('a block with no example says nothing about it',
       .find((n) => n.querySelector('.lbl') && n.querySelector('.lbl').textContent.trim() === 'Room or desk');
     return !!it && !it.querySelector('.eg');
   }));
-eq('and nothing on the guide is flagged for missing one', await count('.flag'), 0);
+eq('and nothing on the guide is flagged for missing one', await gcount('.flag'), 0);
 await pick('Room or desk');
 await page.waitForTimeout(200);
 await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
@@ -577,13 +579,13 @@ await save();
 ok('and it lands in the file', (await current()).includes('| Room or desk | Desk 4-118 |'));
 
 // ---------------------------------------------------------------- a row can be duplicated and removed
-const dupBefore = await count('.item');
+const dupBefore = await gcount('.item');
 await pick('Who it is for');
 await page.waitForTimeout(200);
 await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
   .find((b) => b.textContent.includes('Duplicate')).click());
 await page.waitForTimeout(300);
-eq('a block can be duplicated', await count('.item'), dupBefore + 1);
+eq('a block can be duplicated', await gcount('.item'), dupBefore + 1);
 await save();
 eq('with everything it carried, notes included',
   (await current()).split('\n')
@@ -627,7 +629,7 @@ await save();
 
 // ---------------------------------------------------------------- nothing hides behind hover
 ok('the lanes say what they hold, once, at the top',
-  await page.evaluate(() => [...document.querySelectorAll('.lanelbl')]
+  await page.evaluate(() => [...document.querySelectorAll('#stage .lanelbl')]
     .map((n) => n.textContent).join('|') === 'Notes|Functionality'));
 ok('and the labels sit above the stack rather than inside it',
   await page.evaluate(() => {
@@ -662,16 +664,16 @@ ok('every control in it is a real target, not a sliver',
 
 // ---------------------------------------------------------------- delete is one click, and undoable
 const beforeDelete = await current();
-const itemsBefore = await count('.item');
+const itemsBefore = await gcount('.item');
 await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
   .find((b) => b.textContent.includes('Delete')).click());
 await page.waitForTimeout(300);
-eq('one click deletes a block', await count('.item'), itemsBefore - 1);
+eq('one click deletes a block', await gcount('.item'), itemsBefore - 1);
 ok('and says so, with a way back', await page.$('.toast button') !== null);
 await page.evaluate(() => [...document.querySelectorAll('.toast button')]
   .find((b) => b.textContent === 'Undo').click());
 await page.waitForTimeout(300);
-eq('which puts it back', await count('.item'), itemsBefore);
+eq('which puts it back', await gcount('.item'), itemsBefore);
 await save();
 eq('exactly as it was', await current(), beforeDelete);
 
@@ -691,7 +693,7 @@ ok('and escape backs out of it', await page.$('.scrim') === null);
 // ---------------------------------------------------------------- a visual takes up room
 ok('a visual block is bigger than a line of text, because it stands for something that is',
   await page.evaluate(() => {
-    const h = (sel) => [...document.querySelectorAll(sel)]
+    const h = (sel) => [...document.querySelectorAll('#stage ' + sel)]
       .map((n) => n.getBoundingClientRect().height);
     const vis = h('.item.visual .box');
     const txt = h('.item.plain .box');
@@ -846,7 +848,7 @@ ok('the two panes sit side by side, the same height',
 
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
-ok('escape comes back to the guide', await page.$('.beside') === null && (await count('.item')) > 5);
+ok('escape comes back to the guide', await page.$('.beside') === null && (await gcount('.item')) > 5);
 
 // ---------------------------------------------------------------- every panel belongs to its guide
 const showPanel = async (label) => {
@@ -927,10 +929,10 @@ ok('and the source itself was never deleted from the file',
   (await current()).includes('[week-layout]:'));
 
 // ---------------------------------------------------------------- comments
-eq('comments are off until you ask for them', await count('.bubble'), 0);
+eq('comments are off until you ask for them', await gcount('.bubble'), 0);
 await page.click('#comments');
 await page.waitForTimeout(300);
-ok('turning them on puts one on every block', (await count('.bubble')) > 5);
+ok('turning them on puts one on every block', (await gcount('.bubble')) > 5);
 
 await page.evaluate(() => {
   const it = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl')
@@ -986,52 +988,148 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(250);
 await page.click('#comments');
 await page.waitForTimeout(250);
-eq('and they can be switched off again', await count('.bubble'), 0);
+eq('and they can be switched off again', await gcount('.bubble'), 0);
+
+// ---------------------------------------------------------------- the panel tabs
+/**
+ * Four tabs, one row, one baseline — whether or not a tab has a count. A count
+ * that pushes its own label up makes the row look like two rows.
+ */
+ok('every tab label sits on the same baseline',
+  await page.evaluate(() => {
+    const tops = [...document.querySelectorAll('#railR .ptabs button .l')]
+      .map((n) => Math.round(n.getBoundingClientRect().top));
+    return tops.length === 4 && Math.max(...tops) - Math.min(...tops) <= 1;
+  }));
+ok('and no tab wraps onto a second line',
+  await page.evaluate(() => {
+    const bs = [...document.querySelectorAll('#railR .ptabs button')];
+    const h = bs.map((b) => b.getBoundingClientRect().height);
+    return bs.length === 4 && Math.max(...h) - Math.min(...h) <= 1 && Math.max(...h) < 34;
+  }));
+ok('the tabs are one row inside the panel',
+  await page.evaluate(() => {
+    const bs = [...document.querySelectorAll('#railR .ptabs button')];
+    const rail = document.getElementById('railR').getBoundingClientRect();
+    return bs.every((b) => b.getBoundingClientRect().right <= rail.right + 1);
+  }));
 
 // ---------------------------------------------------------------- the minimap
-ok('a long guide gets a map of itself', await page.$('#minimap .mmarks') !== null);
-eq('with a mark for every block',
-  await count('#minimap .mrow'), await count('#stage .item'));
-ok('and a band for every section', (await count('#minimap .mband')) >= 2);
-ok('open items are marked so you can see where they are',
-  (await count('#minimap .mrow.m-open')) >= 1);
-ok('the marks sit where their blocks sit',
-  await page.evaluate(() => {
-    const stage = document.getElementById('stage');
-    const items = [...stage.querySelectorAll('.item')];
-    const marks = [...document.querySelectorAll('#minimap .mrow')];
-    if (items.length !== marks.length) return false;
-    // The first mark should be as far down the map as the first block is down
-    // the guide, within a point or so.
-    const a2 = items[0].offsetTop / stage.scrollHeight;
-    const b3 = parseFloat(marks[0].style.top) / 100;
-    return Math.abs(a2 - b3) < 0.02;
-  }));
-const scrollBefore = await page.evaluate(() => document.getElementById('stage').scrollTop);
+/**
+ * It is a picture of the guide, not a diagram of it — so the thing that has to
+ * be true is that it matches, and that it is a column rather than a sticker.
+ */
 await page.evaluate(() => {
-  const m = document.getElementById('minimap');
-  const r = m.getBoundingClientRect();
-  m.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientY: r.top + r.height * 0.85 }));
-  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
 });
-await page.waitForTimeout(300);
-ok('pressing it takes you there',
-  (await page.evaluate(() => document.getElementById('stage').scrollTop)) > scrollBefore + 100);
-ok('and the viewport box follows',
-  await page.evaluate(() => parseFloat(document.querySelector('.mview').style.top) > 5));
-await page.evaluate(() => { document.getElementById('stage').scrollTop = 0; });
-await page.waitForTimeout(200);
+await page.waitForTimeout(400);
+
+const mapOn = () => page.$eval('#minimap', (n) => getComputedStyle(n).display !== 'none');
+ok('a guide taller than the window gets a map', await mapOn(),
+  await page.evaluate(() => { const s = document.getElementById('stage');
+    return `scrollHeight ${s.scrollHeight} clientHeight ${s.clientHeight}`; }));
+if (await mapOn()) {
+  eq('the map holds the guide itself, block for block',
+    await count('#minimap .mshot .item'), await count('#stage .item'));
+  ok('and nothing in it can be clicked into by mistake',
+    (await count('#minimap [contenteditable]')) === 0);
+  ok('the controls are left out — they are noise at that size',
+    (await count('#minimap .rowstrip, #minimap .slot, #minimap .more')) === 0);
+
+  ok('it is a column, so it covers nothing',
+    await page.evaluate(() => {
+      const m = document.getElementById('minimap').getBoundingClientRect();
+      return ['pagehead', 'palette', 'stage', 'railR'].every((id) => {
+        const n = document.getElementById(id);
+        if (!n) return true;
+        const r = n.getBoundingClientRect();
+        return r.right <= m.left + 1 || r.left >= m.right - 1
+          || r.bottom <= m.top + 1 || r.top >= m.bottom - 1;
+      });
+    }));
+  ok('it is quiet until you look at it',
+    await page.$eval('.mshotwrap', (n) => parseFloat(getComputedStyle(n).opacity) < 0.6));
+
+  // The complaint the rebuild answered: a diagram gives every block the same
+  // weight, so the map disagrees with the page. A picture cannot.
+  ok('the picture is the guide to scale, not a diagram of it',
+    await page.evaluate(() => {
+      const m = document.getElementById('minimap').getBoundingClientRect();
+      const shot = document.querySelector('.mshot').getBoundingClientRect();
+      if (shot.width > m.width || shot.width < m.width * 0.7) return false;
+      const ratio = (root) => {
+        const vis = document.querySelector(root + ' .item.visual .box');
+        const txt = document.querySelector(root + ' .item.plain .box');
+        return vis && txt ? vis.getBoundingClientRect().height / txt.getBoundingClientRect().height : null;
+      };
+      const page_ = ratio('#stage'), map = ratio('#minimap');
+      return page_ && map && Math.abs(page_ - map) / page_ < 0.06;
+    }));
+
+  const stageTop = () => page.evaluate(() => document.getElementById('stage').scrollTop);
+  const viewTop = () => page.evaluate(() => parseFloat(document.querySelector('.mview').style.top));
+  ok('the box sits at the top when you are at the top', (await stageTop()) === 0 && (await viewTop()) < 3);
+  await page.evaluate(() => {
+    const m = document.getElementById('minimap');
+    const r = m.getBoundingClientRect();
+    m.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientY: r.top + r.height * 0.5 }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
+  await page.waitForTimeout(350);
+  ok('pressing it takes you there', (await stageTop()) > 100);
+  ok('and the box follows', (await viewTop()) > 10);
+  await page.evaluate(() => { document.getElementById('stage').scrollTop = 0; });
+  await page.waitForTimeout(250);
+}
+
+// Presenting and checking against a design are both reading, and a map is a
+// writing tool. It is out of the way for both.
+await page.keyboard.press('p');
+await page.waitForTimeout(350);
+eq('there is no map while presenting',
+  await page.$eval('#minimap', (n) => getComputedStyle(n).display), 'none');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(350);
 
 await page.evaluate(() => {
   [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Cancel a booking')).click();
 });
-await page.waitForTimeout(300);
-eq('a short guide has nothing to lose your place in, so it gets no map',
+await page.waitForTimeout(400);
+eq('a guide that fits on screen has nothing to navigate, so it gets no map',
   await page.$eval('#minimap', (n) => getComputedStyle(n).display), 'none');
 await page.evaluate(() => {
   [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
 });
 await page.waitForTimeout(300);
+
+// ---------------------------------------------------------------- the copy is only a picture
+/**
+ * The map holds a real copy of the guide, which means every class in the guide
+ * exists twice in the document. Nothing that acts on the guide may reach it.
+ */
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
+});
+await page.waitForTimeout(400);
+ok('the long guide still has its map, so what follows is actually checked',
+  await page.$eval('#minimap', (n) => getComputedStyle(n).display !== 'none'));
+if (await page.$eval('#minimap', (n) => getComputedStyle(n).display !== 'none')) {
+  await page.evaluate(() => {
+    const it = [...document.querySelectorAll('#stage .item')].find((x) => x.querySelector('.lbl'));
+    it.querySelector('.lbl').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  });
+  await page.waitForTimeout(300);
+  eq('holding a block marks the guide and not its picture',
+    await count('#minimap .rowsel'), 0);
+  eq('and the strip is only on the real one', await count('#minimap .rowstrip'), 0);
+  ok('a block in the picture cannot be dragged',
+    await page.$$eval('#minimap [draggable]', (ns) => ns.length === 0));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+  eq('and letting go clears the real one', await gcount('.rowsel'), 0);
+}
 
 // ---------------------------------------------------------------- capture
 // A shortcut must not fire while the caret is in a field, so let go first.
@@ -1204,7 +1302,7 @@ eq('an action note counts once per note, not once per row',
     .reduce((n, l) => n + (l.match(/ACTION:/g) || []).length, 0));
 await page.evaluate(() => document.querySelector('.oi.act').click());
 await page.waitForTimeout(300);
-ok('clicking an action item goes to the block it came from', (await count('.rowsel')) >= 1);
+ok('clicking an action item goes to the block it came from', (await gcount('.rowsel')) >= 1);
 
 // ---------------------------------------------------------------- flow
 await page.click('#tabs button:nth-child(2)');
@@ -1335,7 +1433,7 @@ ok('but the page header stays, so the room knows which screen this is',
   await page.evaluate(() => getComputedStyle(document.getElementById('pagehead')).display !== 'none'));
 ok('the stack gets wider for a shared screen',
   await page.evaluate(() => document.querySelector('.cell').getBoundingClientRect().width > 360));
-ok('the content is still all there', (await count('.item')) > 5);
+ok('the content is still all there', (await gcount('.item')) > 5);
 await page.click('#present');
 await page.waitForTimeout(250);
 eq('and it goes back to Present', await text('#present'), 'Present');
@@ -1371,6 +1469,26 @@ eq('dragging a block lands it where it was dropped', dragged.index, 3);
 // ---------------------------------------------------------------- no errors
 ok('no uncaught errors anywhere in the session', errors.length === 0, errors.slice(0, 4).join('\n       '));
 ok('and everything the app itself asked for loaded', badLoads.length === 0, badLoads.slice(0, 4).join('\n       '));
+
+// A picture of the finished thing, on request, so a design change can be looked
+// at rather than only asserted about: SHOTS=1 node browser-test.mjs
+if (process.env.SHOTS) {
+  await page.evaluate(() => {
+    [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
+  });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(HERE, 'screenshots', 'guide.png') });
+  const rail = await page.$('#railR');
+  if (rail) await rail.screenshot({ path: path.join(HERE, 'screenshots', 'panel-tabs.png') });
+  const map = await page.$('#minimap');
+  if (map) {
+    const r = await map.boundingBox();
+    await page.screenshot({ path: path.join(HERE, 'screenshots', 'minimap.png'),
+      clip: { x: r.x - 4, y: r.y, width: r.width + 8, height: Math.min(r.height, 460) },
+      scale: 'device' });
+  }
+  console.log('  screenshots/guide.png, screenshots/panel-tabs.png');
+}
 
 await browser.close();
 server.kill();

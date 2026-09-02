@@ -70,28 +70,33 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
   overflow-y:auto;padding:14px 10px 40px}
 #railR{width:296px;flex:none;border-left:1px solid var(--line);background:var(--panel);
   display:flex;flex-direction:column;min-height:0}
-#mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+#mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+#midrow{flex:1;display:flex;min-height:0;min-width:0}
 
-/* ---------- where you are in a long guide ---------- */
-#minimap{position:absolute;right:0;top:0;bottom:0;width:58px;z-index:2;cursor:pointer;
-  padding:8px 8px;overflow:hidden;user-select:none;
-  background:linear-gradient(90deg,transparent,rgba(16,18,22,.02))}
-#minimap:hover{background:linear-gradient(90deg,transparent,rgba(16,18,22,.05))}
-.mmarks{position:relative;height:100%}
-.mband{position:absolute;left:0;right:0;background:rgba(16,18,22,.05);border-radius:3px;
-  overflow:hidden;padding:2px 3px 0}
-.mlbl{flex:0 0 auto;font-size:5.5px;letter-spacing:.04em;text-transform:uppercase;
-  color:var(--faint);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
-  line-height:1.5;margin-bottom:1px}
-.mrow{position:absolute;left:4px;border-radius:1.5px;background:rgba(16,18,22,.3);min-height:1.5px}
-.mrow.m-visual{background:rgba(16,18,22,.13);border:.5px dashed rgba(16,18,22,.32)}
-.mrow.m-divider{background:rgba(16,18,22,.5);width:calc(100% - 8px)!important;min-height:1px}
-.mrow.m-open{background:var(--act)}
-.mrow.m-cm{background:var(--flag)}
-.mref{position:absolute;left:4px;right:4px;border-radius:2px;
-  border:.5px dashed rgba(16,18,22,.34);min-height:2px}
-.mview{position:absolute;left:3px;right:3px;border:1px solid var(--accent);border-radius:4px;
-  background:rgba(37,99,235,.08);pointer-events:none;min-height:8px}
+/* ---------- where you are in a long guide ----------
+   A column beside the guide, holding the guide itself at a size you can take in
+   at a glance. It is a picture, not a diagram: the same shapes in the same
+   places, so what you recognise on the page you recognise here. Quiet until you
+   look at it, because it is for orienting, not for reading. */
+/* The column is margin, not a panel. A guide is wider than it is tall, so a
+   true-to-scale picture of one is short — and a full-height rail around a short
+   picture reads as an empty container with something stranded at the top. */
+#minimap{flex:none;width:124px;position:relative;overflow:hidden;cursor:pointer;
+  user-select:none;background:transparent;padding-left:6px}
+.mshotwrap{position:absolute;inset:0;overflow:hidden;opacity:.4;
+  transition:opacity .14s var(--ease)}
+/* The extent of the guide, so the picture reads as one document. */
+.mshotwrap:before{content:"";position:absolute;left:6px;right:2px;
+  top:var(--paper-top,0);height:var(--paper,0);
+  background:var(--panel);border:1px solid var(--line);border-radius:3px}
+#minimap:hover .mshotwrap{opacity:.78}
+.mshot{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
+/* Inset to the same edges as the picture, so the band reads as being on the
+   document rather than across the column. */
+.mview{position:absolute;left:6px;right:2px;background:rgba(37,99,235,.11);
+  border-top:1px solid rgba(37,99,235,.45);border-bottom:1px solid rgba(37,99,235,.45);
+  pointer-events:none;min-height:10px}
+#minimap:hover .mview{background:rgba(37,99,235,.2)}
 body.present #minimap,body.is-paired #minimap{display:none}
 #stage{flex:1;overflow-y:auto;padding:22px 30px 40px;min-width:0}
 .wrap{max-width:760px;margin:0 auto}
@@ -428,11 +433,18 @@ body.present .guide{--lane-l:300px; --stack:400px; --lane-r:320px}
 
 
 /* ---------- right panel ---------- */
-#railR .ptabs{flex:none;display:flex;gap:2px;padding:10px 12px 0;border-bottom:1px solid var(--line)}
-#railR .ptabs button{padding:6px 10px;border-radius:7px 7px 0 0;color:var(--dim);font-size:12.5px;
+#railR .ptabs{flex:none;display:flex;gap:1px;padding:10px 10px 0;border-bottom:1px solid var(--line)}
+/* One line of text per tab, always. A count that wraps under its label lifts
+   that label off the baseline the others sit on, and four tabs stop reading as
+   one row. It goes beside the word instead, where it is read as part of it. */
+#railR .ptabs button{display:flex;align-items:baseline;gap:4px;white-space:nowrap;
+  padding:6px 8px;border-radius:7px 7px 0 0;color:var(--dim);font-size:12.5px;
   font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+#railR .ptabs button .n{font-size:10.5px;font-weight:600;color:var(--faint);
+  font-variant-numeric:tabular-nums}
 #railR .ptabs button:hover{color:var(--ink)}
 #railR .ptabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+#railR .ptabs button.on .n{color:var(--dim)}
 #railR .pbody{flex:1;overflow-y:auto;padding:14px 14px 40px}
 .ctx{margin-bottom:15px}
 .ctx-h{display:flex;align-items:center;gap:5px;margin-bottom:3px}
@@ -697,8 +709,10 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   <div id="railL"></div>
   <div id="mid">
     <div id="pagehead"></div>
-    <div id="stage"></div>
-    <div id="minimap"></div>
+    <div id="midrow">
+      <div id="stage"></div>
+      <div id="minimap"></div>
+    </div>
     <div id="palette"></div>
   </div>
   <div id="railR"></div>
@@ -1582,7 +1596,9 @@ function blankable(node, value, placeholder, cls) {
 }
 
 const focusSoon = (sel) => setTimeout(() => {
-  const n = typeof sel === 'string' ? document.querySelector(sel) : sel;
+  // Rooted at the stage: the minimap holds a copy of the guide, and focus
+  // belongs to the real one.
+  const n = typeof sel === 'string' ? ($('stage').querySelector(sel) || document.querySelector(sel)) : sel;
   if (!n) return;
   n.focus();
   const r = document.createRange();
@@ -1677,81 +1693,86 @@ function blankTable() {
 /**
  * Where you are in a long guide.
  *
- * An editor's minimap is a shrunk picture of the text. A guide is not text, it
- * is structure, so this is a shrunk picture of the structure: a band per
- * section, a mark per block, and a dot wherever something is open or commented.
- * That makes it useful for more than scrolling — you can see at a glance where
- * the unanswered questions are without reading the whole thing.
+ * An editor's minimap is a shrunk picture of the text, and this is the same
+ * idea: the guide itself, cloned and scaled down, so every block keeps the size
+ * and the place it really has. You recognise where you are by shape — a long
+ * section, a run of notes down the left, the visual you put halfway — without
+ * reading a word. It is a column beside the guide rather than a layer over it,
+ * so it covers nothing, and it is quiet until you look at it.
  */
 function renderMinimap() {
   const m = $('minimap');
   m.innerHTML = '';
   const stage = $('stage');
+  stage.onscroll = null;
   if (!S.doc || !S.guide || S.view !== 'guide' || S.present || S.beside) {
-    m.style.display = 'none'; stage.onscroll = null; return;
+    m.style.display = 'none'; return;
   }
-  const rows = [...stage.querySelectorAll('.item')];
-  if (rows.length < 8) { m.style.display = 'none'; stage.onscroll = null; return; }
+  const guide = stage.querySelector('.guide');
+  // A map is for when you cannot hold the guide in your head. Under about a
+  // screenful hidden, scrolling is one flick and a map is furniture.
+  if (!guide || stage.scrollHeight < stage.clientHeight * 1.75) { m.style.display = 'none'; return; }
   m.style.display = '';
 
-  // Measured off the guide as it is actually laid out, so the map is a true
-  // miniature: a mark sits at the same fraction down the map as its block sits
-  // down the guide, and the viewport box lands on what it points at.
-  const total = stage.scrollHeight || 1;
-  const marks = el('div', 'mmarks');
-  m.appendChild(marks);
-
-  const place = (node, top, height) => {
-    node.style.top = (top / total * 100) + '%';
-    node.style.height = Math.max(0.35, height / total * 100) + '%';
-    marks.appendChild(node);
-  };
-
-  for (const cell of stage.querySelectorAll('.cell.sechead')) {
-    const band = el('div', 'mband');
-    const title = cell.querySelector('.sec-title');
-    const lbl = el('div', 'mlbl');
-    lbl.textContent = title ? title.textContent : '';
-    band.appendChild(lbl);
-    place(band, cell.offsetTop, cell.offsetHeight);
-  }
-
-  for (const item of rows) {
-    const rw = item._rw;
-    const bar = el('div', 'mrow');
-    if (item.classList.contains('visual')) bar.classList.add('m-visual');
-    if (item.classList.contains('divider')) bar.classList.add('m-divider');
-    if (rw && hasAction(rw.note)) bar.classList.add('m-open');
-    if (rw && rw.rid && commentsFor(S.doc, rw.rid).some((x) => !x.done)) bar.classList.add('m-cm');
-    // Width stands for how much the block carries, so the shape of the guide
-    // stays legible even shrunk this far.
-    const weight = rw ? 40 + (rw.realData ? 18 : 0)
-      + (rw.link.type || rw.form.type ? 18 : 0)
-      + Math.min(rw.note.length * 12, 24) : 50;
-    bar.style.width = Math.min(weight, 100) + '%';
-    place(bar, item.offsetTop, item.offsetHeight);
-  }
-
-  for (const r of stage.querySelectorAll('.ref')) {
-    const n = el('div', 'mref');
-    place(n, r.offsetTop, r.offsetHeight);
-  }
+  // The picture is the guide itself, cloned and shrunk. Drawing a second,
+  // simplified version would be a second thing to keep true; a clone cannot
+  // disagree with what is on the page, and every element keeps the size it
+  // really has. cloneNode copies no listeners, so it is inert by construction.
+  const wrap = el('div', 'mshotwrap');
+  const shot = el('div', 'mshot');
+  const copy = guide.cloneNode(true);
+  copy.querySelectorAll('[contenteditable]').forEach((n) => n.removeAttribute('contenteditable'));
+  copy.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+  // Anything that only exists to be clicked is noise at this size.
+  copy.querySelectorAll('.rowstrip,.slot,.lanemore,.more,.bubble,.blk-add,.refx,.sectools')
+    .forEach((n) => n.remove());
+  // No state classes: a copy is never the thing that is selected, open or held.
+  copy.querySelectorAll('.rowsel,.unset,.fresh,.on,.open,.dropbefore,.dropafter,.lifting')
+    .forEach((n) => n.classList.remove('rowsel', 'unset', 'fresh', 'on', 'open',
+      'dropbefore', 'dropafter', 'lifting'));
+  copy.querySelectorAll('[draggable]').forEach((n) => n.removeAttribute('draggable'));
+  shot.appendChild(copy);
+  wrap.appendChild(shot);
+  m.appendChild(wrap);
 
   const view = el('div', 'mview');
   m.appendChild(view);
+
+  const gw = guide.offsetWidth || 1;
+  const scale = (m.clientWidth - 10) / gw;
+  shot.style.width = gw + 'px';
+  shot.style.transform = `scale(${scale})`;
+  // A backdrop the height of the guide, so the picture reads as one document
+  // rather than as fragments floating in an empty column.
+  wrap.style.setProperty('--paper', (stage.scrollHeight * scale) + 'px');
+
+  // Both the picture and the box are drawn in stage coordinates times the
+  // scale, so a thing is as far down the map as it is down the guide.
+  const contentH = stage.scrollHeight * scale;
+  const fits = contentH <= m.clientHeight;
+
   const sync = () => {
-    const h = stage.scrollHeight || 1;
-    view.style.top = (stage.scrollTop / h * 100) + '%';
-    view.style.height = Math.max(5, Math.min(100, stage.clientHeight / h * 100)) + '%';
+    const slack = Math.max(0, contentH - m.clientHeight);
+    const maxScroll = Math.max(1, stage.scrollHeight - stage.clientHeight);
+    // When the picture is taller than the column it slides, the way an editor's
+    // does, so the box you are watching never leaves the window.
+    const shift = fits ? 0 : slack * (stage.scrollTop / maxScroll);
+    shot.style.transform = `translateY(${-shift}px) scale(${scale})`;
+    shot.style.left = '8px';
+    wrap.style.setProperty('--paper-top', (-shift) + 'px');
+    view.style.top = (stage.scrollTop * scale - shift) + 'px';
+    view.style.height = Math.max(10, stage.clientHeight * scale) + 'px';
   };
   sync();
   stage.onscroll = sync;
 
-  // Pressing anywhere on the map goes there; dragging scrubs.
   const goTo = (clientY) => {
     const r = m.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (clientY - r.top) / r.height));
-    stage.scrollTop = frac * stage.scrollHeight - stage.clientHeight / 2;
+    const slack = Math.max(0, contentH - m.clientHeight);
+    const maxScroll = Math.max(1, stage.scrollHeight - stage.clientHeight);
+    const shift = fits ? 0 : slack * (stage.scrollTop / maxScroll);
+    const y = (clientY - r.top + shift) / scale;
+    stage.scrollTop = y - stage.clientHeight / 2;
     sync();
   };
   m.onmousedown = (e) => {
@@ -1917,7 +1938,7 @@ function addAt(what, spot, after) {
     }
     addGuideRef(g, 'See [[]] — why');
     mark(); render();
-    setTimeout(() => { const r = document.querySelector('.ref.unset'); if (r) r.click(); }, 30);
+    setTimeout(() => { const r = $('stage').querySelector('.ref.unset'); if (r) r.click(); }, 30);
     return;
   }
 
@@ -2535,8 +2556,8 @@ function wireSelect(item, row, rw, ctx, kind, openExample) {
   const hold = () => {
     if (S.sel === rw) return;
     S.sel = rw;
-    document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
-    document.querySelectorAll('.rowstrip').forEach((n) => n.remove());
+    $('stage').querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
+    $('stage').querySelectorAll('.rowstrip').forEach((n) => n.remove());
     [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
     // Appended in place rather than re-rendered, so the caret in the field you
     // just pressed into stays exactly where you put it.
@@ -2718,7 +2739,7 @@ function noteCard(ctx, n, i) {
   card.onmousedown = () => {
     if (S.sel === rw) return;
     S.sel = rw;
-    document.querySelectorAll('.rowsel').forEach((x) => x.classList.remove('rowsel'));
+    $('stage').querySelectorAll('.rowsel').forEach((x) => x.classList.remove('rowsel'));
     const lane = card.closest('.lane');
     if (lane) [lane.previousElementSibling, lane, lane.nextElementSibling]
       .forEach((x) => x && x.classList.add('rowsel'));
@@ -3021,7 +3042,8 @@ function renderRailRight() {
   for (const [k, label] of [['context', 'Context'], ['design', 'Design'],
     ['sources', 'Sources'], ['links', 'Links']]) {
     const b = el('button', (S.panel || 'context') === k ? 'on' : '');
-    b.textContent = label + (counts[k] ? ` ${counts[k]}` : '');
+    b.appendChild(el('span', 'l', label));
+    if (counts[k]) b.appendChild(el('span', 'n', String(counts[k])));
     b.onclick = () => { S.panel = k; render(); };
     tabs.appendChild(b);
   }
@@ -4056,8 +4078,8 @@ function letGo() {
   S.newRowNote = null;
   if (!S.sel) return;
   S.sel = null;
-  document.querySelectorAll('.rowstrip').forEach((n) => n.remove());
-  document.querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
+  $('stage').querySelectorAll('.rowstrip').forEach((n) => n.remove());
+  $('stage').querySelectorAll('.rowsel').forEach((n) => n.classList.remove('rowsel'));
 }
 
 /**
