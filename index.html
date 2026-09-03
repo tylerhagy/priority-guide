@@ -7,19 +7,34 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='rgb(154,103,0)'/><rect x='8' y='9' width='16' height='3.6' rx='1.8' fill='white'/><rect x='8' y='14.4' width='11.5' height='3.6' rx='1.8' fill='white'/><rect x='8' y='19.8' width='7' height='3.6' rx='1.8' fill='white'/></svg>">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
+/* Values below are the shared/tokens.css family palette (design-utilities
+   repo) — the source of truth for ORCA/jobmap/priority-guide. Kept in sync
+   by hand; see that file's README for how to check for drift. */
 :root{
-  --ink:#101319; --dim:#525a67; --faint:#98a0ac;
+  --ink:#16181d; --dim:#6b7280; --faint:#9aa1ac;
   /* Two hairlines, neither of them ink. A near-black outline on white is what
      makes a spec read like a 2012 wireframe; containment comes from surface
      and edge-light instead. */
-  --line:rgba(16,19,25,.085); --line-2:rgba(16,19,25,.15);
-  --hover:rgba(16,19,25,.045); --tint:rgba(16,19,25,.032);
-  --r-sm:6px; --r-md:9px; --r-lg:14px;
-  --sheet:0 0 0 1px var(--line), 0 1px 2px rgba(16,19,25,.04),
-    0 14px 34px -22px rgba(16,19,25,.30);
-  --bg:#f3f4f6; --panel:#fff; --accent:#2563eb; --accent-soft:rgba(37,99,235,.10);
-  --ok:#177245; --warn:#9a6700; --none:#8a8f98; --flag:#b8541f; --act:#b3261e;
+  --line:rgba(16,18,22,.11); --line-2:rgba(16,18,22,.2);
+  --bg:#f6f7f9; --panel:#fff; --accent:#2563eb; --accent-soft:rgba(37,99,235,.10);
+  --on-accent:#fff;
+  --ok:#177245; --ok-soft:rgba(23,114,69,.11); --on-ok:#fff;
+  --warn:#9a6700; --warn-soft:rgba(154,103,0,.11);
+  --danger:#d0342c; --danger-soft:rgba(208,52,44,.09);
+  --none:#8a8f98; --flag:#b8541f; --act:#b3261e;
+  --t-micro:11px; --t-small:12.5px; --t-body:13.5px; --t-ui:14px;
+  --t-title:16px; --t-lede:17px; --t-display:28px; --t-hero:38px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:28px; --s7:96px;
+  --radius:10px; --radius-sm:7px;
   --ease:cubic-bezier(.22,.61,.36,1);
+  --shadow-sm:0 1px 2px rgba(16,18,22,.04), 0 14px 34px -22px rgba(16,18,22,.30);
+  --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* priority-guide-only, not in shared/tokens.css: --r-sm/md/lg collapsed
+     into --radius/--radius-sm above; --sheet's shadow portion is now
+     --shadow-sm (its call site adds the --line ring back explicitly).
+     --hover/--tint have no shared-family equivalent yet, so they stay. */
+  --hover:rgba(16,19,25,.045); --tint:rgba(16,19,25,.032);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -137,7 +152,7 @@ body.present #minimap,body.is-paired #minimap{display:none}
    edge of the window is a status bar, and this is a set of tools. */
 #palette{flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;
   margin:0 auto 16px;width:max-content;max-width:calc(100% - 40px);
-  border-radius:16px;background:var(--panel);box-shadow:var(--sheet);overflow-x:auto}
+  border-radius:16px;background:var(--panel);box-shadow:0 0 0 1px var(--line),var(--shadow-sm);overflow-x:auto}
 #palette .lbl{color:var(--faint);font-size:11.5px;white-space:nowrap;margin-right:6px;flex:none}
 .ptool{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:10px;
   border:1px solid var(--line);background:var(--panel);color:var(--dim);font-size:12px;
@@ -225,20 +240,20 @@ body.present .gzoom{max-width:1360px}
 .cell{grid-column:2;background:var(--panel);padding:0 14px;display:flex;flex-direction:column;
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line),
     -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22)}
-.cell.top{padding-top:16px;border-radius:var(--r-lg) var(--r-lg) 0 0;
+.cell.top{padding-top:16px;border-radius:var(--radius) var(--radius) 0 0;
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 -1px 0 var(--line),
     -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22),
     0 -8px 20px -16px rgba(16,19,25,.24)}
-.cell.bot{padding-bottom:16px;border-radius:0 0 var(--r-lg) var(--r-lg);
+.cell.bot{padding-bottom:16px;border-radius:0 0 var(--radius) var(--radius);
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 1px 0 var(--line),
     -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22),
     0 10px 24px -18px rgba(16,19,25,.28)}
 .cell.gap{height:12px}
 .band{background:var(--tint);padding:0 13px;flex:1;display:flex;flex-direction:column;
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line)}
-.band.open{padding-top:13px;border-radius:var(--r-md) var(--r-md) 0 0;
+.band.open{padding-top:13px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 -1px 0 var(--line)}
-.band.close{padding-bottom:13px;border-radius:0 0 var(--r-md) var(--r-md);
+.band.close{padding-bottom:13px;border-radius:0 0 var(--radius-sm) var(--radius-sm);
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 1px 0 var(--line)}
 .band > *{margin-bottom:7px}
 .band.close > *:last-child{margin-bottom:0}
@@ -249,13 +264,13 @@ body.present .gzoom{max-width:1360px}
    a table of contents from 1994. */
 .lead{flex:none;width:22px;border-top:1px solid var(--line-2);margin-top:16px;
   transition:border-color .12s var(--ease)}
-.lane.rowhot{background:var(--hover);border-radius:var(--r-md)}
+.lane.rowhot{background:var(--hover);border-radius:var(--radius-sm)}
 .rowhot .lead{border-color:var(--accent)}
 
 /* ---------- one row in the stack ---------- */
 .item{padding:2px 0;position:relative}
 .item .box{cursor:grab;border:1px solid var(--line-2);background:var(--panel);
-  border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px;min-height:32px;
+  border-radius:var(--radius-sm);padding:6px 10px;display:flex;align-items:center;gap:8px;min-height:32px;
   transition:border-color .12s var(--ease),box-shadow .12s var(--ease)}
 .item .box:hover{border-color:rgba(16,19,25,.26);box-shadow:0 1px 3px rgba(16,19,25,.07)}
 .boxin{flex:1;min-width:0}
@@ -267,7 +282,7 @@ body.present .gzoom{max-width:1360px}
 
 /* A visual stands for something that will take up room on the screen, so it
    takes up room here. Reading the stack should tell you its shape. */
-.item.visual .box{border-style:dashed;border-color:var(--line-2);border-radius:var(--r-md);
+.item.visual .box{border-style:dashed;border-color:var(--line-2);border-radius:var(--radius-sm);
   color:var(--dim);min-height:82px;padding:14px;gap:11px;
   background:repeating-linear-gradient(-45deg,transparent,transparent 8px,
     rgba(16,19,25,.026) 8px,rgba(16,19,25,.026) 16px)}
@@ -278,12 +293,12 @@ body.present .gzoom{max-width:1360px}
    same size and the data was the fainter of the two, which put the least
    contrast on the column that earns the artifact. */
 .lbl{flex:1;min-width:0;font-size:13px;font-weight:500;line-height:1.4;overflow-wrap:anywhere;
-  padding:1px 4px;margin-left:-4px;border-radius:var(--r-sm)}
+  padding:1px 4px;margin-left:-4px;border-radius:var(--radius-sm)}
 .lbl:hover{background:var(--hover)}
 .lbl:focus{outline:none;background:var(--accent-soft)}
 .lbl .unk{color:var(--flag);font-weight:500}
 .eg{font-size:12px;color:var(--dim);line-height:1.45;margin-top:3px;padding:1px 4px;
-  margin-left:-4px;border-radius:var(--r-sm);overflow-wrap:anywhere;
+  margin-left:-4px;border-radius:var(--radius-sm);overflow-wrap:anywhere;
   font-variant-numeric:tabular-nums}
 .eg:hover{background:var(--hover)}
 .eg:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
@@ -298,7 +313,7 @@ body.present .gzoom{max-width:1360px}
 
 /* ---------- notes, on the left ---------- */
 .notes{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:1;min-width:0}
-.note{border:1px solid var(--line);background:var(--panel);border-radius:var(--r-md);
+.note{border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-sm);
   box-shadow:0 1px 2px rgba(16,19,25,.035);
   padding:3px 7px;font-size:11px;line-height:1.4;color:var(--dim);
   display:flex;gap:6px;align-items:flex-start;max-width:100%}
@@ -344,7 +359,7 @@ body.present .gzoom{max-width:1360px}
    touching it — but as a mark, not as a dashed pill on every row. Nineteen
    blocks meant thirty-eight of them, and that is most of what read as grey. */
 .slot,.fn.asslot{display:inline-flex;align-items:center;gap:0;font-size:10.5px;
-  color:var(--faint);padding:4px;border-radius:var(--r-md);border:1px dashed transparent;
+  color:var(--faint);padding:4px;border-radius:var(--radius-sm);border:1px dashed transparent;
   background:transparent;white-space:nowrap;line-height:1;cursor:pointer;opacity:.3;
   transition:opacity .12s var(--ease),color .12s var(--ease),border-color .12s var(--ease)}
 .slot svg,.fn.asslot svg{color:var(--faint);flex:none}
@@ -488,7 +503,7 @@ body.present .gzoom{max-width:1360px}
 #railL .g-item .more ~ .cn,#railL .g-item.on .cn{right:8px}
 
 .markers{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;margin-bottom:12px;
-  border:1px solid var(--line);border-radius:var(--r-md);color:var(--dim);font-size:12px;
+  border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--dim);font-size:12px;
   background:var(--panel)}
 .markers .l{flex:1;text-align:left}
 .markers svg{color:var(--faint);flex:none}
@@ -518,7 +533,7 @@ body.present .gzoom{max-width:1360px}
   color:var(--faint);margin-bottom:8px}
 .cgroup{margin-bottom:14px}
 .cg-h{display:flex;align-items:baseline;gap:6px;width:100%;text-align:left;font-size:12px;
-  font-weight:600;color:var(--ink);padding:4px 6px;margin:0 -6px 4px;border-radius:var(--r-sm);
+  font-weight:600;color:var(--ink);padding:4px 6px;margin:0 -6px 4px;border-radius:var(--radius-sm);
   line-height:1.35}
 .cg-h .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cg-h .o{flex:none;font-size:10px;font-weight:700;color:var(--accent);
@@ -529,7 +544,7 @@ body.present .gzoom{max-width:1360px}
 .cgroup.orphan .tc{opacity:.75}
 
 .sec-title{font-size:13px;font-weight:600;letter-spacing:-.005em;text-align:center;margin:0;
-  padding:2px 6px;border-radius:var(--r-sm)}
+  padding:2px 6px;border-radius:var(--radius-sm)}
 .sec-title:hover{background:var(--hover)}
 .sec-title:focus{outline:none;background:var(--accent-soft)}
 .sec-note{font-size:11px;color:var(--dim);text-align:center;font-style:italic;line-height:1.4;
@@ -542,7 +557,7 @@ body.present .gzoom{max-width:1360px}
 .sub-t{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--dim);text-align:center;padding:1px 4px;border-radius:4px}
 .sub-t:focus{outline:none;background:var(--accent-soft)}
-.ref{border:1px dashed var(--line-2);border-radius:var(--r-sm);padding:8px 11px;font-size:11.5px;
+.ref{border:1px dashed var(--line-2);border-radius:var(--radius-sm);padding:8px 11px;font-size:11.5px;
   color:var(--dim);text-align:center;line-height:1.45}
 .ref:focus{outline:none;background:var(--accent-soft)}
 .raw-table{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -4508,10 +4523,11 @@ render = function () { baseRender(); syncNames(); };
 // ---------------------------------------------------------------- boot
 (async function boot() {
   if (typeof window.showDirectoryPicker !== 'function') {
-    $('stage').innerHTML = '<div class="hello"><h1>Chromium only</h1>'
-      + '<p>priority guide reads and writes a folder on your machine using the '
-      + 'File System Access API, which exists in Chrome, Edge, Arc and Brave.<br>'
-      + 'Open <b>http://localhost:8044</b> in one of those.</p></div>';
+    banner('err', '<b>This browser cannot open local folders.</b> Use Chrome, Edge, Arc or Brave.');
+    return;
+  }
+  if (location.protocol === 'file:') {
+    banner('err', '<b>Opened as a file, not over http.</b> Run <code>./serve.sh</code> and open <code>http://localhost:8044</code>.');
     return;
   }
   const saved = await kvGet('folder');
