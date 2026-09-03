@@ -855,9 +855,42 @@ ok('the two panes sit side by side, the same height',
     return b.length === 2 && b[0].x < b[1].x && Math.abs(b[0].height - b[1].height) < 4;
   }));
 
+// ---------------------------------------------------------------- closing lives on the design side
+ok('the close control sits in the Figma pane\'s header',
+  await page.evaluate(() => {
+    const rightHead = document.querySelectorAll('.bside')[1].querySelector('.bhead');
+    return rightHead.querySelector('.bclose') !== null
+      && rightHead.querySelector('.bclose').textContent.trim() === 'Close';
+  }));
+ok('not the guide\'s', await page.evaluate(() =>
+  document.querySelectorAll('.bside')[0].querySelector('.bhead').querySelector('.bclose') === null));
+
+// ---------------------------------------------------------------- the split can be resized
+const leftWidthBefore = await page.$eval('.bside', (n) => n.getBoundingClientRect().width);
+const divider = await page.$eval('.bdrag', (n) => {
+  const r = n.getBoundingClientRect();
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+});
+await page.mouse.move(divider.x, divider.y);
+await page.mouse.down();
+await page.mouse.move(divider.x + 130, divider.y, { steps: 8 });
+await page.mouse.up();
+await page.waitForTimeout(200);
+const leftWidthAfter = await page.$eval('.bside', (n) => n.getBoundingClientRect().width);
+ok('dragging the divider resizes the guide pane',
+  leftWidthAfter > leftWidthBefore + 20,
+  `before ${leftWidthBefore} after ${leftWidthAfter}`);
+
+await page.click('.bclose');
+await page.waitForTimeout(400);
+ok('and the close button closes the beside view',
+  await page.$('.beside') === null && (await gcount('.item')) > 5);
+
+await page.click('.sidebyside');
+await page.waitForTimeout(600);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
-ok('escape comes back to the guide', await page.$('.beside') === null && (await gcount('.item')) > 5);
+ok('escape still comes back to the guide', await page.$('.beside') === null && (await gcount('.item')) > 5);
 
 // ---------------------------------------------------------------- every panel belongs to its guide
 const showPanel = async (label) => {
@@ -924,11 +957,27 @@ ok('renaming a design writes the source\'s own name',
   (await current()).includes('"Week view — v3"'));
 ok('and the panel shows it', (await dTitles()).includes('Week view — v3'));
 
+// ---------------------------------------------------------------- unlinking asks first
 const beforeUnlink = await dTitles();
 await page.evaluate(() => document.querySelector('.dcard .x').click());
+await page.waitForSelector('.dialog', { timeout: 4000 });
+ok('unlinking asks before doing anything', (await dTitles()).length === beforeUnlink.length);
+ok('the confirm names the design being unlinked',
+  (await text('.dialog h2')).includes(beforeUnlink[0]));
+
+await page.evaluate(() => [...document.querySelectorAll('.dialog .dfoot .btn')]
+  .find((b) => b.textContent === 'Cancel').click());
+await page.waitForTimeout(250);
+eq('cancel leaves the link untouched', (await dTitles()).length, beforeUnlink.length);
+ok('and the dialog is gone', await page.$('.dialog') === null);
+
+await page.evaluate(() => document.querySelector('.dcard .x').click());
+await page.waitForSelector('.dialog', { timeout: 4000 });
+await page.evaluate(() => [...document.querySelectorAll('.dialog .dfoot .btn')]
+  .find((b) => b.textContent === 'Unlink').click());
 await page.waitForTimeout(300);
-eq('one click unlinks a design', (await dTitles()).length, beforeUnlink.length - 1);
-ok('with a way back', await page.$('.toast button') !== null);
+eq('confirming unlinks the design', (await dTitles()).length, beforeUnlink.length - 1);
+ok('with a way back, as a second net', await page.$('.toast button') !== null);
 await page.evaluate(() => [...document.querySelectorAll('.toast button')]
   .find((x) => x.textContent === 'Undo').click());
 await page.waitForTimeout(300);
@@ -1651,6 +1700,55 @@ const dragged = await page.evaluate(() => {
   return { label, index: after.indexOf(label) };
 });
 eq('dragging a block lands it where it was dropped', dragged.index, 3);
+
+// ---------------------------------------------------------------- the right panel resizes, collapses, and remembers its shape
+// Last, because a reload throws away the in-memory document — every other
+// test that depends on edits made along the way has to run before this one.
+// A widened rail would also crowd the layout checks upstream, so this stays
+// self-contained at the end rather than leaving the rail resized mid-suite.
+const railWidthBefore = await page.$eval('#railR', (n) => n.getBoundingClientRect().width);
+const rdrag = await page.$eval('.rdrag', (n) => {
+  const r = n.getBoundingClientRect();
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+});
+await page.mouse.move(rdrag.x, rdrag.y);
+await page.mouse.down();
+await page.mouse.move(rdrag.x - 80, rdrag.y, { steps: 8 });
+await page.mouse.up();
+await page.waitForTimeout(250);
+const railWidthAfter = await page.$eval('#railR', (n) => n.getBoundingClientRect().width);
+ok('the right panel can be resized by dragging its left edge',
+  railWidthAfter > railWidthBefore + 50,
+  `before ${railWidthBefore} after ${railWidthAfter}`);
+
+await page.click('.rcollapse');
+await page.waitForTimeout(250);
+const collapsedWidth = await page.$eval('#railR', (n) => n.getBoundingClientRect().width);
+ok('collapsing the panel reclaims most of its width', collapsedWidth < 80, `width ${collapsedWidth}`);
+ok('and leaves an obvious way back open', await page.$('.rexpand') !== null);
+
+await page.click('.rexpand');
+await page.waitForTimeout(250);
+ok('expanding brings the panel straight back to the width it had',
+  Math.abs((await page.$eval('#railR', (n) => n.getBoundingClientRect().width)) - railWidthAfter) < 3);
+
+await page.reload();
+await page.waitForSelector('#stage');
+await page.click('.hello .btn.primary');
+await page.waitForSelector('.item', { timeout: 8000 });
+await page.waitForTimeout(300);
+ok('the panel\'s resized width survives a reload',
+  Math.abs((await page.$eval('#railR', (n) => n.getBoundingClientRect().width)) - railWidthAfter) < 3,
+  `expected ~${railWidthAfter}, got ${await page.$eval('#railR', (n) => n.getBoundingClientRect().width)}`);
+
+await page.click('.rcollapse');
+await page.waitForTimeout(250);
+await page.reload();
+await page.waitForSelector('#stage');
+await page.click('.hello .btn.primary');
+await page.waitForSelector('.item', { timeout: 8000 });
+await page.waitForTimeout(300);
+ok('and the collapsed state survives one too', await page.$('.rexpand') !== null);
 
 // ---------------------------------------------------------------- no errors
 ok('no uncaught errors anywhere in the session', errors.length === 0, errors.slice(0, 4).join('\n       '));
