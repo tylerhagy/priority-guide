@@ -34,7 +34,7 @@
      into --radius/--radius-sm above; --sheet's shadow portion is now
      --shadow-sm (its call site adds the --line ring back explicitly).
      --hover/--tint have no shared-family equivalent yet, so they stay. */
-  --hover:rgba(16,19,25,.045); --tint:rgba(16,19,25,.032);
+  --hover:rgba(16,18,22,.045); --tint:rgba(16,18,22,.032);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -4404,17 +4404,18 @@ document.addEventListener('keydown', (e) => {
 
 
   const k = e.key.toLowerCase();
-  if (k === 'p') { S.present = !S.present; S.editing = null; render(); }
-  else if (k === 'c') { toggleCapture(); }
-  else if (k === 's') { commitEditor(); S.view = 'source'; render(); }
-  else if (k === 'g') { commitEditor(); S.view = 'guide'; render(); }
-  else if (k === 'f') { commitEditor(); S.view = 'flow'; render(); }
-  else if (k === 'u') { commitEditor(); S.view = 'users'; render(); }
-  else if (k === 'o') { commitEditor(); S.view = 'open'; render(); }
+  const mod = e.metaKey || e.ctrlKey || e.altKey;
+  if (!mod && k === 'p') { S.present = !S.present; S.editing = null; render(); }
+  else if (!mod && k === 'c') { toggleCapture(); }
+  else if (!mod && k === 's') { commitEditor(); S.view = 'source'; render(); }
+  else if (!mod && k === 'g') { commitEditor(); S.view = 'guide'; render(); }
+  else if (!mod && k === 'f') { commitEditor(); S.view = 'flow'; render(); }
+  else if (!mod && k === 'u') { commitEditor(); S.view = 'users'; render(); }
+  else if (!mod && k === 'o') { commitEditor(); S.view = 'open'; render(); }
   else if ((e.metaKey || e.ctrlKey) && (k === '=' || k === '+')) { e.preventDefault(); stepZoom(1); }
   else if ((e.metaKey || e.ctrlKey) && k === '-') { e.preventDefault(); stepZoom(-1); }
   else if ((e.metaKey || e.ctrlKey) && k === '0') { e.preventDefault(); setZoom(1); renderPageHead(); }
-  else if (k === 'k') {
+  else if (!mod && k === 'k') {
     // Comments live on a guide, so K goes there — and shows the markers, since
     // asking for comments and not seeing them on the page is never the intent.
     if (S.view !== 'guide') S.view = 'guide';
