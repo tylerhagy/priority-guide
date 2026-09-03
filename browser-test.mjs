@@ -101,8 +101,10 @@ const save = async () => {
   await page.keyboard.down('Meta'); await page.keyboard.press('s'); await page.keyboard.up('Meta');
   await page.waitForTimeout(400);
   // A save that does not settle means the app refused it or never heard it.
-  const st = await page.$eval('#save', (n) => n.textContent.trim());
-  ok(`save ${saveNo} settles`, st === 'Saved' || st === 'Read-only', `button says "${st}"`);
+  // Saved is quiet now — the button disappears rather than announcing itself —
+  // so "settled" means gone, unless the file is read-only.
+  const st = await page.$eval('#save', (n) => ({ text: n.textContent.trim(), hidden: getComputedStyle(n).display === 'none' }));
+  ok(`save ${saveNo} settles`, st.hidden || st.text === 'Read-only', `button says "${st.text}", hidden=${st.hidden}`);
 };
 /** Click the item whose label contains this text. */
 const pick = (needle) => page.evaluate((s) => {
@@ -702,7 +704,9 @@ ok('a visual block is bigger than a line of text, because it stands for somethin
   }));
 
 // ---------------------------------------------------------------- saving is legible
-ok('the save button says what state it is in', (await text('#save')).includes('Saved'));
+ok('the clean state is quiet: no save button, no dirty mark on the filename',
+  await page.evaluate(() => getComputedStyle(document.getElementById('save')).display === 'none'
+    && !document.getElementById('file').textContent.includes('·')));
 await pick('Status');
 await page.waitForTimeout(200);
 await typeInto('.rowsel .lbl', 'Status of it');
@@ -710,7 +714,12 @@ ok('and changes to an unmistakable one when there is something to save',
   (await text('#save')).includes('Save') && (await text('#save')).includes('⌘S'));
 ok('which is the only primary button on the bar',
   await page.$eval('#save', (n) => n.className.includes('primary')));
+ok('the filename itself picks up the dirty mark',
+  (await text('#file')).includes('·'));
 await save();
+ok('and saving takes both the button and the dot away again',
+  await page.evaluate(() => getComputedStyle(document.getElementById('save')).display === 'none'
+    && !document.getElementById('file').textContent.includes('·')));
 await pick('Status of it');
 await page.waitForTimeout(200);
 await typeInto('.rowsel .lbl', 'Status');
@@ -1594,7 +1603,7 @@ const titleSize = await page.evaluate(() =>
 await pressAt('#stage', 8, 300);
 await page.keyboard.press('p');
 await page.waitForTimeout(250);
-eq('the present button becomes the way out', await text('#present'), 'Exit');
+eq('the present button label flips to Exit', await text('#present'), 'Exit');
 eq('the guide title is the same size wherever you are',
   await page.evaluate(() => getComputedStyle(document.querySelector('#pagehead h1')).fontSize),
   titleSize);
@@ -1607,7 +1616,11 @@ ok('but the page header stays, so the room knows which screen this is',
 ok('the stack gets wider for a shared screen',
   await page.evaluate(() => document.querySelector('.cell').getBoundingClientRect().width > 360));
 ok('the content is still all there', (await gcount('.item')) > 5);
-await page.click('#present');
+ok('and the whole header, not just the rails and tabs, is out of the room',
+  await page.evaluate(() => getComputedStyle(document.getElementById('bar')).display === 'none'));
+// The present button lives in that hidden header, so Escape is now the only
+// way out — matching the family's present mode, which hides all chrome.
+await page.keyboard.press('Escape');
 await page.waitForTimeout(250);
 eq('and it goes back to Present', await text('#present'), 'Present');
 

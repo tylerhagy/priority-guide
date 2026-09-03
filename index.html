@@ -68,9 +68,7 @@ a:hover{text-decoration:underline}
 .btn.on:hover{background:var(--ink);filter:brightness(1.35)}
 .btn.primary{background:var(--accent);color:#fff}
 .btn.save{display:inline-flex;align-items:center;gap:6px}
-.btn.save svg{color:var(--ok)}
 .btn.save[disabled]{opacity:1;color:var(--faint)}
-.btn.save .dot{width:6px;height:6px;border-radius:99px;background:#fff;opacity:.9;flex:none}
 .btn.save .kbd{font-size:10.5px;opacity:.7;font-variant-numeric:tabular-nums}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn[disabled]{opacity:.4;pointer-events:none}
@@ -171,7 +169,8 @@ body.present #minimap,body.is-paired #minimap{display:none}
 body.dragging .item{cursor:grabbing}
 
 /* ---------- bottom toolbar: the creator tools ---------- */
-body.present #railL,body.present #railR,body.present #palette{display:none}
+body.present #bar,body.present #railL,body.present #railR,body.present #palette{display:none}
+body.present main{height:100%}
 body.present #pagehead{padding:22px 30px 16px}
 body.present #stage{padding:30px 30px 90px}
 body.present{font-size:15px}
@@ -477,7 +476,7 @@ body.present .gzoom{max-width:1360px}
 
 /* ---------- functionality popover ---------- */
 .pop{position:fixed;z-index:20;background:var(--panel);border:1px solid var(--line);
-  border-radius:11px;box-shadow:0 8px 30px rgba(0,0,0,.14);padding:12px}
+  border-radius:11px;box-shadow:var(--shadow-sm);padding:12px}
 .fnpop{width:266px;display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px 9px;
   align-items:center}
 .pop label{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
@@ -819,11 +818,9 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
 
 /* ---------- empty state ---------- */
 .hello{max-width:520px;margin:14vh auto 0;text-align:center}
+.hello .btn.primary{height:28px;padding:0 11px;display:inline-flex;align-items:center;justify-content:center}
 .hello h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0 0 10px}
 .hello p{color:var(--dim);line-height:1.65;margin:0 0 22px}
-.hello .keys{margin-top:34px;color:var(--faint);font-size:12.5px;line-height:2}
-.hello kbd{font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--hover);
-  border-radius:5px;padding:2px 6px;margin:0 2px}
 </style>
 
 <div id="bar">
@@ -1279,27 +1276,28 @@ function renderUserBar() {
 }
 
 function renderBar() {
-  $('save').style.display = S.doc ? '' : 'none';
   $('tabs').style.display = S.doc && !S.present ? '' : 'none';
   const f = $('file');
   f.innerHTML = '';
   f.appendChild(icon('folder', 13));
-  f.appendChild(el('span', null, S.file ? S.file.name : (S.dir ? S.dir.name : '')));
+  f.appendChild(el('span', null, S.file ? S.file.name + (S.dirty ? ' ·' : '') : (S.dir ? S.dir.name : '')));
   $('file').style.display = S.dir ? '' : 'none';
   const sv = $('save');
   sv.disabled = !S.dirty || S.readOnly;
   sv.className = 'btn save' + (S.dirty && !S.readOnly ? ' primary' : '');
   sv.innerHTML = '';
-  if (S.readOnly) sv.textContent = 'Read-only';
-  else if (S.dirty) {
-    sv.appendChild(el('span', 'dot'));
+  // Saved is the quiet default — the dot on the filename carries that state,
+  // so the button itself only shows up when there is something to say.
+  if (S.readOnly) {
+    sv.style.display = S.doc && !S.present ? '' : 'none';
+    sv.textContent = 'Read-only';
+  } else if (S.dirty) {
+    sv.style.display = S.doc && !S.present ? '' : 'none';
     sv.appendChild(el('span', null, 'Save'));
     sv.appendChild(el('span', 'kbd', '⌘S'));
     sv.title = 'Unsaved changes — write them to the file';
   } else {
-    sv.appendChild(icon('tick', 12));
-    sv.appendChild(el('span', null, 'Saved'));
-    sv.title = 'Everything is written to the file';
+    sv.style.display = 'none';
   }
   $('present').classList.toggle('on', S.present);
   $('present').textContent = S.present ? 'Exit' : 'Present';
@@ -1311,7 +1309,6 @@ function renderBar() {
   if (!S.doc) return;
   // In a room, the only things worth showing are the guide and what is still open.
   tabs.style.display = S.present || !S.doc ? 'none' : '';
-  $('save').style.display = S.present ? 'none' : '';
   $('file').style.display = S.present || !S.dir ? 'none' : '';
   for (const [k, label] of [['guide', 'Guide'], ['flow', 'Flow'], ['users', 'Users'], ['open', 'Open'], ['source', 'Source']]) {
     const b = el('button', S.view === k ? 'on' : '', label);
@@ -1348,9 +1345,6 @@ function renderHello() {
     }
     w.appendChild(list);
   }
-  w.appendChild(el('div', 'keys')).innerHTML =
-    '<kbd>P</kbd> present &nbsp; <kbd>C</kbd> capture &nbsp; <kbd>U</kbd> users'
-    + ' &nbsp; <kbd>⌥↑</kbd><kbd>⌥↓</kbd> move a block &nbsp; <kbd>⏎</kbd> add below';
   $('stage').innerHTML = '';
   $('stage').appendChild(w);
 }
