@@ -184,6 +184,7 @@ body.present .sec-title{font-size:15.5px}
   color:var(--dim);line-height:1.35;position:relative;cursor:pointer}
 .g-item:hover{background:var(--hover);color:var(--ink)}
 .g-item.on{background:var(--accent-soft);color:var(--ink)}
+.g-item.on:hover{background:#dbe6fb;color:var(--ink)}
 .g-item .n{font-weight:500;display:block;padding:1px 3px;margin-left:-3px;border-radius:4px}
 .g-item .n:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
 .gmore{position:absolute;right:5px;top:5px;padding-left:12px;
@@ -857,6 +858,21 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   </div>
 </div>
 
+<!-- Plain, non-module script: runs before the module below is even parsed.
+     Chromium blocks ES module imports over the file: origin (CORS), so the
+     module's own boot()/file:// check never gets a chance to run when this
+     page is opened by double-clicking it. This check has no dependency on
+     the module loading, so it can still show the explanation. -->
+<script>
+(function () {
+  if (location.protocol === 'file:') {
+    document.body.innerHTML =
+      '<div id="banners"><div class="banner err" style="border-bottom:none">' +
+      '<b>Opened as a file, not over http.</b> Run <code>./serve.sh</code> and open ' +
+      '<code>http://localhost:8044</code>.</div></div>';
+  }
+})();
+</script>
 <script type="module">
 import {
   parseDocument, serializeDocument, verifyRoundTrip,
