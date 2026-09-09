@@ -2173,6 +2173,56 @@ if (process.env.SHOTS) {
   console.log('  screenshots/guide.png, screenshots/panel-tabs.png');
 }
 
+// ------------------------------------------------------- the single-file build
+/*
+ * The app needs the File System Access API, and file:// is a secure context in
+ * Chrome, so showDirectoryPicker is there. The one thing that does not work
+ * over file:// is importing an ES module — which is the only reason a local
+ * server was ever needed. build.mjs folds parser.js in, and this checks the
+ * result actually boots, so the double-clickable copy cannot rot silently the
+ * next time index.html changes.
+ */
+{
+  const { execFileSync } = await import('node:child_process');
+  execFileSync(process.execPath, [path.join(HERE, 'build.mjs')], { cwd: HERE });
+  const one = path.join(HERE, 'priority-guide.html');
+  ok('the build produces a single file', readFileSync(one, 'utf8').length > 100000);
+
+  const page2 = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const errs2 = [];
+  page2.on('pageerror', (e) => errs2.push(e.message));
+  page2.on('console', (m) => { if (m.type() === 'error') errs2.push(m.text()); });
+  await page2.addInitScript((text) => {
+    const store = { 'Priority Guides.md': text };
+    const fh = (name) => ({ kind: 'file', name,
+      getFile: async () => ({ text: async () => store[name] }),
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      createWritable: async () => ({ write: async (t) => { store[name] = t; window.__written = t; },
+        close: async () => {} }) });
+    window.showDirectoryPicker = async () => ({ kind: 'directory', name: 'Priority Guides',
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      entries: async function* () { for (const n of Object.keys(store)) yield [n, fh(n)]; } });
+  }, FILE);
+  await page2.goto('file://' + one);
+  await page2.waitForSelector('#stage');
+  ok('it boots over file:// with no server at all',
+    await page2.$eval('body', (n) => !/serve\.sh|localhost:8044/i.test(n.textContent)));
+  await page2.click('.hello .btn.primary');
+  await page2.waitForSelector('.item', { timeout: 9000 });
+  await page2.waitForTimeout(400);
+  ok('and renders the guides',
+    (await page2.$$eval('#railL .g-item', (n) => n.length)) > 1);
+  ok('and draws one card per section',
+    (await page2.$$eval('#stage .paper', (n) => n.length)) > 0);
+  await page2.keyboard.down('Meta'); await page2.keyboard.press('s'); await page2.keyboard.up('Meta');
+  await page2.waitForTimeout(400);
+  ok('and writes the file back',
+    await page2.evaluate(() => typeof window.__written === 'string'
+      && window.__written.startsWith('# Priority Guides')));
+  ok('with no errors on the way', errs2.length === 0, errs2.slice(0, 3).join(' | '));
+  await page2.close();
+}
+
 await browser.close();
 server.kill();
 
