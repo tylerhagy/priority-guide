@@ -11,30 +11,108 @@
    repo) — the source of truth for ORCA/jobmap/priority-guide. Kept in sync
    by hand; see that file's README for how to check for drift. */
 :root{
-  --ink:#16181d; --dim:#6b7280; --faint:#9aa1ac;
-  /* Two hairlines, neither of them ink. A near-black outline on white is what
-     makes a spec read like a 2012 wireframe; containment comes from surface
-     and edge-light instead. */
-  --line:rgba(16,18,22,.11); --line-2:rgba(16,18,22,.2);
-  --bg:#f6f7f9; --panel:#fff; --accent:#2563eb; --accent-soft:rgba(37,99,235,.10);
-  --on-accent:#fff;
-  --ok:#177245; --ok-soft:rgba(23,114,69,.11); --on-ok:#fff;
-  --warn:#9a6700; --warn-soft:rgba(154,103,0,.11);
-  --danger:#d0342c; --danger-soft:rgba(208,52,44,.09);
-  --none:#8a8f98; --flag:#b8541f; --act:#b3261e;
+  color-scheme:light;
+
+  /* ---- surfaces. Solid steps, not translucent washes over near-white. A wash
+     is why every boundary read as a slightly different grey: two of them
+     overlapping make a third value nobody chose. ---- */
+  --bg:#f4f5f7;          /* the ground the paper sits on */
+  --panel:#ffffff;       /* paper: the card, the rails, a popover */
+  --surface-2:#f0f1f4;   /* a section's own ground, a lane ground, a well */
+  --surface-3:#e7e9ee;   /* pressed, or a header inside paper */
+
+  /* ---- text. Three steps, spread far enough apart to be three. ---- */
+  --ink:#14161b; --dim:#5b6470; --faint:#8b939f;
+
+  /* ---- edges. Two, both tokenised, so a dark theme can invert them. ---- */
+  --line:#e2e5ea; --line-2:#c9ced7;
+
+  /* ---- one elevation, painted once, on one element. ---- */
+  --shadow-card:0 1px 2px rgba(20,22,27,.05), 0 12px 28px -18px rgba(20,22,27,.22);
+  --shadow-pop:0 8px 28px -8px rgba(20,22,27,.28);
+  /* Shadows need translucency, so they stay rgba rather than referring to a
+     surface token. Naming them here keeps them themeable anyway. */
+  --shadow-1:0 1px 2px rgba(20,22,27,.08);
+  --shadow-2:0 1px 3px rgba(20,22,27,.10);
+  --shadow-toast:0 6px 24px rgba(20,22,27,.18);
+  --shadow-palette:0 -6px 24px rgba(20,22,27,.07);
+  --shadow-sm:0 1px 2px rgba(20,22,27,.05), 0 14px 34px -22px rgba(20,22,27,.28);
+
+  /* ---- interaction. Blue means "you can act on this" and nothing else: a
+     link, the focus ring, the selected row. It never reports content. ---- */
+  --accent:#2563eb; --accent-soft:#eaf1fe; --accent-line:#b9d0fb;
+  --accent-ink:#1b3f8f; --on-accent:#fff;
+
+  /* ---- content state. The only colour in the guide body, and it answers one
+     question: has this been answered? Two values, nothing else. ---- */
+  --unanswered:#8a5a00; --unanswered-soft:#fdf6e8; --unanswered-line:#ebd9ae;
+  --action:#a8271f;     --action-soft:#fdf1ef;    --action-line:#f0cdc7;
+
+  /* ---- neutral interface feedback. No hue. ---- */
+  --hover:#eceef2; --tint:#f7f8fa; --press:#e2e5ea;
+
+  /* ---- kept for non-guide chrome: banners, toggles, destructive buttons ---- */
+  --ok:#177245; --ok-soft:#e8f3ec; --on-ok:#fff;
+  --warn:#8a5a00; --warn-soft:#fdf6e8;
+  --danger:#b3261e; --danger-soft:#fdf1ef;
+  --none:#8b939f; --flag:var(--unanswered); --act:var(--action);
+  --scrim:rgba(20,22,27,.34);
+
   --t-micro:11px; --t-small:12.5px; --t-body:13.5px; --t-ui:14px;
   --t-title:16px; --t-lede:17px; --t-display:28px; --t-hero:38px;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:28px; --s7:96px;
   --radius:10px; --radius-sm:7px;
   --ease:cubic-bezier(.22,.61,.36,1);
-  --shadow-sm:0 1px 2px rgba(16,18,22,.04), 0 14px 34px -22px rgba(16,18,22,.30);
   --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 
-  /* priority-guide-only, not in shared/tokens.css: --r-sm/md/lg collapsed
-     into --radius/--radius-sm above; --sheet's shadow portion is now
-     --shadow-sm (its call site adds the --line ring back explicitly).
-     --hover/--tint have no shared-family equivalent yet, so they stay. */
-  --hover:rgba(16,18,22,.045); --tint:rgba(16,18,22,.032);
+/* Dark is the same set of decisions with the surfaces inverted and the two
+   state colours lifted so they still read as themselves on a dark ground.
+   Every value above is redefined here — none is left to inherit a light
+   value, which is what made a dark theme impossible before. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#14161a; --panel:#1c1f25; --surface-2:#23272e; --surface-3:#2b3038;
+    --ink:#e9ebef; --dim:#a2abb7; --faint:#727c89;
+    --line:#2e333b; --line-2:#454c57;
+    --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 12px 28px -18px rgba(0,0,0,.7);
+    --shadow-pop:0 10px 34px -8px rgba(0,0,0,.75);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.7);
+    --shadow-1:0 1px 2px rgba(0,0,0,.45); --shadow-2:0 1px 3px rgba(0,0,0,.5);
+    --shadow-toast:0 6px 24px rgba(0,0,0,.6); --shadow-palette:0 -6px 24px rgba(0,0,0,.45);
+    --accent:#6ea3ff; --accent-soft:#1d2a41; --accent-line:#2f4162;
+    --accent-ink:#c4d9ff; --on-accent:#0f1115;
+    --unanswered:#e0b45f; --unanswered-soft:#2d2716; --unanswered-line:#4a3f22;
+    --action:#f08d84;     --action-soft:#331d1b;    --action-line:#54302c;
+    --hover:#23272e; --tint:#1f232a; --press:#2b3038;
+    --ok:#5cc48a; --ok-soft:#16291f; --on-ok:#0f1115;
+    --warn:#e0b45f; --warn-soft:#2d2716;
+    --danger:#f08d84; --danger-soft:#331d1b;
+    --none:#727c89;
+    --scrim:rgba(0,0,0,.62);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#14161a; --panel:#1c1f25; --surface-2:#23272e; --surface-3:#2b3038;
+  --ink:#e9ebef; --dim:#a2abb7; --faint:#727c89;
+  --line:#2e333b; --line-2:#454c57;
+  --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 12px 28px -18px rgba(0,0,0,.7);
+  --shadow-pop:0 10px 34px -8px rgba(0,0,0,.75);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.7);
+  --shadow-1:0 1px 2px rgba(0,0,0,.45); --shadow-2:0 1px 3px rgba(0,0,0,.5);
+  --shadow-toast:0 6px 24px rgba(0,0,0,.6); --shadow-palette:0 -6px 24px rgba(0,0,0,.45);
+  --accent:#6ea3ff; --accent-soft:#1d2a41; --accent-line:#2f4162;
+  --accent-ink:#c4d9ff; --on-accent:#0f1115;
+  --unanswered:#e0b45f; --unanswered-soft:#2d2716; --unanswered-line:#4a3f22;
+  --action:#f08d84;     --action-soft:#331d1b;    --action-line:#54302c;
+  --hover:#23272e; --tint:#1f232a; --press:#2b3038;
+  --ok:#5cc48a; --ok-soft:#16291f; --on-ok:#0f1115;
+  --warn:#e0b45f; --warn-soft:#2d2716;
+  --danger:#f08d84; --danger-soft:#331d1b;
+  --none:#727c89;
+  --scrim:rgba(0,0,0,.62);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -61,12 +139,12 @@ a:hover{text-decoration:underline}
 .tabs{display:flex;gap:2px;background:var(--hover);padding:3px;border-radius:9px}
 .tabs button{padding:5px 12px;border-radius:7px;color:var(--dim);font-size:12.5px;font-weight:500;white-space:nowrap}
 .tabs button:hover{color:var(--ink)}
-.tabs button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tabs button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow-1)}
 .btn{padding:6px 11px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--dim);white-space:nowrap}
 .btn:hover{background:var(--hover);color:var(--ink)}
 .btn.on{background:var(--ink);color:var(--panel)}
 .btn.on:hover{background:var(--ink);filter:brightness(1.35)}
-.btn.primary{background:var(--accent);color:#fff}
+.btn.primary{background:var(--accent);color:var(--panel)}
 .btn.save{display:inline-flex;align-items:center;gap:6px}
 .btn.save[disabled]{opacity:1;color:var(--faint)}
 .btn.save .kbd{font-size:10.5px;opacity:.7;font-variant-numeric:tabular-nums}
@@ -81,11 +159,11 @@ a:hover{text-decoration:underline}
 /* ---------- banners ---------- */
 #banners{position:sticky;top:52px;z-index:5}
 .banner{padding:9px 16px;font-size:12.5px;border-bottom:1px solid var(--line)}
-.banner.err{background:#fdf1ef;color:#8a2d16}
-.banner.warn{background:#fdf8ec;color:#7a5b00}
-.banner.info{background:#eef4ff;color:#1b3f8f}
+.banner.err{background:var(--action-soft);color:var(--action)}
+.banner.warn{background:var(--unanswered-soft);color:var(--unanswered)}
+.banner.info{background:var(--accent-soft);color:var(--accent-ink)}
 .banner b{font-weight:600}
-.banner code{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(0,0,0,.05);padding:1px 4px;border-radius:4px}
+.banner code{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--hover);padding:1px 4px;border-radius:4px}
 .banner button{margin-left:10px;text-decoration:underline}
 
 /* ---------- layout ---------- */
@@ -114,12 +192,15 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
 .dmiss{padding:10px;font-size:11.5px;color:var(--faint);text-align:center}
 .bimg{overflow:auto;background:var(--hover);display:block}
 .bimg img{display:block;max-width:100%;height:auto;margin:0 auto}
+.btn.icon{padding:5px 7px;display:inline-flex;align-items:center}
+.btn.icon svg{color:var(--dim)}
+.btn.icon:hover svg{color:var(--ink)}
 .rminis{display:flex;flex-direction:column;gap:2px;margin-top:6px;align-items:center}
 .rmini{position:relative;color:var(--dim);padding:7px 6px;border-radius:7px;display:flex}
 .rmini:hover{background:var(--hover);color:var(--ink)}
 .rmini.on{color:var(--ink);background:var(--hover)}
 .rmini .b{position:absolute;top:1px;right:0;min-width:13px;height:13px;padding:0 3px;
-  border-radius:7px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;
+  border-radius:7px;background:var(--accent);color:var(--panel);font-size:9px;font-weight:700;
   line-height:13px;text-align:center;font-variant-numeric:tabular-nums}
 #mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
 #midrow{flex:1;display:flex;min-height:0;min-width:0}
@@ -144,10 +225,10 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
 .mshot{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
 /* Inset to the same edges as the picture, so the band reads as being on the
    document rather than across the column. */
-.mview{position:absolute;left:6px;right:2px;background:rgba(37,99,235,.11);
-  border-top:1px solid rgba(37,99,235,.45);border-bottom:1px solid rgba(37,99,235,.45);
+.mview{position:absolute;left:6px;right:2px;background:var(--accent-soft);
+  border-top:1px solid var(--accent);border-bottom:1px solid var(--accent);
   pointer-events:none;min-height:10px}
-#minimap:hover .mview{background:rgba(37,99,235,.2)}
+#minimap:hover .mview{background:var(--accent-line)}
 body.present #minimap,body.is-paired #minimap{display:none}
 /* And if it still cannot fit — a very narrow window, or zoomed in — it scrolls
    sideways rather than hiding under anything. */
@@ -212,12 +293,12 @@ body.present .sec-title{font-size:15.5px}
   color:var(--dim);line-height:1.35;position:relative;cursor:pointer}
 .g-item:hover{background:var(--hover);color:var(--ink)}
 .g-item.on{background:var(--accent-soft);color:var(--ink)}
-.g-item.on:hover{background:#dbe6fb;color:var(--ink)}
+.g-item.on:hover{background:var(--accent-line);color:var(--ink)}
 .g-item .n{font-weight:500;display:block;padding:1px 3px;margin-left:-3px;border-radius:4px}
 .g-item .n:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
 .gmore{position:absolute;right:5px;top:5px;padding-left:12px;
   background:linear-gradient(90deg,transparent,var(--panel) 40%)}
-.g-item.on .gmore{background:linear-gradient(90deg,transparent,#e7edfb 40%)}
+.g-item.on .gmore{background:linear-gradient(90deg,transparent,var(--accent-soft) 40%)}
 .g-item.dragging{opacity:.4}
 .g-item.dropat{box-shadow:inset 0 2px 0 var(--accent)}
 .g-item.dropafter{box-shadow:inset 0 -2px 0 var(--accent)}
@@ -231,7 +312,7 @@ body.present .sec-title{font-size:15.5px}
 .g-title{font-size:23px;font-weight:600;letter-spacing:-.02em;margin:0 0 3px;line-height:1.25}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:99px;
   font-size:11px;font-weight:500;white-space:nowrap;background:var(--hover);color:var(--dim)}
-.pill.dead{background:rgba(184,84,31,.12);color:var(--flag)}
+.pill.dead{background:var(--unanswered-soft);color:var(--flag)}
 
 /* ---------- the guide: three lanes ----------
    The middle is the guide itself — what each thing is called, and what its data
@@ -264,7 +345,7 @@ body.present .guide{grid-template-columns:minmax(150px,1.05fr) minmax(320px,1.5f
 .rctx dt{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
   color:var(--faint);padding-top:2px}
 .rctx dd{margin:0;font-size:13px;line-height:1.5;color:var(--ink)}
-.rctx dd.unknown{color:var(--faint)}
+.rctx dd.unknown{color:var(--unanswered)}
 .rctx-f{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline;margin-top:14px;
   padding-top:12px;border-top:1px solid var(--line)}
 .rctx-h{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
@@ -278,23 +359,20 @@ body.present .gzoom{max-width:1360px}
    annotates. The stack reads as one continuous column because each middle cell
    carries the side borders and the ends carry the caps. */
 .cell{grid-column:2;background:var(--panel);padding:0 14px;display:flex;flex-direction:column;
-  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line),
-    -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22)}
-.cell.top{padding-top:16px;border-radius:var(--radius) var(--radius) 0 0;
-  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 -1px 0 var(--line),
-    -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22),
-    0 -8px 20px -16px rgba(16,19,25,.24)}
-.cell.bot{padding-bottom:16px;border-radius:0 0 var(--radius) var(--radius);
-  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 1px 0 var(--line),
-    -20px 0 22px -22px rgba(16,19,25,.22), 20px 0 22px -22px rgba(16,19,25,.22),
-    0 10px 24px -18px rgba(16,19,25,.28)}
-.cell.gap{height:12px}
-.band{background:var(--tint);padding:0 13px;flex:1;display:flex;flex-direction:column;
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line)}
-.band.open{padding-top:13px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+.cell.top{padding-top:16px;border-radius:var(--radius) var(--radius) 0 0;
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 -1px 0 var(--line)}
-.band.close{padding-bottom:13px;border-radius:0 0 var(--radius-sm) var(--radius-sm);
+.cell.bot{padding-bottom:16px;border-radius:0 0 var(--radius) var(--radius);
   box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 1px 0 var(--line)}
+/* The break between two sections is not part of either card, so it draws
+   nothing — otherwise the side lines run on and the two read as one. */
+.cell.gap{height:14px;background:transparent;box-shadow:none}
+/* The band was a second framed container inside the first: four vertical
+   hairlines per row, 13px apart, over two backgrounds one step apart. It is
+   padding now, and the cell is the card. */
+.band{padding:0 13px;flex:1;display:flex;flex-direction:column}
+.band.open{padding-top:13px}
+.band.close{padding-bottom:13px}
 .band > *{margin-bottom:7px}
 .band.close > *:last-child{margin-bottom:0}
 .lane{display:flex;align-items:flex-start;min-height:1px;position:relative}
@@ -307,7 +385,7 @@ body.present .gzoom{max-width:1360px}
    on, so that is when it is drawn. */
 .lead{flex:none;width:22px;border-top:1px solid transparent;margin-top:16px;
   transition:border-color .12s var(--ease)}
-.lane.rowhot{background:var(--hover);border-radius:var(--radius-sm)}
+.lane.rowhot{background:var(--accent-soft);border-radius:var(--radius-sm)}
 .rowhot .lead,.rowsel .lead{border-color:var(--accent)}
 
 /* ---------- one row in the stack ---------- */
@@ -315,7 +393,7 @@ body.present .gzoom{max-width:1360px}
 .item .box{cursor:grab;border:1px solid var(--line-2);background:var(--panel);
   border-radius:var(--radius-sm);padding:6px 10px;display:flex;align-items:center;gap:8px;min-height:32px;
   transition:border-color .12s var(--ease),box-shadow .12s var(--ease)}
-.item .box:hover{border-color:rgba(16,19,25,.26);box-shadow:0 1px 3px rgba(16,19,25,.07)}
+.item .box:hover{border-color:var(--line-2);box-shadow:var(--shadow-2)}
 .boxin{flex:1;min-width:0}
 .item.plain .box,.item.linky .box{border-color:transparent;background:transparent;
   padding:4px 4px 4px 3px;min-height:26px}
@@ -328,7 +406,7 @@ body.present .gzoom{max-width:1360px}
 .item.visual .box{border-style:dashed;border-color:var(--line-2);border-radius:var(--radius-sm);
   color:var(--dim);min-height:82px;padding:14px;gap:11px;
   background:repeating-linear-gradient(-45deg,transparent,transparent 8px,
-    rgba(16,19,25,.026) 8px,rgba(16,19,25,.026) 16px)}
+    var(--tint) 8px,var(--tint) 16px)}
 .item.visual.chart .box{min-height:96px}
 .item.visual .kindmark{color:var(--faint)}
 .item.visual .lbl{font-weight:500}
@@ -348,7 +426,7 @@ body.present .gzoom{max-width:1360px}
 .eg.none{color:var(--faint);font-style:italic}
 .eg.unk{color:var(--flag);font-weight:500;font-style:normal}
 .item .chev{flex:none;color:var(--dim)}
-.rowsel .box{outline:2px solid var(--accent);outline-offset:1px}
+.rowsel .box{outline:2px solid var(--accent);outline-offset:1px;background:var(--accent-soft)}
 .drag .item{opacity:.35}
 .over .item{box-shadow:0 -2px 0 var(--accent)}
 .over-b .item{box-shadow:0 2px 0 var(--accent)}
@@ -357,10 +435,10 @@ body.present .gzoom{max-width:1360px}
 /* ---------- notes, on the left ---------- */
 .notes{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:1;min-width:0}
 .note{border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-sm);
-  box-shadow:0 1px 2px rgba(16,19,25,.035);
+  box-shadow:var(--shadow-1);
   padding:3px 7px;font-size:11px;line-height:1.4;color:var(--dim);
   display:flex;gap:6px;align-items:flex-start;max-width:100%}
-.note.act{border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.05);color:var(--act)}
+.note.act{border-color:var(--action-line);background:var(--action-soft);color:var(--act)}
 .nbody{min-width:0;flex:1;padding-right:2px}
 /* The tools float over the top-right corner, so the text needs a lane of its
    own to wrap into. Reserved whenever the tools can exist at all, not on
@@ -378,7 +456,7 @@ body.present .gzoom{max-width:1360px}
 .note .tools{position:absolute;right:2px;top:2px;display:flex;gap:1px;padding-left:10px;
   opacity:0;pointer-events:none;transition:opacity .1s var(--ease);
   background:linear-gradient(90deg,transparent,var(--panel) 40%)}
-.note.act .tools{background:linear-gradient(90deg,transparent,#fdf3f2 40%)}
+.note.act .tools{background:linear-gradient(90deg,transparent,var(--action-soft) 40%)}
 .note:hover .tools,.note:focus-within .tools{opacity:1;pointer-events:auto}
 .note .tools button{color:var(--faint);font-size:11px;line-height:1;padding:1px 3px;border-radius:4px}
 .note .tools button:hover{color:var(--ink);background:var(--hover)}
@@ -388,13 +466,13 @@ body.present .gzoom{max-width:1360px}
   border-top:1px dashed var(--line)}
 .sbtn{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--dim);
   padding:4px 8px;border-radius:7px;white-space:nowrap;line-height:1}
-.sbtn:hover{color:var(--ink);background:rgba(16,18,22,.07)}
+.sbtn:hover{color:var(--ink);background:var(--hover)}
 .sbtn svg{color:var(--faint)}
 .sbtn:hover svg{color:var(--ink)}
 .sbtn.kind{color:var(--ink);font-weight:500}
 .sbtn .caret{color:var(--faint);font-size:9px}
-.sbtn.danger:hover{color:var(--act);background:rgba(179,38,30,.09)}
-.sbtn.danger:hover svg{color:var(--act)}
+.sbtn.danger:hover{color:var(--danger);background:var(--danger-soft)}
+.sbtn.danger:hover svg{color:var(--danger)}
 
 /* ---------- what a lane holds, said once at the top ---------- */
 .lanehead{grid-column:2;height:26px}
@@ -434,12 +512,19 @@ body.present .gzoom{max-width:1360px}
 /* ---------- one overflow button, everywhere ---------- */
 .more{color:var(--faint);padding:3px;border-radius:6px;display:flex;align-items:center;
   opacity:0;transition:opacity .1s var(--ease)}
-.more:hover,.more.open{color:var(--ink);background:rgba(16,18,22,.09)}
+.more:hover,.more.open{color:var(--ink);background:var(--hover)}
 .more.open{opacity:1}
 .g-item:hover .more,.g-item:focus-within .more,
 .cell.sechead:hover .more,.item:hover .more,.rowsel .more{opacity:1}
 .secmore{position:absolute;right:10px;top:8px}
-.cell.sechead{position:relative}
+.cell.sechead{position:relative;background:var(--surface-2)}
+/* A spacer above the first card, outside any section. Now that each section
+   rounds its own corners it is top padding and nothing else — with a ground it
+   drew a square strip above a rounded card. */
+.cell.emptytop{background:transparent;box-shadow:none}
+.cell.sechead.top{background:var(--surface-2)}
+/* The header owns its band too, or the ground stops halfway across the card. */
+.cell.sechead .band{background:transparent}
 .menu{width:236px;padding:5px;display:flex;flex-direction:column;gap:1px}
 .mitem{display:flex;align-items:flex-start;gap:9px;width:100%;text-align:left;
   padding:6px 8px;border-radius:8px}
@@ -449,9 +534,9 @@ body.present .gzoom{max-width:1360px}
 .mitem .n{font-size:12.5px;line-height:1.35}
 .mitem .h{font-size:11px;color:var(--faint);line-height:1.35;margin-top:1px}
 .mitem[disabled]{opacity:.35;pointer-events:none}
-.mitem.danger .n{color:var(--act)}
-.mitem.danger svg{color:var(--act)}
-.mitem.danger:hover{background:rgba(179,38,30,.08)}
+.mitem.danger .n{color:var(--danger)}
+.mitem.danger svg{color:var(--danger)}
+.mitem.danger:hover{background:var(--action-soft)}
 .msep{height:1px;background:var(--line);margin:4px 6px}
 
 /* ---------- what a block is ---------- */
@@ -501,7 +586,7 @@ body.present .gzoom{max-width:1360px}
 .refx{position:absolute;right:4px;top:2px;color:var(--faint);font-size:13px;line-height:1;
   padding:1px 4px;border-radius:4px;opacity:0;transition:opacity .1s var(--ease)}
 .ref:hover .refx{opacity:1}
-.refx:hover{color:var(--act);background:rgba(179,38,30,.1)}
+.refx:hover{color:var(--danger);background:var(--danger-soft)}
 /* A brand-new note is a field, not a hairline. */
 .note.fresh{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);min-width:190px}
 .note.fresh .t{min-height:32px}
@@ -511,6 +596,8 @@ body.present .gzoom{max-width:1360px}
   padding:4px 8px;font-size:11.5px;line-height:1.45;color:var(--ink);
   display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;max-width:100%}
 .fn{cursor:pointer}
+.fn.empty{background:transparent;border-color:transparent}
+.fn.empty:hover{border-color:var(--line)}
 .fn:hover{border-color:var(--dim)}
 .fn a.tgt:hover{text-decoration:underline}
 .fn .l{display:flex;gap:6px;align-items:flex-start}
@@ -518,7 +605,7 @@ body.present .gzoom{max-width:1360px}
 .fn .l b{font-weight:500}
 .fn .tgt{color:var(--accent)}
 .fn .tgt.dead{color:var(--flag)}
-.fn .req{color:var(--act);font-weight:600}
+.fn .req{color:var(--ink);font-weight:600}
 .fn .caps{color:var(--dim);font-size:11px;letter-spacing:.01em;
   display:flex;flex-wrap:wrap;align-items:center;gap:4px}
 .fn .cap{display:inline-flex;align-items:center;gap:3px}
@@ -559,13 +646,13 @@ body.present .gzoom{max-width:1360px}
   background:var(--panel)}
 .markers .l{flex:1;text-align:left}
 .markers svg{color:var(--faint);flex:none}
-.markers .sw{flex:none;width:28px;height:16px;border-radius:999px;background:rgba(16,19,25,.16);
+.markers .sw{flex:none;width:28px;height:16px;border-radius:999px;background:var(--line-2);
   position:relative;transition:background .14s var(--ease)}
 .markers .sw:after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;
-  border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(16,19,25,.3);
+  border-radius:50%;background:var(--panel);box-shadow:var(--shadow-1);
   transition:transform .14s var(--ease)}
 .markers:hover{border-color:var(--line-2);color:var(--ink)}
-.markers.on{color:var(--ink);border-color:var(--accent-soft);background:rgba(37,99,235,.04)}
+.markers.on{color:var(--ink);border-color:var(--accent-soft);background:var(--accent-soft)}
 .markers.on svg{color:var(--accent)}
 .markers.on .sw{background:var(--accent)}
 .markers.on .sw:after{transform:translateX(12px)}
@@ -595,8 +682,8 @@ body.present .gzoom{max-width:1360px}
 .cg-h.static:hover{background:none}
 .cgroup.orphan .tc{opacity:.75}
 
-.sec-title{font-size:13px;font-weight:600;letter-spacing:-.005em;text-align:center;margin:0;
-  padding:2px 6px;border-radius:var(--radius-sm)}
+.sec-title{font-size:15px;font-weight:650;letter-spacing:-.012em;text-align:center;margin:0;
+  padding:3px 8px;border-radius:var(--radius-sm);color:var(--ink)}
 .sec-title:hover{background:var(--hover)}
 .sec-title:focus{outline:none;background:var(--accent-soft)}
 .sec-note{font-size:11px;color:var(--dim);text-align:center;font-style:italic;line-height:1.4;
@@ -654,7 +741,7 @@ body.present .gzoom{max-width:1360px}
 .gnote .x{position:absolute;right:5px;top:4px;color:var(--faint);font-size:13px;line-height:1;
   padding:1px 3px;border-radius:4px;opacity:0;transition:opacity .1s var(--ease)}
 .gnote:hover .x{opacity:1}
-.gnote .x:hover{color:var(--act);background:rgba(179,38,30,.1)}
+.gnote .x:hover{color:var(--act);background:var(--action-soft)}
 .ctx dt{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
   color:var(--faint);margin-bottom:2px}
 .ctx dd{margin:0;font-size:12.5px;line-height:1.5;padding:3px 6px;margin-left:-6px;border-radius:7px}
@@ -690,8 +777,8 @@ body.present .gzoom{max-width:1360px}
 .bubble{display:inline-flex;align-items:center;gap:3px;flex:none;padding:1px 4px;border-radius:6px;
   font-size:10px;font-weight:600;color:var(--faint);line-height:1;margin-left:2px}
 .bubble svg{color:currentColor}
-.bubble:hover{background:rgba(16,18,22,.08);color:var(--ink)}
-.bubble.has{color:var(--flag);background:rgba(184,84,31,.12)}
+.bubble:hover{background:var(--hover);color:var(--ink)}
+.bubble.has{color:var(--flag);background:var(--unanswered-soft)}
 .bubble.done{color:var(--ok)}
 .bubble.none{opacity:0}
 .item:hover .bubble.none,.rowsel .bubble.none{opacity:.5}
@@ -705,12 +792,12 @@ body.present .gzoom{max-width:1360px}
 .tc .t{flex:1;min-width:0;border-radius:4px;padding:0 2px}
 .tc .t:focus{outline:none;background:var(--panel)}
 .tc .tick{flex:none;color:var(--faint);padding:1px;border-radius:5px;display:flex;margin-top:1px}
-.tc .tick:hover{color:var(--ink);background:rgba(16,18,22,.08)}
+.tc .tick:hover{color:var(--ink);background:var(--hover)}
 .tc .tick.on{color:var(--ok)}
 .tc .x{flex:none;color:var(--faint);font-size:14px;line-height:1;padding:0 3px;border-radius:4px;
   opacity:0;transition:opacity .1s var(--ease)}
 .tc:hover .x{opacity:1}
-.tc .x:hover{color:var(--act);background:rgba(179,38,30,.1)}
+.tc .x:hover{color:var(--act);background:var(--action-soft)}
 .tnew{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:9px;
   background:var(--panel);font-size:12.5px;resize:vertical;min-height:44px;line-height:1.45}
 .tnew:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -718,12 +805,12 @@ body.present .gzoom{max-width:1360px}
 .tfoot .hint{font-size:11px;color:var(--faint)}
 
 /* ---------- asked in the app, never by the browser ---------- */
-.scrim{position:fixed;inset:0;z-index:40;background:rgba(16,18,22,.28);
+.scrim{position:fixed;inset:0;z-index:40;background:var(--scrim);
   display:flex;align-items:center;justify-content:center;padding:24px;
   animation:fade .12s var(--ease)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .dialog{background:var(--panel);border-radius:14px;padding:20px;width:400px;max-width:100%;
-  box-shadow:0 16px 50px rgba(0,0,0,.22)}
+  box-shadow:var(--shadow-pop)}
 .dialog h2{font-size:15.5px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
 .dialog p{font-size:13px;line-height:1.55;color:var(--dim);margin:0 0 14px}
 .dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
@@ -732,23 +819,23 @@ body.present .gzoom{max-width:1360px}
 .dfoot{display:flex;justify-content:flex-end;gap:8px}
 .dfoot .btn{padding:7px 14px;border-radius:9px}
 .dfoot .btn:not(.primary):not(.danger){background:var(--hover);color:var(--ink)}
-.dfoot .btn.danger{background:var(--act);color:#fff}
+.dfoot .btn.danger{background:var(--act);color:var(--panel)}
 
 /* ---------- what just happened, and how to take it back ---------- */
 #toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:30;
   display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
 .toast{pointer-events:auto;display:flex;align-items:center;gap:12px;background:var(--ink);
-  color:#fff;font-size:12.5px;padding:8px 10px 8px 14px;border-radius:10px;
-  box-shadow:0 6px 24px rgba(0,0,0,.24);animation:rise .14s var(--ease)}
+  color:var(--panel);font-size:12.5px;padding:8px 10px 8px 14px;border-radius:10px;
+  box-shadow:var(--shadow-toast);animation:rise .14s var(--ease)}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .toast.going{opacity:0;transition:opacity .4s var(--ease)}
-.toast button{color:#9dc0ff;font-weight:500;padding:2px 4px;border-radius:5px}
-.toast button:hover{color:#fff;background:rgba(255,255,255,.14)}
-.toast .x{color:rgba(255,255,255,.5);font-size:15px;line-height:1}
+.toast button{color:var(--accent-line);font-weight:500;padding:2px 4px;border-radius:5px}
+.toast button:hover{color:var(--panel);background:var(--line)}
+.toast .x{color:var(--faint);font-size:15px;line-height:1}
 
 /* ---------- capture ---------- */
 #cap{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--panel);
-  border-top:1px solid var(--line);padding:12px 30px;box-shadow:0 -6px 24px rgba(0,0,0,.06)}
+  border-top:1px solid var(--line);padding:12px 30px;box-shadow:var(--shadow-palette)}
 #cap .in{max-width:760px;margin:0 auto;display:flex;gap:10px;align-items:center}
 #cap input{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px}
 #cap .where{font-size:12px;color:var(--faint);white-space:nowrap}
@@ -791,7 +878,7 @@ body.present .gzoom{max-width:1360px}
 .dcard .title:focus{outline:none;background:var(--accent-soft)}
 .dcard .x{margin-left:auto;color:var(--faint);font-size:14px;line-height:1;padding:0 3px;
   border-radius:4px}
-.dcard .x:hover{color:var(--act);background:rgba(179,38,30,.1)}
+.dcard .x:hover{color:var(--act);background:var(--action-soft)}
 .dcard .u{font-size:11.5px;color:var(--faint);word-break:break-all;display:block;margin-top:2px;
   text-align:left;padding:0}
 .dcard .u:hover{color:var(--accent)}
@@ -859,9 +946,9 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
 .node text{font-size:12.5px;font-weight:500;fill:var(--ink)}
 .node text.m{font-size:11px;fill:var(--faint);font-weight:400}
 .node text.o{font-size:11px;fill:var(--flag);font-weight:600}
-.edge{fill:none;stroke:rgba(16,18,22,.26);stroke-width:1.5}
+.edge{fill:none;stroke:var(--line-2);stroke-width:1.5}
 .edge.hot{stroke:var(--accent);stroke-width:2}
-.edge.ref{stroke-dasharray:5 4;stroke:rgba(16,18,22,.20)}
+.edge.ref{stroke-dasharray:5 4;stroke:var(--line-2)}
 .elabel{font-size:10.5px;fill:var(--faint)}
 
 /* ---------- open items ---------- */
@@ -895,6 +982,7 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   <div class="spacer"></div>
   <div class="tabs" id="tabs"></div>
   <span class="count" id="open"></span>
+  <button class="btn icon" id="theme" title="Theme"></button>
   <button class="btn" id="present" title="Read (P)">Read</button>
   <button class="btn primary" id="save" disabled>Save</button>
 </div>
@@ -983,6 +1071,7 @@ const S = {
   readOnly: false, dirty: false,
   guide: null, sel: null, editing: null,
   view: 'guide', present: false, capture: false, captured: 0, addProse: null,
+  theme: 'system',
   userFilter: null, shownField: null,
   zoom: 1, besideSplit: null,
   railRWidth: 340, railRCollapsed: false
@@ -1001,6 +1090,8 @@ try {
 } catch { /* private window, or site data blocked */ }
 try {
   S.railRCollapsed = localStorage.getItem('pg-railr-collapsed') === '1';
+  const th = localStorage.getItem('pg-theme');
+  if (th === 'light' || th === 'dark') S.theme = th;
 } catch { /* private window, or site data blocked */ }
 function setRailRWidth(w) {
   S.railRWidth = Math.max(260, Math.min(520, w));
@@ -1674,6 +1765,9 @@ const GLYPH = {
   info: 'M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2zM8 7.2v4M8 5.1v.01',
   up: 'M8 12.5v-9M4.5 7L8 3.5 11.5 7',
   left: 'M12.5 8h-9M7 4.5L3.5 8 7 11.5',
+  sun: 'M8 3.2V1.6M8 14.4v-1.6M3.2 8H1.6M14.4 8h-1.6M4.6 4.6L3.5 3.5M12.5 12.5l-1.1-1.1M4.6 11.4l-1.1 1.1M12.5 3.5l-1.1 1.1M8 5.4a2.6 2.6 0 100 5.2 2.6 2.6 0 000-5.2z',
+  moon: 'M13 10.2A5.6 5.6 0 015.8 3a5.8 5.8 0 107.2 7.2z',
+  auto: 'M8 2.2a5.8 5.8 0 000 11.6zM8 2.2a5.8 5.8 0 010 11.6',
   right: 'M3.5 8h9M9 4.5L12.5 8 9 11.5',
   down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
   trash: 'M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9M6.5 7v4M9.5 7v4',
@@ -2361,6 +2455,7 @@ function renderGuide(host) {
 
   for (const sec of g.sections) {
     if (sec.kind === 'sources') continue;
+    const secStart = cells.length;
     const mine = [];
     const title = gridRow('open');
     mine.push(title.band);
@@ -2441,12 +2536,11 @@ function renderGuide(host) {
       mine[mine.length - 2].classList.remove('close');
       tail.band.classList.add('close');
     }
+    if (cells.length > secStart) {
+      cells[secStart].classList.add('top');
+      cells[cells.length - 1].classList.add('bot');
+    }
     gap();
-  }
-
-  if (cells.length) {
-    cells[0].classList.add('top');
-    cells[cells.length - 1].classList.add('bot');
   }
   if (!g.sections.some((s) => s.kind === 'section')) {
     stage.appendChild(el('div', 'rail-empty', 'Nothing here yet. Add a section from the toolbar below.'));
@@ -3628,6 +3722,36 @@ function panelCounts() {
     links: links.routes.length + links.references.length + out.length,
     comments: openCommentCount(S.doc, S.guide)
   };
+}
+
+// Three states, not two: following the machine is the default, and choosing
+// light or dark is an override that sticks. Every colour in the app is a token,
+// so this is the only place a theme has to be applied.
+const THEMES = [
+  ['system', 'auto', 'Theme: following the system'],
+  ['light', 'sun', 'Theme: light'],
+  ['dark', 'moon', 'Theme: dark']
+];
+function applyTheme() {
+  const r = document.documentElement;
+  if (S.theme === 'system') r.removeAttribute('data-theme');
+  else r.setAttribute('data-theme', S.theme);
+  const b = $('theme');
+  if (!b) return;
+  const [, glyph, title] = THEMES.find((t) => t[0] === S.theme) || THEMES[0];
+  b.innerHTML = '';
+  b.appendChild(icon(glyph, 14));
+  b.title = title + ' — click to change';
+  b.setAttribute('aria-label', title);
+}
+function cycleTheme() {
+  const i = THEMES.findIndex((t) => t[0] === S.theme);
+  S.theme = THEMES[(i + 1) % THEMES.length][0];
+  try {
+    if (S.theme === 'system') localStorage.removeItem('pg-theme');
+    else localStorage.setItem('pg-theme', S.theme);
+  } catch { /* private window */ }
+  applyTheme();
 }
 
 /** Nothing is held in a draft any more, but the picker can be open. */
@@ -4817,6 +4941,8 @@ document.addEventListener('keydown', (e) => {
 $('file').onclick = pickFolder;
 $('save').onclick = save;
 $('present').onclick = () => { S.present = !S.present; S.editing = null; render(); };
+$('theme').onclick = cycleTheme;
+applyTheme();
 $('capDone').onclick = () => toggleCapture(false);
 $('capIn').onkeydown = (e) => {
   if (e.key === 'Enter') {

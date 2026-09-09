@@ -1936,6 +1936,142 @@ ok('which opens a picture pane rather than an embed', await page.$('.beside .bim
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 
+// ---------------------------------------------------------------- surfaces and colour
+/*
+ * The palette is the reason a dark theme is possible at all: every colour in
+ * the app is a token, so one attribute on the root swaps all of them. A single
+ * hardcoded value at a call site is a hole a dark theme falls through.
+ */
+ok('no colour is hardcoded at a call site — every one is a token',
+  await page.evaluate(async () => {
+    const css = await fetch('/index.html').then((r) => r.text());
+    const style = css.slice(css.indexOf('<style>'), css.indexOf('</style>'));
+    const afterTokens = style.slice(style.indexOf(':root[data-theme="dark"]'));
+    const body = afterTokens.slice(afterTokens.indexOf('\n}\n') + 3);
+    const lits = body.match(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)/g) || [];
+    return lits.length === 0;
+  }));
+
+// A dialog is opened about something on the page, so the page has to stay
+// visible behind it. An opaque scrim takes the context with it.
+await pick('Status');
+await page.waitForTimeout(200);
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
+  .find((b) => b.textContent.includes('Delete')).click());
+await page.waitForSelector('.scrim .dialog');
+ok('the scrim over a dialog is translucent, so the page stays visible behind it',
+  await page.evaluate(() => {
+    const bg = getComputedStyle(document.querySelector('.scrim')).backgroundColor;
+    const m = bg.match(/rgba?\(([^)]+)\)/);
+    if (!m) return false;
+    const parts = m[1].split(',').map((n) => parseFloat(n));
+    const alpha = parts.length > 3 ? parts[3] : 1;
+    return alpha > 0.05 && alpha < 0.85;
+  }));
+ok('and the dialog itself is opaque, so its own text is readable',
+  await page.evaluate(() => {
+    const bg = getComputedStyle(document.querySelector('.dialog')).backgroundColor;
+    const m = bg.match(/rgba\(([^)]+)\)/);
+    return !m || parseFloat(m[1].split(',')[3]) === 1;
+  }));
+await cancelDelete();
+
+// ---------------------------------------------------------------- one card per section
+/*
+ * A section is a card with a gap after it, so it rounds its own corners. Rounding
+ * the guide's first and last cell left every interior boundary square, and the
+ * guide's last cell is the trailing gap, which draws nothing.
+ */
+ok('every section rounds its own top and bottom',
+  await page.evaluate(() => {
+    const tops = [...document.querySelectorAll('#stage .cell.top')];
+    const bots = [...document.querySelectorAll('#stage .cell.bot')];
+    if (!tops.length || tops.length !== bots.length) return false;
+    const r = (n) => getComputedStyle(n).borderRadius;
+    return tops.every((n) => /^10px 10px 0px 0px/.test(r(n)))
+      && bots.every((n) => /^0px 0px 10px 10px/.test(r(n)));
+  }));
+ok('and there is one of each per section',
+  await page.evaluate(() => {
+    const secs = document.querySelectorAll('#stage .cell.sechead').length;
+    return secs > 0 && document.querySelectorAll('#stage .cell.bot').length === secs;
+  }));
+// The gap between two cards belongs to neither, so it draws nothing — otherwise
+// the side lines run on and the two sections read as one card.
+ok('the break between two sections draws nothing',
+  await page.evaluate(() => [...document.querySelectorAll('#stage .cell.gap')].every((n) => {
+    const cs = getComputedStyle(n);
+    return cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.boxShadow === 'none';
+  })));
+
+// A card's shadow used to be painted by all of its cells at once, each with its
+// own blur, so the edge stepped at every cell boundary.
+ok('no cell paints a blurred shadow — the card edge cannot go wavy',
+  await page.evaluate(() => [...document.querySelectorAll('#stage .cell')].every((n) => {
+    const sh = getComputedStyle(n).boxShadow;
+    if (sh === 'none') return true;
+    // hairlines are box-shadows with no blur; anything with blur would stack
+    return !/(\d+)px (\d+)px ([1-9]\d*)px/.test(sh);
+  })));
+
+// The section head was one weight step from a block label and nothing else.
+ok('a section heading outranks a block label by size, not just weight',
+  await page.evaluate(() => {
+    const sec = document.querySelector('#stage .sec-title');
+    const lbl = document.querySelector('#stage .lbl');
+    if (!sec || !lbl) return false;
+    return parseFloat(getComputedStyle(sec).fontSize) >= parseFloat(getComputedStyle(lbl).fontSize) + 1.5;
+  }));
+ok('and it sits on its own ground',
+  await page.evaluate(() => {
+    const head = document.querySelector('#stage .cell.sechead');
+    const body = [...document.querySelectorAll('#stage .cell')]
+      .find((n) => !n.classList.contains('sechead') && !n.classList.contains('gap')
+        && !n.classList.contains('emptytop'));
+    return head && body
+      && getComputedStyle(head).backgroundColor !== getComputedStyle(body).backgroundColor;
+  }));
+
+// ---------------------------------------------------------------- dark
+/*
+ * Three states, not two: following the machine, and two overrides that stick.
+ */
+ok('there is a theme control', await page.$('#theme') !== null);
+const rootBg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+const lightBg = await rootBg();
+await page.click('#theme');           // system -> light
+await page.waitForTimeout(150);
+eq('choosing light stamps the root', await page.evaluate(() =>
+  document.documentElement.getAttribute('data-theme')), 'light');
+await page.click('#theme');           // light -> dark
+await page.waitForTimeout(200);
+eq('and choosing dark stamps it too', await page.evaluate(() =>
+  document.documentElement.getAttribute('data-theme')), 'dark');
+const darkBg = await rootBg();
+ok('dark actually repaints the app', darkBg !== lightBg, `${lightBg} vs ${darkBg}`);
+ok('text stays legible against it — no light-mode value left behind',
+  await page.evaluate(() => {
+    const lum = (c) => { const p = c.match(/\d+/g).map(Number);
+      return (0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]) / 255; };
+    const bg = lum(getComputedStyle(document.body).backgroundColor);
+    const ink = lum(getComputedStyle(document.body).color);
+    return bg < 0.3 && ink > 0.6;
+  }));
+ok('and the guide surfaces are dark too, not a white card on a dark page',
+  await page.evaluate(() => {
+    const lum = (c) => { const p = c.match(/\d+/g).map(Number);
+      return (0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]) / 255; };
+    const cell = document.querySelector('#stage .cell');
+    return !!cell && lum(getComputedStyle(cell).backgroundColor) < 0.35;
+  }));
+// The map is a clone of the guide, so a theme it does not follow shows up here.
+ok('the minimap survives a theme change', await page.evaluate(() =>
+  getComputedStyle(document.getElementById('minimap')).display !== 'none'));
+await page.click('#theme');           // dark -> system
+await page.waitForTimeout(150);
+ok('and a third press hands it back to the system', await page.evaluate(() =>
+  !document.documentElement.hasAttribute('data-theme')));
+
 // ---------------------------------------------------------------- no errors
 ok('no uncaught errors anywhere in the session', errors.length === 0, errors.slice(0, 4).join('\n       '));
 ok('and everything the app itself asked for loaded', badLoads.length === 0, badLoads.slice(0, 4).join('\n       '));
