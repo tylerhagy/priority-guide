@@ -16,10 +16,10 @@
   /* ---- surfaces. Solid steps, not translucent washes over near-white. A wash
      is why every boundary read as a slightly different grey: two of them
      overlapping make a third value nobody chose. ---- */
-  --bg:#f4f5f7;          /* the ground the paper sits on */
+  --bg:#f2f3f6;          /* the ground the paper sits on */
   --panel:#ffffff;       /* paper: the card, the rails, a popover */
-  --surface-2:#f0f1f4;   /* a section's own ground, a lane ground, a well */
-  --surface-3:#e7e9ee;   /* pressed, or a header inside paper */
+  --surface-2:#e5e8ee;   /* a section's own ground, a lane ground, a well */
+  --surface-3:#d9dde5;   /* pressed, or a header inside paper */
 
   /* ---- text. Three steps, spread far enough apart to be three. ---- */
   --ink:#14161b; --dim:#5b6470; --faint:#8b939f;
@@ -49,7 +49,7 @@
   --action:#a8271f;     --action-soft:#fdf1ef;    --action-line:#f0cdc7;
 
   /* ---- neutral interface feedback. No hue. ---- */
-  --hover:#eceef2; --tint:#f7f8fa; --press:#e2e5ea;
+  --hover:#eef0f4; --tint:#f7f8fa; --press:#dfe3ea;
 
   /* ---- kept for non-guide chrome: banners, toggles, destructive buttons ---- */
   --ok:#177245; --ok-soft:#e8f3ec; --on-ok:#fff;
@@ -73,7 +73,7 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --bg:#14161a; --panel:#1c1f25; --surface-2:#23272e; --surface-3:#2b3038;
+    --bg:#14161a; --panel:#1c1f25; --surface-2:#2a2f38; --surface-3:#343a45;
     --ink:#e9ebef; --dim:#a2abb7; --faint:#727c89;
     --line:#2e333b; --line-2:#454c57;
     --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 12px 28px -18px rgba(0,0,0,.7);
@@ -85,7 +85,7 @@
     --accent-ink:#c4d9ff; --on-accent:#0f1115;
     --unanswered:#e0b45f; --unanswered-soft:#2d2716; --unanswered-line:#4a3f22;
     --action:#f08d84;     --action-soft:#331d1b;    --action-line:#54302c;
-    --hover:#23272e; --tint:#1f232a; --press:#2b3038;
+    --hover:#262b33; --tint:#1f232a; --press:#343a45;
     --ok:#5cc48a; --ok-soft:#16291f; --on-ok:#0f1115;
     --warn:#e0b45f; --warn-soft:#2d2716;
     --danger:#f08d84; --danger-soft:#331d1b;
@@ -95,7 +95,7 @@
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#14161a; --panel:#1c1f25; --surface-2:#23272e; --surface-3:#2b3038;
+  --bg:#14161a; --panel:#1c1f25; --surface-2:#2a2f38; --surface-3:#343a45;
   --ink:#e9ebef; --dim:#a2abb7; --faint:#727c89;
   --line:#2e333b; --line-2:#454c57;
   --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 12px 28px -18px rgba(0,0,0,.7);
@@ -107,7 +107,7 @@
   --accent-ink:#c4d9ff; --on-accent:#0f1115;
   --unanswered:#e0b45f; --unanswered-soft:#2d2716; --unanswered-line:#4a3f22;
   --action:#f08d84;     --action-soft:#331d1b;    --action-line:#54302c;
-  --hover:#23272e; --tint:#1f232a; --press:#2b3038;
+  --hover:#262b33; --tint:#1f232a; --press:#343a45;
   --ok:#5cc48a; --ok-soft:#16291f; --on-ok:#0f1115;
   --warn:#e0b45f; --warn-soft:#2d2716;
   --danger:#f08d84; --danger-soft:#331d1b;
@@ -358,12 +358,15 @@ body.present .gzoom{max-width:1360px}
 /* Every row is a grid row so an annotation lines up with the one item it
    annotates. The stack reads as one continuous column because each middle cell
    carries the side borders and the ends carry the caps. */
-.cell{grid-column:2;background:var(--panel);padding:0 14px;display:flex;flex-direction:column;
-  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line)}
-.cell.top{padding-top:16px;border-radius:var(--radius) var(--radius) 0 0;
-  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 -1px 0 var(--line)}
-.cell.bot{padding-bottom:16px;border-radius:0 0 var(--radius) var(--radius);
-  box-shadow:-1px 0 0 var(--line), 1px 0 0 var(--line), 0 1px 0 var(--line)}
+.cell{grid-column:2;padding:0 14px;display:flex;flex-direction:column;
+  position:relative;z-index:1}
+.cell.top{padding-top:16px}
+.cell.bot{padding-bottom:16px}
+/* The card itself: one element spanning the section's rows, so it has one edge
+   at one set of coordinates. Nothing else in the stack paints a surface. */
+.paper{grid-column:2;position:relative;z-index:0;background:var(--panel);
+  border-radius:var(--radius);box-shadow:0 0 0 1px var(--line), var(--shadow-card);
+  pointer-events:none}
 /* The break between two sections is not part of either card, so it draws
    nothing — otherwise the side lines run on and the two read as one. */
 .cell.gap{height:14px;background:transparent;box-shadow:none}
@@ -380,11 +383,14 @@ body.present .gzoom{max-width:1360px}
 .lane-r{grid-column:3}
 /* A solid hairline, not a dotted one: a leader is a tie, and a row of dots is
    a table of contents from 1994. */
-/* Drawn for every block on both sides, these stacked up into a ruled table and
-   buried the content in lines. The tie only means anything for the row you are
-   on, so that is when it is drawn. */
-.lead{flex:none;width:22px;border-top:1px solid transparent;margin-top:16px;
-  transition:border-color .12s var(--ease)}
+/* An annotation line: it runs from the note or the functionality card and
+   crosses the card's edge, so the two read as attached to the block rather than
+   floating alongside it. Positioned, to sit over the card rather than under it,
+   and only drawn when there is something on that side to tie. */
+.lead{flex:none;width:30px;border-top:1px solid var(--line-2);margin-top:15px;
+  position:relative;z-index:2;transition:border-color .12s var(--ease)}
+.lane-l .lead{margin-right:-9px}
+.lane-r .lead{margin-left:-9px}
 .lane.rowhot{background:var(--accent-soft);border-radius:var(--radius-sm)}
 .rowhot .lead,.rowsel .lead{border-color:var(--accent)}
 
@@ -517,7 +523,10 @@ body.present .gzoom{max-width:1360px}
 .g-item:hover .more,.g-item:focus-within .more,
 .cell.sechead:hover .more,.item:hover .more,.rowsel .more{opacity:1}
 .secmore{position:absolute;right:10px;top:8px}
-.cell.sechead{position:relative;background:var(--surface-2)}
+.cell.sechead{position:relative;background:var(--surface-2);padding-top:0;padding-bottom:0;
+  border-bottom:1px solid var(--line);
+  border-radius:var(--radius) var(--radius) 0 0}
+.cell.sechead .band{padding-top:17px;padding-bottom:17px}
 /* A spacer above the first card, outside any section. Now that each section
    rounds its own corners it is top padding and nothing else — with a ground it
    drew a square strip above a rounded card. */
@@ -2142,16 +2151,24 @@ function renderMinimap() {
   const stage = $('stage');
   stage.onscroll = null;
   if (!S.doc || !S.guide || S.view !== 'guide' || S.present || S.beside) {
-    m.style.display = 'none'; return;
+    m.style.display = 'none'; m.style.visibility = ''; return;
   }
   const guide = stage.querySelector('.guide');
   // A map is for when you cannot hold the guide in your head. Under about a
-  // screenful hidden, scrolling is one flick and a map is furniture.
-  if (!guide || stage.scrollHeight < stage.clientHeight * 1.75) { m.style.display = 'none'; return; }
+  // screenful hidden, scrolling is one flick and a map is furniture — so a short
+  // guide draws none. But taking the column away as well moved the guide
+  // sideways every time you stepped from a short guide to a tall one, so the
+  // space stays reserved and only the picture goes.
+  if (!guide || stage.scrollHeight < stage.clientHeight * 1.75) {
+    m.style.display = '';
+    m.style.visibility = 'hidden';
+    return;
+  }
+  m.style.visibility = '';
   // The map costs 124px, so it goes only when the guide genuinely cannot spare
   // them — below its own three-lane minimum. An earlier, far higher threshold
   // took the map away from every laptop, which is the machine that needs it.
-  if (stage.clientWidth < 600) { m.style.display = 'none'; return; }
+  if (stage.clientWidth < 600) { m.style.display = 'none'; m.style.visibility = ''; return; }
   m.style.display = '';
 
   // The picture is the guide itself, cloned and shrunk. Drawing a second,
@@ -2422,10 +2439,12 @@ function renderGuide(host) {
   const grid = el('div', 'guide');
   const cells = [];
 
+  let rowNo = 0;
   const gridRow = (bandCls) => {
     const l = el('div', 'lane lane-l');
     const c = el('div', 'cell');
     const r = el('div', 'lane lane-r');
+    l.style.gridRow = c.style.gridRow = r.style.gridRow = String(++rowNo);
     grid.append(l, c, r);
     cells.push(c);
     if (bandCls === undefined) return { l, c, r, host: c };
@@ -2456,6 +2475,7 @@ function renderGuide(host) {
   for (const sec of g.sections) {
     if (sec.kind === 'sources') continue;
     const secStart = cells.length;
+    const rowStart = rowNo;
     const mine = [];
     const title = gridRow('open');
     mine.push(title.band);
@@ -2539,6 +2559,9 @@ function renderGuide(host) {
     if (cells.length > secStart) {
       cells[secStart].classList.add('top');
       cells[cells.length - 1].classList.add('bot');
+      const paper = el('div', 'paper');
+      paper.style.gridRow = `${rowStart + 1} / ${rowNo + 1}`;
+      grid.appendChild(paper);
     }
     gap();
   }

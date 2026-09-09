@@ -791,7 +791,6 @@ const pressAt = async (sel, dx, dy) => {
 
 for (const [what, sel, dx, dy] of [
   ['the section band', '.band', 8, 6],
-  ['the guide beside the stack', '.guide', 4, 300],
   ['the stage margin beside the guide', '#stage', 8, 300],
   ['the page header', '#pagehead', 600, 10],
   ['the side panel', '#railR .pbody', 20, 300],
@@ -836,6 +835,29 @@ ok('the first escape leaves the field but keeps the row',
   (await held()).rows > 0 && await page.evaluate(() => !document.activeElement.isContentEditable));
 await page.keyboard.press('Escape');
 await page.waitForTimeout(250);
+// A fixed offset into the guide is a hostage to layout: it used to land on empty
+// lane space and, once the section padding changed, it landed on the held row's
+// own notes — which is a press on that row, not beside it.
+await page.evaluate(() => document.querySelector('#tabs button').click());
+await page.waitForTimeout(220);
+await grabRow('Time');
+ok('a row is held before pressing the guide beside the stack', (await held()).rows > 0);
+const emptyLane = await page.evaluate(() => {
+  const lane = [...document.querySelectorAll('.guide .lane-l')]
+    .find((n) => !n.children.length && n.getBoundingClientRect().height > 8);
+  if (!lane) return null;
+  const r = lane.getBoundingClientRect();
+  return { x: r.x + Math.min(8, r.width / 2), y: r.y + r.height / 2 };
+});
+ok('there is empty lane space to press', emptyLane !== null);
+if (emptyLane) {
+  await page.mouse.click(emptyLane.x, emptyLane.y);
+  await page.waitForTimeout(300);
+  const now = await held();
+  ok('pressing the guide beside the stack lets go', now.rows === 0 && now.strips === 0,
+    `rows ${now.rows}, strips ${now.strips}`);
+}
+
 eq('and the second lets go of the row', (await held()).rows, 0);
 
 // ---------------------------------------------------------------- what the guide became
@@ -1318,8 +1340,11 @@ await page.evaluate(() => {
   [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Cancel a booking')).click();
 });
 await page.waitForTimeout(400);
-eq('a guide that fits on screen has nothing to navigate, so it gets no map',
-  await page.$eval('#minimap', (n) => getComputedStyle(n).display), 'none');
+eq('a guide that fits on screen draws no map',
+  await page.$eval('#minimap', (n) => getComputedStyle(n).visibility), 'hidden');
+ok('but keeps its column, so the guide does not jump sideways between guides',
+  await page.$eval('#minimap', (n) =>
+    getComputedStyle(n).display !== 'none' && n.getBoundingClientRect().width > 100));
 await page.evaluate(() => {
   [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
 });
@@ -1879,15 +1904,52 @@ ok('and keeps its word beside it',
     return !!chip && /[a-z]{3,}/.test(chip.textContent);
   }));
 
-// ---------------------------------------------------------------- lines between blocks
-// One hairline per block per side stacked into a ruled table and buried the
-// content. The tie only means anything for the row you are on.
-ok('a block at rest draws no leader line',
-  await page.$$eval('#stage .lane:not(.rowhot):not(.rowsel) .lead', (ns) =>
-    ns.length > 0 && ns.every((n) => {
-      const c = getComputedStyle(n).borderTopColor;
+// ---------------------------------------------------------------- the annotation line
+/*
+ * A note and a functionality card belong to a block, so the line saying so is
+ * permanent — not something you have to hover to discover. It is drawn only
+ * where there is something on that side to tie, and it crosses the card's edge
+ * so the two read as attached rather than adjacent.
+ */
+ok('a block with a note is tied to it without hovering',
+  await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('#stage .lane-l')]
+      .filter((n) => n.querySelector('.note'));
+    if (!rows.length) return false;
+    return rows.every((n) => {
+      const lead = n.querySelector('.lead');
+      if (!lead) return false;
+      const c = getComputedStyle(lead).borderTopColor;
+      return c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent';
+    });
+  }));
+ok('and a block with nothing beside it is tied to nothing',
+  await page.evaluate(() => {
+    const bare = [...document.querySelectorAll('#stage .lane-l')]
+      .filter((n) => !n.querySelector('.note'));
+    return bare.every((n) => {
+      const lead = n.querySelector('.lead');
+      if (!lead) return true;
+      const c = getComputedStyle(lead).borderTopColor;
       return c === 'rgba(0, 0, 0, 0)' || c === 'transparent';
-    })));
+    });
+  }));
+ok('the line crosses the card edge rather than stopping short of it',
+  await page.evaluate(() => {
+    const lane = [...document.querySelectorAll('#stage .lane-l')]
+      .find((n) => n.querySelector('.note'));
+    const lead = lane && lane.querySelector('.lead');
+    const paper = document.querySelector('#stage .paper');
+    if (!lead || !paper) return false;
+    return lead.getBoundingClientRect().right > paper.getBoundingClientRect().left + 1;
+  }));
+ok('and it draws over the card, not under it',
+  await page.evaluate(() => {
+    const lead = document.querySelector('#stage .lane-l .lead');
+    const paper = document.querySelector('#stage .paper');
+    return !!lead && !!paper
+      && parseInt(getComputedStyle(lead).zIndex, 10) > parseInt(getComputedStyle(paper).zIndex, 10);
+  }));
 
 // ---------------------------------------------------------------- a note keeps its own room
 await pick('Status');
@@ -1982,20 +2044,28 @@ await cancelDelete();
  * the guide's first and last cell left every interior boundary square, and the
  * guide's last cell is the trailing gap, which draws nothing.
  */
-ok('every section rounds its own top and bottom',
+ok('each section is one card, rounded on all four corners',
   await page.evaluate(() => {
-    const tops = [...document.querySelectorAll('#stage .cell.top')];
-    const bots = [...document.querySelectorAll('#stage .cell.bot')];
-    if (!tops.length || tops.length !== bots.length) return false;
-    const r = (n) => getComputedStyle(n).borderRadius;
-    return tops.every((n) => /^10px 10px 0px 0px/.test(r(n)))
-      && bots.every((n) => /^0px 0px 10px 10px/.test(r(n)));
+    const papers = [...document.querySelectorAll('#stage .paper')];
+    return papers.length > 0
+      && papers.every((n) => /^10px/.test(getComputedStyle(n).borderRadius));
   }));
-ok('and there is one of each per section',
+ok('and there is exactly one card per section',
   await page.evaluate(() => {
     const secs = document.querySelectorAll('#stage .cell.sechead').length;
-    return secs > 0 && document.querySelectorAll('#stage .cell.bot').length === secs;
+    return secs > 0 && document.querySelectorAll('#stage .paper').length === secs;
   }));
+// Content-sized cells land on fractional pixels, so a background painted per
+// cell antialiased every join into a faint grey seam. One element, one edge.
+ok('nothing but the card and the section head paints a surface',
+  await page.evaluate(() => [...document.querySelectorAll('#stage .cell')].every((n) => {
+    const cs = getComputedStyle(n);
+    const blank = cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.boxShadow === 'none';
+    return blank || n.classList.contains('sechead');
+  })));
+ok('and the card cannot swallow a click meant for the page',
+  await page.evaluate(() => [...document.querySelectorAll('#stage .paper')]
+    .every((n) => getComputedStyle(n).pointerEvents === 'none')));
 // The gap between two cards belongs to neither, so it draws nothing — otherwise
 // the side lines run on and the two sections read as one card.
 ok('the break between two sections draws nothing',
