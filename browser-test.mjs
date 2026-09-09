@@ -39,7 +39,8 @@ await new Promise((r) => setTimeout(r, 900));
 
 let pass = 0;
 const fails = [];
-const ok = (n, c, d) => { if (c) pass++; else fails.push(`${n}${d ? `\n       ${d}` : ''}`); };
+const TRACE = !!process.env.PG_TRACE;
+const ok = (n, c, d) => { if (TRACE) console.log('  ·', n); if (c) pass++; else fails.push(`${n}${d ? `\n       ${d}` : ''}`); };
 const eq = (n, a, b) => ok(n, a === b, `expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
 
 const browser = await chromium.launch();
@@ -106,6 +107,21 @@ const save = async () => {
   const st = await page.$eval('#save', (n) => ({ text: n.textContent.trim(), hidden: getComputedStyle(n).display === 'none' }));
   ok(`save ${saveNo} settles`, st.hidden || st.text === 'Read-only', `button says "${st.text}", hidden=${st.hidden}`);
 };
+/** Every delete asks first now, so say yes. */
+const okDelete = async () => {
+  await page.waitForSelector('.scrim .dialog', { timeout: 4000 });
+  await page.evaluate(() => [...document.querySelectorAll('.dialog .dfoot button')]
+    .find((b) => b.textContent.trim() === 'Delete').click());
+  await page.waitForTimeout(250);
+};
+/** Back out of the confirm instead. */
+const cancelDelete = async () => {
+  await page.waitForSelector('.scrim .dialog', { timeout: 4000 });
+  await page.evaluate(() => [...document.querySelectorAll('.dialog .dfoot button')]
+    .find((b) => b.textContent.trim() === 'Cancel').click());
+  await page.waitForTimeout(250);
+};
+
 /** Click the item whose label contains this text. */
 const pick = (needle) => page.evaluate((s) => {
   const it = [...document.querySelectorAll('.item')].find((n) => n.textContent.includes(s));
@@ -370,11 +386,11 @@ await page.evaluate(() => {
   n.querySelector('.tools button').click();
 });
 await page.waitForTimeout(250);
-ok('and turned into a follow-up in one click',
+ok('and turned into an action in one click',
   await page.evaluate(() => [...document.querySelectorAll('.note.act')]
     .some((n) => n.textContent.includes('Half-days were cut in review'))));
 await save();
-ok('which the file records as an action item',
+ok('which the file records as an action',
   (await current()).includes('ACTION: Half-days were cut in review'));
 ok('several notes on one row are kept apart by a line break, not run together',
   (await current()).includes('the rest of the day<br>ACTION: Half-days were cut in review'));
@@ -382,7 +398,7 @@ await page.evaluate(() => {
   const n = [...document.querySelectorAll('.note')].find((x) => x.textContent.includes('Half-days were cut in review'));
   n.querySelectorAll('.tools button')[1].click();
 });
-await page.waitForTimeout(250);
+await okDelete();
 eq('and deleted again', await gcount('.note'), noteRows);
 
 // ---------------------------------------------------------------- the prose under a heading
@@ -401,12 +417,12 @@ ok('there is one place everything is added from', await page.$('#palette') !== n
 eq('holding every element a guide can contain', await count('.ptool'), 7);
 ok('and each one is something you pick up',
   await page.$$eval('.ptool', (ns) => ns.every((n) => n.draggable)));
-ok('a section carries no way to add anything — dragging is the only way',
+ok('a section offers no way to add a block — dragging is the only way',
   await page.evaluate(async () => {
     document.querySelector('.cell.sechead .more').click();
     await new Promise((r) => setTimeout(r, 250));
     const txt = document.querySelector('.menu').textContent;
-    return !/add/i.test(txt);
+    return !/content|visual|divider|subsection|reference/i.test(txt);
   }));
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
@@ -442,7 +458,7 @@ await page.evaluate(() => {
 });
 await page.waitForSelector('.menu');
 await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Delete section')).click());
-await page.waitForTimeout(300);
+await okDelete();
 eq('and deleted again', await gcount('.sec-title'), secBefore);
 
 const subBefore = await gcount('.sub-t');
@@ -526,7 +542,7 @@ await page.evaluate(() => {
   const r = [...document.querySelectorAll('#stage .ref')].pop();
   if (r && r.querySelector('.refx')) r.querySelector('.refx').click();
 });
-await page.waitForTimeout(250);
+await okDelete();
 await save();
 eq('and it can be removed again', refsInFile(await current()), refsBeforeRemoval - 1);
 
@@ -594,7 +610,7 @@ eq('with everything it carried, notes included',
     .filter((l) => l.startsWith('| Who it is for |') && l.includes('Only office managers')).length, 2);
 await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
   .find((b) => b.textContent.includes('Delete')).click());
-await page.waitForTimeout(300);
+await okDelete();
 await save();
 eq('and removed again',
   (await current()).split('\n')
@@ -669,8 +685,15 @@ const beforeDelete = await current();
 const itemsBefore = await gcount('.item');
 await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
   .find((b) => b.textContent.includes('Delete')).click());
-await page.waitForTimeout(300);
-eq('one click deletes a block', await gcount('.item'), itemsBefore - 1);
+// A mis-click is instant and undo is a seven-second net, so the net is the
+// second line of defence rather than the first.
+ok('deleting a block asks first', await page.$('.scrim .dialog') !== null);
+await cancelDelete();
+eq('and cancelling changes nothing', await gcount('.item'), itemsBefore);
+await page.evaluate(() => [...document.querySelectorAll('.rowsel .sbtn')]
+  .find((b) => b.textContent.includes('Delete')).click());
+await okDelete();
+eq('confirming deletes the block', await gcount('.item'), itemsBefore - 1);
 ok('and says so, with a way back', await page.$('.toast button') !== null);
 await page.evaluate(() => [...document.querySelectorAll('.toast button')]
   .find((b) => b.textContent === 'Undo').click());
@@ -1101,7 +1124,8 @@ ok('pressing an entry holds its block on the guide',
   await page.evaluate(() => !!document.querySelector('#stage .rowsel')));
 
 await page.evaluate(() => document.querySelectorAll('#railR .cgroup .tc .x')[0].click());
-await page.waitForTimeout(350);
+ok('deleting a comment asks first', await page.$('.scrim .dialog') !== null);
+await okDelete();
 ok('and deleted, with a way back', await page.$('.toast button') !== null);
 
 await page.click('.markers');
@@ -1261,7 +1285,13 @@ if (await mapOn()) {
 
   const stageTop = () => page.evaluate(() => document.getElementById('stage').scrollTop);
   const viewTop = () => page.evaluate(() => parseFloat(document.querySelector('.mview').style.top));
-  ok('the box sits at the top when you are at the top', (await stageTop()) === 0 && (await viewTop()) < 3);
+  // Put the guide at the top rather than inheriting wherever the last test left
+  // it: the claim is about where the box sits when you are at the top, so being
+  // at the top has to be established, not hoped for.
+  await page.evaluate(() => { document.getElementById('stage').scrollTop = 0; });
+  await page.waitForTimeout(120);
+  ok('the box sits at the top when you are at the top', (await stageTop()) === 0 && (await viewTop()) < 3,
+    `stage.scrollTop ${await stageTop()}, view top ${await viewTop()}`);
   await page.evaluate(() => {
     const m = document.getElementById('minimap');
     const r = m.getBoundingClientRect();
@@ -1436,7 +1466,7 @@ await page.evaluate((names) => {
 }, orderBefore);
 await page.waitForSelector('.menu');
 await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Delete guide')).click());
-await page.waitForTimeout(300);
+await okDelete();
 eq('and deleted', await count('#railL .g-item'), orderBefore.length - 1);
 const guidesNow = await count('#railL .g-item');
 await save();
@@ -1475,7 +1505,7 @@ await page.evaluate(() => {
   const n = [...document.querySelectorAll('#railR .gnote')].find((x) => x.textContent.includes('Phase two only'));
   n.querySelector('.x').click();
 });
-await page.waitForTimeout(250);
+await okDelete();
 eq('and one can be removed on its own', await count('#railR .gnote'), notesBefore);
 
 // ---------------------------------------------------------------- users
@@ -1644,7 +1674,7 @@ ok('a case-different match reuses the existing type instead of making a second o
   userLines.some((l) => l.includes('Visitor host')) && !userLines.some((l) => l.includes('visitor host')),
   JSON.stringify(userLines));
 
-// ---------------------------------------------------------------- present
+// ---------------------------------------------------------------- reading mode
 const titleSize = await page.evaluate(() =>
   getComputedStyle(document.querySelector('#pagehead h1')).fontSize);
 // Out of any field first: a bare coordinate can land in a name now that the
@@ -1652,11 +1682,11 @@ const titleSize = await page.evaluate(() =>
 await pressAt('#stage', 8, 300);
 await page.keyboard.press('p');
 await page.waitForTimeout(250);
-eq('the present button label flips to Exit', await text('#present'), 'Exit');
+eq('the read button label flips to Exit', await text('#present'), 'Exit');
 eq('the guide title is the same size wherever you are',
   await page.evaluate(() => getComputedStyle(document.querySelector('#pagehead h1')).fontSize),
   titleSize);
-ok('present mode hides both rails',
+ok('reading mode hides both rails',
   await page.evaluate(() => getComputedStyle(document.getElementById('railL')).display === 'none'));
 ok('and the tabs, which are not for the room',
   await page.evaluate(() => getComputedStyle(document.getElementById('tabs')).display === 'none'));
@@ -1667,11 +1697,36 @@ ok('the stack gets wider for a shared screen',
 ok('the content is still all there', (await gcount('.item')) > 5);
 ok('and the whole header, not just the rails and tabs, is out of the room',
   await page.evaluate(() => getComputedStyle(document.getElementById('bar')).display === 'none'));
-// The present button lives in that hidden header, so Escape is now the only
-// way out — matching the family's present mode, which hides all chrome.
+// The button in #bar goes with the header, so the mode has to carry its own way
+// out. Reloading the page was the only reliable exit before this.
+ok('reading mode carries a visible way out of itself',
+  await page.evaluate(() => {
+    const b = document.querySelector('#pagehead .rexit');
+    if (!b) return false;
+    const r = b.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && getComputedStyle(b).display !== 'none';
+  }));
+// The rails held the goals, the users, the sources and the design links, so
+// reading a guide used to mean reading it without any of them.
+ok('and the context the rails were holding comes inline',
+  await page.evaluate(() => {
+    const c = document.querySelector('#stage .rctx');
+    return !!c && /user goal/i.test(c.textContent);
+  }));
+await page.click('#pagehead .rexit');
+await page.waitForTimeout(250);
+eq('and that button leaves the mode', await text('#present'), 'Read');
+
+// Escape queued behind the selection and the caret before, so leaving took
+// several presses from wherever you actually were.
+await pick('Status');
+await page.waitForTimeout(200);
+await page.keyboard.press('p');
+await page.waitForTimeout(250);
+eq('reading mode can be entered with a block selected', await text('#present'), 'Exit');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(250);
-eq('and it goes back to Present', await text('#present'), 'Present');
+eq('and one Escape is enough to leave it', await text('#present'), 'Read');
 
 // ---------------------------------------------------------------- source view
 await page.keyboard.press('s');
@@ -1749,6 +1804,137 @@ await page.click('.hello .btn.primary');
 await page.waitForSelector('.item', { timeout: 8000 });
 await page.waitForTimeout(300);
 ok('and the collapsed state survives one too', await page.$('.rexpand') !== null);
+
+// ---------------------------------------------------------------- the panel, closed
+/*
+ * A single chevron said that something was hidden without saying what. The
+ * collapsed rail is the only view of the panel you get while it is shut.
+ */
+await page.evaluate(() => { const b = document.querySelector('.rexpand'); if (b) b.click(); });
+await page.waitForTimeout(300);
+await page.click('#railR .rcollapse');
+await page.waitForTimeout(350);
+eq('the closed rail shows one icon per tab', await count('#railR .rmini'), 5);
+ok('each one says which tab it is', await page.$$eval('#railR .rmini',
+  (ns) => ns.every((n) => (n.getAttribute('aria-label') || '').length > 2)));
+ok('and every one of them draws an icon', await page.$$eval('#railR .rmini svg', (ns) => ns.length === 5));
+ok('a tab holding something carries a badge saying how much',
+  await page.$$eval('#railR .rmini .b', (ns) => ns.length >= 1 && ns.every((n) => /^\d+$/.test(n.textContent))));
+await page.evaluate(() => {
+  const b = [...document.querySelectorAll('#railR .rmini')].find((n) => /sources/i.test(n.getAttribute('aria-label') || ''));
+  if (b) b.click();
+});
+await page.waitForTimeout(350);
+ok('pressing one opens the panel on that tab',
+  await page.evaluate(() => !document.getElementById('railR').classList.contains('collapsed')
+    && !!document.querySelector('#railR .ptabs button.on[data-panel="sources"]')));
+
+// ---------------------------------------------------------------- what is still open
+await page.evaluate(() => { const t = [...document.querySelectorAll('#tabs button')]
+  .find((x) => /open/i.test(x.textContent)); if (t) t.click(); });
+await page.waitForTimeout(400);
+// linkify returns a fragment; it used to be assigned to innerHTML, which
+// stringifies to [object DocumentFragment] and told you nothing.
+ok('every open item reads as itself, not as an object',
+  !(await text('#stage')).includes('[object'));
+ok('and the line you read first is the note, not the location',
+  await page.$$eval('#stage .oi', (ns) => ns.length > 0 && ns.every((n) => {
+    const t = n.querySelector('.t');
+    return t && t.textContent.trim().length > 0;
+  })));
+ok('with the kind and the place underneath',
+  await page.$$eval('#stage .oi .w', (ns) => ns.some((n) => /^(Action|Unanswered)\s+·/.test(n.textContent.trim()))));
+
+// ---------------------------------------------------------------- who it is for
+await page.evaluate(() => { const t = [...document.querySelectorAll('#tabs button')]
+  .find((x) => /users/i.test(x.textContent)); if (t) t.click(); });
+await page.waitForTimeout(400);
+// A bare ?? on the end of a line tells you nothing about which field is unknown.
+ok('a guide with no user goal says nothing rather than ??',
+  await page.$$eval('#stage .usr .oi .w', (ns) => ns.every((n) => !/·\s*\?\?\s*$/.test(n.textContent))));
+
+// ---------------------------------------------------------------- the four capabilities
+await page.evaluate(() => { const t = [...document.querySelectorAll('#tabs button')]
+  .find((x) => /guide/i.test(x.textContent)); if (t) t.click(); });
+await page.waitForTimeout(300);
+await page.evaluate(() => {
+  const b = [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings'));
+  if (b) b.click();
+});
+await page.waitForTimeout(400);
+// The glyphs and the map existed all along; a single hardcoded search icon
+// stood in for the lane, so all four looked the same.
+ok('each capability draws its own glyph',
+  await page.evaluate(() => {
+    const cell = [...document.querySelectorAll('#stage .fn')]
+      .find((n) => n.querySelectorAll('.caps .cap').length > 1);
+    if (!cell) return false;
+    const chips = [...cell.querySelectorAll('.caps .cap')];
+    const paths = chips.map((c) => { const p = c.querySelector('path'); return p && p.getAttribute('d'); });
+    return paths.every(Boolean) && new Set(paths).size === paths.length;
+  }));
+ok('and keeps its word beside it',
+  await page.evaluate(() => {
+    const chip = document.querySelector('#stage .fn .caps .cap');
+    return !!chip && /[a-z]{3,}/.test(chip.textContent);
+  }));
+
+// ---------------------------------------------------------------- lines between blocks
+// One hairline per block per side stacked into a ruled table and buried the
+// content. The tie only means anything for the row you are on.
+ok('a block at rest draws no leader line',
+  await page.$$eval('#stage .lane:not(.rowhot):not(.rowsel) .lead', (ns) =>
+    ns.length > 0 && ns.every((n) => {
+      const c = getComputedStyle(n).borderTopColor;
+      return c === 'rgba(0, 0, 0, 0)' || c === 'transparent';
+    })));
+
+// ---------------------------------------------------------------- a note keeps its own room
+await pick('Status');
+await page.waitForTimeout(250);
+ok('the note text never runs under the tools that sit over it',
+  await page.evaluate(() => {
+    const note = document.querySelector('#stage .note.hastools');
+    if (!note) return false;
+    const tools = note.querySelector('.tools');
+    const body = note.querySelector('.nbody');
+    if (!tools || !body) return false;
+    // The tools are positioned over the card, so the text is kept clear of them
+    // by a reserved gutter rather than by flow.
+    const gutter = parseFloat(getComputedStyle(body).paddingRight);
+    const toolsW = tools.getBoundingClientRect().width;
+    return gutter >= toolsW;
+  }));
+ok('and the gutter is there before you hover, so nothing rewraps under the cursor',
+  await page.evaluate(() => {
+    const body = document.querySelector('#stage .note.hastools .nbody');
+    return !!body && parseFloat(getComputedStyle(body).paddingRight) > 20;
+  }));
+
+// ---------------------------------------------------------------- a design you can see
+await page.evaluate(() => {
+  const b = [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings'));
+  if (b) b.click();
+});
+await page.waitForTimeout(300);
+await panel(1);
+await page.waitForTimeout(400);
+eq('a linked picture gets a thumbnail, not just a URL', await count('#railR .dthumb'), 1);
+ok('a picture that is not in the folder says so rather than showing a broken frame',
+  (await text('#railR')).includes('Not found in this folder'));
+ok('and a picture can be opened beside the guide, the way a Figma file can',
+  await page.evaluate(() => {
+    const card = [...document.querySelectorAll('#railR .dcard')].find((n) => n.querySelector('.dthumb'));
+    return !!card && !!card.querySelector('.sidebyside');
+  }));
+await page.evaluate(() => {
+  const card = [...document.querySelectorAll('#railR .dcard')].find((n) => n.querySelector('.dthumb'));
+  card.querySelector('.sidebyside').click();
+});
+await page.waitForTimeout(400);
+ok('which opens a picture pane rather than an embed', await page.$('.beside .bimg') !== null);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
 
 // ---------------------------------------------------------------- no errors
 ok('no uncaught errors anywhere in the session', errors.length === 0, errors.slice(0, 4).join('\n       '));

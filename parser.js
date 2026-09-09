@@ -246,10 +246,9 @@ export function renderFormCell(f) {
 }
 
 /**
- * The notes on one block. A note beginning `ACTION:` is an Action Item — a
- * follow-up or open question to circle back on, and nothing else. It is never an
- * emphasis flag. The goal is to clear every Action Item to zero, which only
- * works if the marker means one thing.
+ * The notes on one block. A note beginning `ACTION:` is an action — a follow-up
+ * to circle back on, and nothing else. It is never an emphasis flag. The goal is
+ * to clear every action to zero, which only works if the marker means one thing.
  */
 export function parseNoteCell(v) {
   return norm(v).split(NOTE_SPLIT).map(norm).filter(Boolean).map((t) => {
@@ -1173,6 +1172,12 @@ export function lintRow(row) {
   if (row.link.type && !LINK_TYPES.includes(row.link.type)) {
     issues.push({ kind: 'unknown-link', word: row.link.type });
   }
+  // A block goes somewhere or it takes input. It cannot do both — a date picker
+  // that is also a download is two blocks wearing one row. Linted rather than
+  // rejected, because a file that already says both still has to open.
+  if (row.link.type && row.form.type) {
+    issues.push({ kind: 'link-and-form', word: `${row.link.type} + ${row.form.type}` });
+  }
   return issues;
 }
 
@@ -1498,7 +1503,7 @@ export function blankGuidesFile(title) {
     '',
     '- `??` means nobody has been asked yet. It is not a blank — a blank means the',
     '  question does not apply here.',
-    '- A note beginning `ACTION:` is a follow-up to circle back on. The goal is zero.',
+    '- A note beginning `ACTION:` is an action to circle back on. The goal is zero.',
     '- `[[Another guide]]` in the Link column is a route the user can take.',
     '- `[handle]` cites a source defined at the bottom of the file.',
     '',

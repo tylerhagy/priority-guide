@@ -94,7 +94,7 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
   overflow-y:auto;padding:14px 10px 40px}
 #railR{width:340px;flex:none;border-left:1px solid var(--line);background:var(--panel);
   display:flex;flex-direction:column;min-height:0;position:relative}
-#railR.collapsed{align-items:center;justify-content:center}
+#railR.collapsed{align-items:center;justify-content:flex-start;padding-top:10px}
 /* An overlay strip on the border, not a grid track — the same drag idiom the
    minimap already uses, just for a horizontal measurement instead of scroll. */
 .rdrag{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:3}
@@ -107,6 +107,20 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
 .rcollapse:hover{color:var(--ink);background:var(--hover)}
 .rexpand{color:var(--dim);padding:8px 6px;border-radius:7px;display:flex;transform:rotate(90deg)}
 .rexpand:hover{background:var(--hover);color:var(--ink)}
+.dthumb{margin-top:8px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--hover);overflow:hidden;cursor:pointer;display:block;max-height:220px}
+.dthumb:hover{border-color:var(--dim)}
+.dthumb img{display:block;width:100%;height:auto}
+.dmiss{padding:10px;font-size:11.5px;color:var(--faint);text-align:center}
+.bimg{overflow:auto;background:var(--hover);display:block}
+.bimg img{display:block;max-width:100%;height:auto;margin:0 auto}
+.rminis{display:flex;flex-direction:column;gap:2px;margin-top:6px;align-items:center}
+.rmini{position:relative;color:var(--dim);padding:7px 6px;border-radius:7px;display:flex}
+.rmini:hover{background:var(--hover);color:var(--ink)}
+.rmini.on{color:var(--ink);background:var(--hover)}
+.rmini .b{position:absolute;top:1px;right:0;min-width:13px;height:13px;padding:0 3px;
+  border-radius:7px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;
+  line-height:13px;text-align:center;font-variant-numeric:tabular-nums}
 #mid{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
 #midrow{flex:1;display:flex;min-height:0;min-width:0}
 
@@ -144,6 +158,8 @@ body.present #minimap,body.is-paired #minimap{display:none}
 #pagehead{flex:none;padding:16px 30px 12px;border-bottom:1px solid var(--line);
   background:var(--panel)}
 #pagehead .headline{display:flex;align-items:center;gap:8px}
+#pagehead .hnav{margin-left:auto;display:flex;align-items:center;gap:4px;flex:none}
+#pagehead .rexit{margin-left:10px}
 #pagehead h1{font-size:21px;font-weight:600;letter-spacing:-.02em;margin:0;line-height:1.25;
   padding:2px 6px;margin-left:-6px;border-radius:7px;min-width:2ch}
 #pagehead .nav{color:var(--dim);padding:4px;border-radius:8px;display:flex}
@@ -243,6 +259,17 @@ body.present .guide{grid-template-columns:minmax(150px,1.05fr) minmax(320px,1.5f
    containing block that is itself zoomed, so a fluid guide comes out exactly
    the same size at every level. */
 .gzoom{position:relative;width:100%;max-width:1140px;margin:0 auto}
+.rctx{max-width:760px;margin:0 auto 26px;padding:0 4px}
+.rctx dl{display:grid;grid-template-columns:max-content 1fr;gap:5px 18px;margin:0}
+.rctx dt{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);padding-top:2px}
+.rctx dd{margin:0;font-size:13px;line-height:1.5;color:var(--ink)}
+.rctx dd.unknown{color:var(--faint)}
+.rctx-f{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline;margin-top:14px;
+  padding-top:12px;border-top:1px solid var(--line)}
+.rctx-h{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.rctx-l{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px}
+.rctx-l a{color:var(--accent)}
 .gzoom > .guide{transform:scale(var(--zoom,1));transform-origin:top left;
   width:calc(100% / var(--zoom,1));max-width:none;margin:0}
 body.present .gzoom{max-width:1360px}
@@ -275,10 +302,13 @@ body.present .gzoom{max-width:1360px}
 .lane-r{grid-column:3}
 /* A solid hairline, not a dotted one: a leader is a tie, and a row of dots is
    a table of contents from 1994. */
-.lead{flex:none;width:22px;border-top:1px solid var(--line-2);margin-top:16px;
+/* Drawn for every block on both sides, these stacked up into a ruled table and
+   buried the content in lines. The tie only means anything for the row you are
+   on, so that is when it is drawn. */
+.lead{flex:none;width:22px;border-top:1px solid transparent;margin-top:16px;
   transition:border-color .12s var(--ease)}
 .lane.rowhot{background:var(--hover);border-radius:var(--radius-sm)}
-.rowhot .lead{border-color:var(--accent)}
+.rowhot .lead,.rowsel .lead{border-color:var(--accent)}
 
 /* ---------- one row in the stack ---------- */
 .item{padding:2px 0;position:relative}
@@ -332,6 +362,11 @@ body.present .gzoom{max-width:1360px}
   display:flex;gap:6px;align-items:flex-start;max-width:100%}
 .note.act{border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.05);color:var(--act)}
 .nbody{min-width:0;flex:1;padding-right:2px}
+/* The tools float over the top-right corner, so the text needs a lane of its
+   own to wrap into. Reserved whenever the tools can exist at all, not on
+   hover — a gutter that appears under the cursor rewraps the note you are
+   reading. */
+.note.hastools .nbody{padding-right:38px}
 .note .t{min-width:0;padding:0 2px;border-radius:3px}
 .note .t:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
 .note .k{font-size:9px;font-weight:700;letter-spacing:.07em;color:var(--act);margin-bottom:1px}
@@ -484,7 +519,11 @@ body.present .gzoom{max-width:1360px}
 .fn .tgt{color:var(--accent)}
 .fn .tgt.dead{color:var(--flag)}
 .fn .req{color:var(--act);font-weight:600}
-.fn .caps{color:var(--dim);font-size:11px;letter-spacing:.01em}
+.fn .caps{color:var(--dim);font-size:11px;letter-spacing:.01em;
+  display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.fn .cap{display:inline-flex;align-items:center;gap:3px}
+.fn .cap svg{color:var(--dim);margin-top:0}
+.fn .capsep{color:var(--faint)}
 
 
 /* ---------- functionality popover ---------- */
@@ -578,12 +617,16 @@ body.present .gzoom{max-width:1360px}
 
 
 /* ---------- right panel ---------- */
-#railR .ptabs{flex:none;display:flex;gap:0;padding:10px 8px 0;border-bottom:1px solid var(--line)}
+/* The rail is resizable, so no padding value can make five labels fit at every
+   width. Scrolling is the only thing that cannot clip. */
+#railR .ptabs{flex:none;display:flex;gap:0;padding:10px 8px 0;border-bottom:1px solid var(--line);
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#railR .ptabs::-webkit-scrollbar{display:none}
 /* One line of text per tab, always. A count that wraps under its label lifts
    that label off the baseline the others sit on, and four tabs stop reading as
    one row. It goes beside the word instead, where it is read as part of it. */
-#railR .ptabs button{display:flex;align-items:baseline;gap:3px;white-space:nowrap;
-  padding:6px 6px;border-radius:7px 7px 0 0;color:var(--dim);font-size:11.5px;
+#railR .ptabs button{display:flex;align-items:baseline;gap:3px;white-space:nowrap;flex:none;
+  padding:6px 5px;border-radius:7px 7px 0 0;color:var(--dim);font-size:11.5px;
   font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
 #railR .ptabs button .n{font-size:10.5px;font-weight:600;color:var(--faint);
   font-variant-numeric:tabular-nums}
@@ -852,7 +895,7 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   <div class="spacer"></div>
   <div class="tabs" id="tabs"></div>
   <span class="count" id="open"></span>
-  <button class="btn" id="present" title="Present (P)">Present</button>
+  <button class="btn" id="present" title="Read (P)">Read</button>
   <button class="btn primary" id="save" disabled>Save</button>
 </div>
 <div id="banners"></div>
@@ -939,7 +982,7 @@ const S = {
   dir: null, files: [], file: null, originalText: '', doc: null,
   readOnly: false, dirty: false,
   guide: null, sel: null, editing: null,
-  view: 'guide', present: false, capture: false, captured: 0,
+  view: 'guide', present: false, capture: false, captured: 0, addProse: null,
   userFilter: null, shownField: null,
   zoom: 1, besideSplit: null,
   railRWidth: 340, railRCollapsed: false
@@ -1082,6 +1125,21 @@ function ask({ title, body, choices }) {
     back.onmousedown = (e) => { if (e.target === back) bail(); };
     box.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') bail(); };
     document.body.appendChild(back);
+  });
+}
+
+/**
+ * Every delete asks first. Undo is a seven-second net and a mis-click is
+ * instant, so the net is the second line of defence, not the first.
+ */
+function confirmDelete(what, body) {
+  return ask({
+    title: `Delete ${what}?`,
+    body: body || 'You can undo this straight afterwards.',
+    choices: [
+      { label: 'Cancel', value: false, cancel: true },
+      { label: 'Delete', value: true, danger: true }
+    ]
   });
 }
 
@@ -1345,8 +1403,8 @@ function renderBar() {
     sv.style.display = 'none';
   }
   $('present').classList.toggle('on', S.present);
-  $('present').textContent = S.present ? 'Exit' : 'Present';
-  $('present').title = S.present ? 'Leave present mode (Esc)' : 'Present (P)';
+  $('present').textContent = S.present ? 'Exit' : 'Read';
+  $('present').title = S.present ? 'Leave reading mode (Esc)' : 'Read (P)';
   $('present').style.display = S.doc ? '' : 'none';
 
   const tabs = $('tabs');
@@ -1366,7 +1424,7 @@ function renderBar() {
   // A count that is supposed to reach zero, so it is stated as a countdown and
   // says so when it gets there.
   c.innerHTML = n ? `<b>${n}</b> open` : '<b>0</b> open';
-  c.title = n ? 'Action items and unanswered questions across every guide' : 'Nothing left open';
+  c.title = n ? 'Actions and unanswered questions across every guide' : 'Nothing left open';
 }
 
 function renderHello() {
@@ -1453,7 +1511,9 @@ function guideMenu(anchor, g, i, total) {
     { glyph: 'down', label: 'Move down', disabled: i === total - 1,
       fn: () => { if (moveGuide(S.doc, g, 1)) { mark(); render(); } } },
     { sep: true },
-    { glyph: 'trash', label: 'Delete guide', danger: true, fn: () => {
+    { glyph: 'trash', label: 'Delete guide', danger: true, fn: async () => {
+      if (!await confirmDelete(`the guide “${g.name}”`,
+        'Every block, note and source citation in it goes too. You can undo this straight afterwards.')) return;
       const back = S.doc.segments.indexOf(g);
       const was = S.guide;
       removeGuide(S.doc, g);
@@ -1613,6 +1673,8 @@ const GLYPH = {
   minus: 'M3.5 8h9',
   info: 'M8 2.2a5.8 5.8 0 100 11.6A5.8 5.8 0 008 2.2zM8 7.2v4M8 5.1v.01',
   up: 'M8 12.5v-9M4.5 7L8 3.5 11.5 7',
+  left: 'M12.5 8h-9M7 4.5L3.5 8 7 11.5',
+  right: 'M3.5 8h9M9 4.5L12.5 8 9 11.5',
   down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
   trash: 'M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9M6.5 7v4M9.5 7v4',
   copy: 'M5.5 5.5h8v8h-8zM2.5 10.5v-8h8',
@@ -1827,7 +1889,6 @@ function stepGuide(dir) {
 function navBtn(glyph, dir, enabled, title) {
   const b = el('button', 'nav');
   b.appendChild(icon(glyph, 15));
-  b.style.transform = dir < 0 ? 'rotate(90deg)' : 'rotate(-90deg)';
   b.title = title;
   b.disabled = !enabled;
   b.onclick = () => stepGuide(dir);
@@ -1845,19 +1906,25 @@ function renderPageHead() {
   const at = scope.indexOf(g);
 
   const line = el('div', 'headline');
-  if (S.present && scope.length > 1) {
-    line.appendChild(navBtn('up', -1, at > 0, 'Previous screen'));
-  }
   const t = el('h1');
   t.textContent = g.name;
   if (!S.present) editable(t, g.name, (v) => { if (v) { g.name = v; g.dirtyHeading = true; } });
   line.appendChild(t);
+  const cluster = el('div', 'hnav');
   if (S.present && scope.length > 1) {
-    line.appendChild(navBtn('down', 1, at < scope.length - 1, 'Next screen'));
+    cluster.appendChild(navBtn('left', -1, at > 0, 'Previous screen'));
+    cluster.appendChild(navBtn('right', 1, at < scope.length - 1, 'Next screen'));
     const c = el('span', 'count');
     c.textContent = `${at + 1} of ${scope.length}`;
-    line.appendChild(c);
+    cluster.appendChild(c);
   }
+  if (S.present) {
+    const out = el('button', 'btn rexit', 'Done reading');
+    out.title = 'Back to editing (Esc)';
+    out.onclick = () => { S.present = false; render(); };
+    cluster.appendChild(out);
+  }
+  line.appendChild(cluster);
   h.appendChild(line);
 
   const sub = el('div', 'sub');
@@ -2306,10 +2373,12 @@ function renderGuide(host) {
       title.host.appendChild(more);
     }
 
-    // The line of prose under a heading is part of the guide, so it is editable
-    // like everything else — and it exists even when the file has no line yet.
+    // The line of prose under a heading is part of the guide and editable like
+    // everything else — but it is optional, so an empty one is not a permanent
+    // placeholder on every section. Add it from the section menu.
     const prose = sec.chunks.find((c) => c.kind === 'raw' && !/^\s*\|/m.test(c.src.join('\n')));
-    if (!S.present || (prose && proseOf(prose))) {
+    const hasProse = !!(prose && proseOf(prose));
+    if (hasProse || S.addProse === sec) {
       const pRow = gridRow(''); mine.push(pRow.band);
       pRow.host.appendChild(sectionProse(g, sec, prose));
     }
@@ -2345,8 +2414,9 @@ function renderGuide(host) {
           p.onclick = (e) => { if (e.target.closest('a')) return; openRefPicker(p, g, sec, chunk); };
           const del = el('button', 'refx', '×');
           del.title = 'Remove this reference';
-          del.onclick = (e) => {
+          del.onclick = async (e) => {
             e.stopPropagation();
+            if (!await confirmDelete('this reference', 'The guide it points at is untouched.')) return;
             sec.chunks.splice(sec.chunks.indexOf(chunk), 1);
             sec.dirty = true; mark(); render();
           };
@@ -2386,9 +2456,56 @@ function renderGuide(host) {
   // then scaled back onto it, so zooming out really does fit more on screen
   // rather than just drawing the same columns smaller.
   const frame = el('div', 'gzoom');
+  if (S.present) frame.appendChild(readingContext(g));
   frame.appendChild(grid);
   stage.appendChild(frame);
   sizeZoomFrame(frame, grid);
+}
+
+/**
+ * Reading mode hides both rails, and the guide's goals, users, sources and
+ * design links lived in the right one — so reading a guide meant reading it
+ * without the things that say who it is for and what it is answering. They
+ * come inline here instead, read-only, above the stack.
+ */
+function readingContext(g) {
+  const box = el('div', 'rctx');
+  const dl = el('dl');
+  let any = false;
+  for (const k of ['type', 'userGoal', 'businessGoal', 'primaryUsers', 'notes']) {
+    const raw = (g.fields[k] || '').trim();
+    if (!raw) continue;
+    any = true;
+    dl.appendChild(el('dt', null, FIELD_LABELS[k] || k));
+    const dd = el('dd', raw === '??' ? 'unknown' : '');
+    if (raw === '??') dd.textContent = '?? — nobody has been asked';
+    else setLinked(dd, raw, g);
+    dl.appendChild(dd);
+  }
+  if (any) box.appendChild(dl);
+
+  const cited = sourceUsage(S.doc).all
+    .filter((x) => x.cites.some((c) => c.guide === g.name));
+  const designs = designLinks(S.doc, g);
+  const foot = el('div', 'rctx-f');
+  const list = (title, items, make) => {
+    if (!items.length) return;
+    const h = el('div', 'rctx-h', title);
+    foot.appendChild(h);
+    const ul = el('div', 'rctx-l');
+    items.forEach((x) => ul.appendChild(make(x)));
+    foot.appendChild(ul);
+  };
+  list('Design', designs, (d) => outLink(d.url, d.title || d.handle, d.title));
+  list('Sources', cited, (x) => outLink(x.url, x.title || x.handle, x.title));
+  const routes = links(S.doc).routes.filter((r) => r.from === g.name);
+  list('Goes to', routes, (r) => {
+    const a = el('a', null, r.to);
+    a.href = '#'; a.dataset.goto = r.to;
+    return a;
+  });
+  if (foot.children.length) box.appendChild(foot);
+  return box.children.length ? box : el('div');
 }
 
 /** A reference that belongs to the guide rather than to one of its sections. */
@@ -2413,8 +2530,9 @@ function guideRefCard(g, r, i) {
   p.onclick = (e) => { if (e.target.closest('a')) return; openRefPicker(p, g, null, chunk); };
   const del = el('button', 'refx', '×');
   del.title = 'Remove this reference';
-  del.onclick = (e) => {
+  del.onclick = async (e) => {
     e.stopPropagation();
+    if (!await confirmDelete('this reference', 'The guide it points at is untouched.')) return;
     removeGuideRef(g, i);
     mark(); render();
   };
@@ -2446,14 +2564,24 @@ function sectionProse(g, sec, chunk) {
 
 /** Everything a section can do, from one button that is always in the same place. */
 function sectionMenu(anchor, g, sec) {
-  openMenu(anchor, [
-    { glyph: 'trash', label: 'Delete section', danger: true, fn: () => {
+  const prose = sec.chunks.find((c) => c.kind === 'raw' && !/^\s*\|/m.test(c.src.join('\n')));
+  const items = [];
+  if (!(prose && proseOf(prose))) {
+    items.push({ glyph: 'plus', label: 'Add a line of clarity', fn: () => {
+      S.addProse = sec; render();
+      focusSoon('.guide .sec-note');
+    } });
+  }
+  openMenu(anchor, items.concat([
+    { glyph: 'trash', label: 'Delete section', danger: true, fn: async () => {
+      if (!await confirmDelete(`the section “${sec.title}”`,
+        'Every block in it goes too. You can undo this straight afterwards.')) return;
       const back = g.sections.indexOf(sec);
       g.sections.splice(back, 1);
       g.dirty = true; S.sel = null; mark(); render();
       undoable(`“${sec.title}”`, () => { g.sections.splice(back, 0, sec); g.dirty = true; });
     } }
-  ]);
+  ]));
 }
 
 // ---------------------------------------------------------------- comments
@@ -2527,8 +2655,9 @@ function commentCard(rid, i, repaint) {
   if (!S.readOnly) {
     const x = el('button', 'x', '×');
     x.title = 'Delete this comment';
-    x.onclick = (e) => {
+    x.onclick = async (e) => {
       e.stopPropagation();
+      if (!await confirmDelete('this comment')) return;
       const now = live();
       if (!now) return;
       const was = { rid: now.rid, text: now.text, done: now.done };
@@ -2746,7 +2875,7 @@ function panelComments(body) {
 /**
  * The middle says what the thing is called and what its data actually looks
  * like. The right says what it does. The left holds everything else — a rule, a
- * link, something someone said, a follow-up.
+ * link, something someone said, an action.
  *
  * Nothing important is hidden behind hover. Both side lanes always show where a
  * note or a piece of functionality would go, so you can see what a row can hold
@@ -2839,6 +2968,7 @@ function paintRow(row, g, sec, table, rw) {
       if (f.kind === 'visual-answer') n.innerHTML = '<b>&ldquo;' + esc(f.word) + '&rdquo;</b> is a visual answer. ' + esc(f.ask);
       else if (f.kind === 'unknown-form') n.textContent = '"' + f.word + '" is not one of the form types.';
       else if (f.kind === 'unknown-link') n.textContent = '"' + f.word + '" is not one of the link types.';
+      else if (f.kind === 'link-and-form') n.textContent = 'This block both goes somewhere and takes input (' + f.word + '). Pick one.';
       row.host.appendChild(n);
     }
   }
@@ -2901,7 +3031,7 @@ const KIND_LABEL = { text: 'Content', visual: 'Visual', chart: 'Data visual', di
 
 /**
  * What you can do to the row you selected, in the row, in reading order, with
- * every target a real button. Delete is one click because it is undoable.
+ * every target a real button. Delete asks first; undo is the net after that.
  */
 function rowStrip(ctx, kind, openExample) {
   const { g, sec, table, rw } = ctx;
@@ -2947,9 +3077,10 @@ function rowStrip(ctx, kind, openExample) {
   const del = el('button', 'sbtn danger');
   del.appendChild(icon('trash', 12));
   del.appendChild(el('span', null, 'Delete'));
-  del.title = 'Delete this block. You can undo it.';
-  del.onclick = (e) => {
+  del.title = 'Delete this block.';
+  del.onclick = async (e) => {
     e.stopPropagation();
+    if (!await confirmDelete(rw.content.text ? `“${rw.content.text}”` : 'this block')) return;
     const at = table.rows.indexOf(rw);
     table.rows.splice(at, 1);
     table.dirty = true; sec.dirty = true;
@@ -3175,14 +3306,18 @@ function noteCard(ctx, n, i) {
   card.appendChild(body);
 
   if (!S.readOnly && !S.present) {
+    card.classList.add('hastools');
     const tools = el('div', 'tools');
     const a = el('button', null, n.action ? '↩' : '!');
-    a.title = n.action ? 'This is settled — stop treating it as a follow-up' : 'Make this a follow-up to circle back on';
+    a.title = n.action ? 'This is settled — stop treating it as an action' : 'Make this an action to circle back on';
     a.onclick = () => { n.action = !n.action; touchRow(rw, table, sec); mark(); render(); };
     tools.appendChild(a);
     const x = el('button', null, '×');
     x.title = 'Delete this note';
-    x.onclick = () => { rw.note.splice(i, 1); touchRow(rw, table, sec); mark(); render(); };
+    x.onclick = async () => {
+      if (!await confirmDelete('this note', 'There is no undo for a note.')) return;
+      rw.note.splice(i, 1); touchRow(rw, table, sec); mark(); render();
+    };
     tools.appendChild(x);
     card.appendChild(tools);
   }
@@ -3246,11 +3381,19 @@ function fnCard(ctx) {
       card.appendChild(l);
     }
     if (rw.capabilities.length) {
-      // Words, not icons. Four short labels are read faster than four glyphs
-      // nobody has learned yet.
+      // One glyph per capability, each keeping its word. The icons separate the
+      // four at a glance; the words are what make the icons learnable, so the
+      // old "words, not icons" call is kept rather than reversed.
       const l = el('div', 'l');
-      if (!rw.link.type && !rw.form.type) l.appendChild(icon('search', 13));
-      l.appendChild(el('div', 'caps', rw.capabilities.join(' · ')));
+      const caps = el('div', 'caps');
+      rw.capabilities.forEach((c, i) => {
+        if (i) caps.appendChild(el('span', 'capsep', '·'));
+        const chip = el('span', 'cap');
+        chip.appendChild(icon(CAP_GLYPH[c] || 'other', 12));
+        chip.appendChild(el('span', null, c));
+        caps.appendChild(chip);
+      });
+      l.appendChild(caps);
       card.appendChild(l);
     }
   }
@@ -3309,6 +3452,9 @@ function openFnPopover(anchor, ctx) {
   const setLink = () => {
     const target = lTar.value.trim();
     rw.link = { type: lSel.value, target, wiki: !!(target && findGuide(S.doc, target)), raw: '' };
+    // Goes to and Takes are one choice, not two. Picking a destination drops
+    // whatever input this block claimed to take.
+    if (lSel.value && rw.form.type) rw.form = { type: '', required: false, raw: '' };
     apply(); syncL();
     const keep = document.activeElement === lTar;
     render();
@@ -3337,6 +3483,7 @@ function openFnPopover(anchor, ctx) {
   req.style.display = rw.form.type ? '' : 'none';
   fSel.onchange = () => {
     rw.form = { type: fSel.value, required: !!(fSel.value && rw.form.required), raw: '' };
+    if (fSel.value && rw.link.type) { rw.link = { type: '', target: '', wiki: false, raw: '' }; }
     apply(); render(); reopenPop();
   };
   fRow.append(fSel, req);
@@ -3422,6 +3569,67 @@ function dropRow(g, row, table, sec, at) {
   table.dirty = true; sec.dirty = true;
 }
 
+// A design can be a Figma file, or it can be a picture of the thing. Rendering
+// it beside the guide is the whole point of linking it, so the picture cases
+// get the same treatment the Figma case already had.
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i;
+function isImageUrl(u) { return IMAGE_EXT.test(String(u || '').trim()); }
+
+// A local path is relative to the folder that was opened, and the page is
+// served from somewhere else entirely — so it has to be read through the
+// directory handle and handed over as a blob.
+const blobCache = new Map();
+async function localImageUrl(path) {
+  const clean = String(path || '').trim().replace(/^<|>$/g, '');
+  if (!clean || /^[a-z]+:/i.test(clean)) return null;
+  if (blobCache.has(clean)) return blobCache.get(clean);
+  if (!S.dir) return null;
+  const parts = clean.replace(/^\.\//, '').split('/').filter((p) => p && p !== '.');
+  try {
+    let dir = S.dir;
+    for (const p of parts.slice(0, -1)) {
+      if (p === '..') return null;           // never climb out of the opened folder
+      dir = await dir.getDirectoryHandle(p);
+    }
+    const fh = await dir.getFileHandle(parts[parts.length - 1]);
+    const url = URL.createObjectURL(await fh.getFile());
+    blobCache.set(clean, url);
+    return url;
+  } catch { blobCache.set(clean, null); return null; }
+}
+
+/** Put the picture in the node once it can be reached, or say it could not be. */
+async function paintImage(host, url, alt) {
+  const src = /^[a-z]+:/i.test(url) ? url : await localImageUrl(url);
+  if (!src) {
+    host.appendChild(el('div', 'dmiss', 'Not found in this folder'));
+    return;
+  }
+  const img = el('img');
+  img.src = src; img.alt = alt || '';
+  img.onerror = () => { img.remove(); host.appendChild(el('div', 'dmiss', 'Could not be shown')); };
+  host.appendChild(img);
+}
+
+// One roster for the panel, read by both the open tabs and the collapsed rail.
+const PANELS = [['context', 'Context'], ['design', 'Design'], ['sources', 'Sources'],
+  ['links', 'Links'], ['comments', 'Comments']];
+const PANEL_GLYPH = { context: 'info', design: 'visual', sources: 'source',
+  links: 'onsite', comments: 'bubble' };
+
+function panelCounts() {
+  if (!S.doc || !S.guide) return { context: 0, design: 0, sources: 0, links: 0, comments: 0 };
+  const links = backlinks(S.doc, S.guide.name);
+  const out = links_out(S.guide);
+  return {
+    context: 0,
+    design: designLinks(S.doc, S.guide).length,
+    sources: sourceUsage(S.doc).all.filter((s) => s.cites.some((c) => c.guide === S.guide.name)).length,
+    links: links.routes.length + links.references.length + out.length,
+    comments: openCommentCount(S.doc, S.guide)
+  };
+}
+
 /** Nothing is held in a draft any more, but the picker can be open. */
 function commitEditor() { closePop(); }
 function focusEditor() { focusSoon('.rowsel .lbl'); }
@@ -3449,8 +3657,9 @@ function renderRailRight() {
   if (S.present || S.view !== 'guide' || !S.guide) { r.style.display = 'none'; return; }
   r.style.display = '';
 
-  // Collapsed reclaims the width for the guide; a slim strip with one button
-  // is the only thing left, so there is always an obvious way back open.
+  // Collapsed reclaims the width for the guide. A single chevron said only that
+  // something was hidden; a stacked icon per tab says what, and a badge says
+  // whether it holds anything — so the rail keeps its affordance while closed.
   if (S.railRCollapsed) {
     r.classList.add('collapsed');
     r.style.width = '40px';
@@ -3459,6 +3668,19 @@ function renderRailRight() {
     expand.title = 'Show panel';
     expand.onclick = () => setRailRCollapsed(false);
     r.appendChild(expand);
+
+    const counts = panelCounts();
+    const strip = el('div', 'rminis');
+    for (const [k, label] of PANELS) {
+      const b = el('button', 'rmini' + ((S.panel || 'context') === k ? ' on' : ''));
+      b.appendChild(icon(PANEL_GLYPH[k] || 'other', 15));
+      if (counts[k]) b.appendChild(el('span', 'b', String(counts[k])));
+      b.title = counts[k] ? `${label} — ${counts[k]}` : label;
+      b.setAttribute('aria-label', b.title);
+      b.onclick = () => { S.panel = k; setRailRCollapsed(false); };
+      strip.appendChild(b);
+    }
+    r.appendChild(strip);
     return;
   }
   r.style.width = (S.railRWidth || 340) + 'px';
@@ -3499,17 +3721,12 @@ function renderRailRight() {
 
   const tabs = el('div', 'ptabs');
   const body = el('div', 'pbody');
-  const links = backlinks(S.doc, S.guide.name);
-  const out = links_out(S.guide);
-  const counts = {
-    context: 0,
-    design: designLinks(S.doc, S.guide).length,
-    sources: sourceUsage(S.doc).all.filter((s) => s.cites.some((c) => c.guide === S.guide.name)).length,
-    links: links.routes.length + links.references.length + out.length,
-    comments: openCommentCount(S.doc, S.guide)
-  };
-  for (const [k, label] of [['context', 'Context'], ['design', 'Design'],
-    ['sources', 'Sources'], ['links', 'Links'], ['comments', 'Comments']]) {
+  // Named apart from the imported `links()` so the panel cannot accidentally
+  // read the function instead of this guide's back-links.
+  const backLinks = backlinks(S.doc, S.guide.name);
+  const outLinks = links_out(S.guide);
+  const counts = panelCounts();
+  for (const [k, label] of PANELS) {
     const b = el('button', (S.panel || 'context') === k ? 'on' : '');
     b.dataset.panel = k;
     b.appendChild(el('span', 'l', label));
@@ -3523,7 +3740,7 @@ function renderRailRight() {
   else if (S.panel === 'design') panelDesign(body);
   else if (S.panel === 'sources') panelSources(body);
   else if (S.panel === 'comments') panelComments(body);
-  else panelLinks(body, links, out);
+  else panelLinks(body, backLinks, outLinks);
 }
 
 function links_out(g) {
@@ -3634,7 +3851,10 @@ function notesField(g) {
     if (!S.readOnly) {
       const x = el('button', 'x', '×');
       x.title = 'Delete this note';
-      x.onclick = () => { list.splice(i, 1); commit(); render(); };
+      x.onclick = async () => {
+        if (!await confirmDelete('this note', 'There is no undo for a note.')) return;
+        list.splice(i, 1); commit(); render();
+      };
       card.appendChild(x);
     }
     wrap.appendChild(card);
@@ -3856,7 +4076,15 @@ function panelDesign(body) {
     open.classList.add('u');
     c.appendChild(open);
 
-    if (d.figma) {
+    if (isImageUrl(d.url)) {
+      const th = el('div', 'dthumb');
+      th.title = 'Open beside the guide';
+      th.onclick = () => { S.beside = d; render(); };
+      c.appendChild(th);
+      paintImage(th, d.url, d.title);
+    }
+
+    if (d.figma || isImageUrl(d.url)) {
       const b = el('button', 'sidebyside');
       b.appendChild(icon('sideby', 13));
       b.appendChild(el('span', null, 'Open beside the guide'));
@@ -3959,7 +4187,7 @@ function renderBeside() {
   const right = el('div', 'bside');
   const rh = el('div', 'bhead');
   rh.appendChild(el('span', 'n', d.title));
-  const open = outLink(d.url, 'Open in Figma', d.url);
+  const open = outLink(d.url, d.figma ? 'Open in Figma' : 'Open the file', d.url);
   open.classList.add('m');
   rh.appendChild(open);
   // Closing lives on the design side, next to the link that opened it — the
@@ -3969,10 +4197,16 @@ function renderBeside() {
   close.onclick = () => { S.beside = null; render(); };
   rh.appendChild(close);
   right.appendChild(rh);
-  const frame = el('iframe', 'bframe');
-  frame.src = d.figma;
-  frame.setAttribute('allowfullscreen', '');
-  frame.setAttribute('loading', 'lazy');
+  let frame;
+  if (d.figma) {
+    frame = el('iframe', 'bframe');
+    frame.src = d.figma;
+    frame.setAttribute('allowfullscreen', '');
+    frame.setAttribute('loading', 'lazy');
+  } else {
+    frame = el('div', 'bframe bimg');
+    paintImage(frame, d.url, d.title);
+  }
   right.appendChild(frame);
 
   wrap.append(left, divider, right);
@@ -4190,9 +4424,11 @@ function renderUsersView() {
       }
       b.appendChild(tt);
       const open = guideOpenCount(guide);
+      const goal = (guide.fields.userGoal || '').trim();
+      const shownGoal = goal && goal !== '??' ? '  ·  ' + goal.slice(0, 90) : '';
       b.appendChild(el('div', 'w', rowsOf(guide).length + ' blocks'
         + (open ? '  ·  ' + open + ' open' : '')
-        + '  ·  ' + (guide.fields.userGoal || '').slice(0, 90)));
+        + shownGoal));
       b.onclick = () => { S.guide = guide; S.view = 'guide'; S.sel = null; render(); };
       box.appendChild(b);
     }
@@ -4345,7 +4581,7 @@ function renderFlow() {
 
 // ---------------------------------------------------------------- open items
 /**
- * The number that is supposed to reach zero. An action item is a follow-up to
+ * The number that is supposed to reach zero. An action is a follow-up to
  * circle back on; a `??` is a question nobody has been asked yet. Both are open,
  * and both say where they came from so they can actually be chased.
  */
@@ -4355,7 +4591,7 @@ function renderOpen() {
   const items = openItems(S.doc);
   if (!items.length) {
     const d = el('div', 'done');
-    d.innerHTML = 'Nothing open.<span>Every action item is answered and no question is unasked.</span>';
+    d.innerHTML = 'Nothing open.<span>Every action is closed and every question is answered.</span>';
     w.appendChild(d);
     stage.appendChild(w);
     return;
@@ -4371,8 +4607,8 @@ function renderOpen() {
   const u = items.length - n;
   head.appendChild(el('h1', 'g-title', items.length + ' open'));
   head.appendChild(el('div', 'blurb',
-    n + ' action item' + (n === 1 ? '' : 's') + ' to circle back on, '
-    + u + ' thing' + (u === 1 ? '' : 's') + ' nobody has been asked.'));
+    n + ' action' + (n === 1 ? '' : 's') + ' to circle back on, '
+    + u + ' still unanswered.'));
   w.appendChild(head);
 
   for (const [name, list] of byGuide) {
@@ -4383,10 +4619,10 @@ function renderOpen() {
     for (const i of list) {
       const b = el('button', 'oi ' + (i.kind === 'action' ? 'act' : 'unk'));
       const t = el('div', 't');
-      t.innerHTML = linkify(i.text, findGuide(S.doc, i.guide));
+      t.appendChild(linkify(i.text, findGuide(S.doc, i.guide)));
       b.appendChild(t);
       const w = el('div', 'w');
-      w.textContent = (i.kind === 'action' ? 'Action item' : 'Not asked') + '  ·  ' + i.where;
+      w.textContent = (i.kind === 'action' ? 'Action' : 'Unanswered') + '  ·  ' + i.where;
       b.appendChild(w);
       b.onclick = () => {
         S.guide = findGuide(S.doc, i.guide);
@@ -4525,15 +4761,18 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape') {
     if (S.scrim) { const f = S.scrim; S.scrim = null; f(); return; }
-    if (S.beside) { S.beside = null; render(); return; }
     if (S.pop) { closePop(); return; }
+    // Reading mode has no edit controls, so there is nothing else Escape could
+    // mean here. It used to queue behind a selection and a caret, which is why
+    // leaving took several presses and people reloaded the page instead.
+    if (S.present) { S.present = false; render(); return; }
+    if (S.beside) { S.beside = null; render(); return; }
     if (document.activeElement && document.activeElement.isContentEditable) {
       document.activeElement.blur();
       return;
     }
     if (S.sel) { letGo(); return; }
     if (S.capture) { toggleCapture(false); return; }
-    if (S.present) { S.present = false; render(); return; }
     return;
   }
 

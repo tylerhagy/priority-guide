@@ -128,6 +128,11 @@ the capability, not every block on a screen that has a search box somewhere.
 route, drawn in the Flow view and back-linked on the target. A control can be a
 trigger conceptually and resolve to a modal — say `modal`, and make a guide for it.
 
+**Link and Form are one choice, not two.** A block either goes somewhere or takes
+input — a date picker that is also a download is two blocks wearing one row. The
+app clears one when you pick the other, and the validator flags any row that
+still says both.
+
 **Form** — `date picker`, `single line`, `multi line`, `single select`,
 `multi select`, `other`, plus `required`. **Functionality, never a visual
 solution.** `single select`, not `dropdown`; the designer decides radio versus

@@ -1,0 +1,11 @@
+{
+  "name": "priority-guide",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test.mjs && node browser-test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

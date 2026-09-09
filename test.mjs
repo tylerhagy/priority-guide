@@ -510,6 +510,37 @@ t('unknown columns are preserved when a row is edited', () => {
   ok(P.serializeDocument(doc).includes('| a | Priya | changed |'), 'Owner column was lost');
 });
 
+// ---------------------------------------------------------------- one or the other
+
+/*
+ * A block either goes somewhere or takes input. A date picker that is also a
+ * download is two blocks wearing one row.
+ */
+t('a block that both goes somewhere and takes input is flagged', () => {
+  const text = '# A\n\n## G\n\n### S\n\n| Content | Link | Form |\n| --- | --- | --- |\n'
+    + '| a | download | date picker |\n';
+  const doc = P.parseDocument(text);
+  const { row } = P.rowsOf(P.findGuide(doc, 'G'))[0];
+  const kinds = P.lintRow(row).map((i) => i.kind);
+  ok(kinds.includes('link-and-form'), `expected link-and-form, got ${JSON.stringify(kinds)}`);
+});
+
+t('one on its own is not flagged', () => {
+  const text = '# A\n\n## G\n\n### S\n\n| Content | Link | Form |\n| --- | --- | --- |\n'
+    + '| a | download |  |\n| b |  | date picker |\n';
+  const doc = P.parseDocument(text);
+  for (const { row } of P.rowsOf(P.findGuide(doc, 'G'))) {
+    ok(!P.lintRow(row).some((i) => i.kind === 'link-and-form'),
+      `${P.renderContentCell(row.content)} should be clean`);
+  }
+});
+
+t('a file that already says both still round-trips — it is a lint, not a rejection', () => {
+  const text = '# A\n\n## G\n\n### S\n\n| Content | Link | Form |\n| --- | --- | --- |\n'
+    + '| a | download | date picker |\n';
+  ok(P.verifyRoundTrip(text).ok, 'must still open');
+});
+
 // ---------------------------------------------------------------- report
 
 console.log(`\n  ${pass} passed${fails.length ? `, ${fails.length} FAILED` : ''}\n`);
