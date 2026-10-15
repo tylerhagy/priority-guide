@@ -156,6 +156,40 @@ t('moving a section carries its rows', () => {
   ok(P.verifyRoundTrip(after).ok, 'result no longer round-trips');
 });
 
+t('a subsection moves one row at a time, not its whole run of rows', () => {
+  const doc = P.parseDocument(FIXTURE);
+  const g = P.findGuide(doc, 'Bookings — My Week');
+  const sec = g.sections.find((s) => s.kind === 'section' && s.title === 'The week');
+  const sub = sec.chunks.find((c) => c.kind === 'sub' && c.title === 'Empty and error states');
+  ok(sub, 'fixture must still carry this subsection');
+  ok(P.moveMarker(sec, sub, -1), 'moving up should succeed — a row precedes it');
+  let after = P.serializeDocument(doc);
+  ok(P.verifyRoundTrip(after).ok, 'result must round-trip');
+  ok(after.indexOf('#### Empty and error states') < after.indexOf('| Export the week |'),
+    'it should swap past exactly the one row before it');
+  ok(after.indexOf('| Who it is for |') < after.indexOf('#### Empty and error states'),
+    'and no further — the rest of the table stays where it was');
+  ok(P.moveMarker(sec, sub, 1), 'moving back down should succeed');
+  after = P.serializeDocument(doc);
+  ok(P.verifyRoundTrip(after).ok, 'result must round-trip');
+  ok(after.indexOf('| Export the week |') < after.indexOf('#### Empty and error states'),
+    'moving down should restore it after Export the week');
+});
+
+t('a reference moves the same one-step way as a subsection', () => {
+  const doc = P.parseDocument(FIXTURE);
+  const g = P.findGuide(doc, 'Bookings — My Week');
+  const sec = g.sections.find((s) => s.kind === 'section' && s.title === 'Booking a new space from here');
+  const ref = sec.chunks.find((c) => c.kind === 'ref');
+  ok(ref, 'fixture must still carry this reference');
+  eq(P.moveMarker(sec, ref, 1), false, 'nothing follows the trailing reference');
+  ok(P.moveMarker(sec, ref, -1), 'moving up should succeed — a row precedes it');
+  const after = P.serializeDocument(doc);
+  ok(P.verifyRoundTrip(after).ok, 'result must round-trip');
+  ok(after.indexOf('> See [[Booking detail]]') < after.indexOf('| Repeat last week |'),
+    'it should swap past exactly the one row before it, not the whole table');
+});
+
 // ---------------------------------------------------------------- cell grammar
 
 t('what a block is, is a marker in front of its name', () => {
@@ -471,6 +505,35 @@ t('a guide added in session round-trips and is addressable', () => {
   ok(P.findGuide(re, 'Visitor sign-in'), 'guide not found after reparse');
   eq(P.rowsOf(P.findGuide(re, 'Visitor sign-in')).map((r) => r.row.content.text), ['Visitor name']);
   eq(P.findGuide(re, 'Visitor sign-in').fields.businessGoal, '??', 'unknowns must be honest, not invented');
+});
+
+t('duplicating a guide copies its blocks but leaves the original\'s comments behind', () => {
+  const text = [
+    '# Test', '',
+    '## Card', '',
+    '**User goal:** ??', '**Business goal:** ??', '**Primary users:** ??', '',
+    '### Content', '',
+    '| Content | Note |', '| --- | --- |', '| Name <!--#abc--> |  |', '',
+    '## Comments', '',
+    '- [ ] `abc` Is this right?', ''
+  ].join('\n');
+  ok(P.verifyRoundTrip(text).ok, 'fixture must round-trip to start with');
+  const doc = P.parseDocument(text);
+  const g = P.findGuide(doc, 'Card');
+  eq(P.openCommentCount(doc, g), 1, 'the source guide should start with one open comment');
+
+  const dup = P.duplicateGuide(doc, g);
+  eq(dup.name, 'Card - COPY');
+  eq(doc.segments.indexOf(dup), doc.segments.indexOf(g) + 1, 'the copy sits right after the original');
+  eq(P.openCommentCount(doc, dup), 0, "the copy must not inherit the original's open comment");
+  eq(P.openCommentCount(doc, g), 1, 'and the original keeps its own');
+
+  const after = P.serializeDocument(doc);
+  ok(P.verifyRoundTrip(after).ok, 'the result with the duplicate must still round-trip');
+  ok(after.includes('## Card - COPY'), 'the duplicate heading must be written');
+  const copyBlock = after.slice(after.indexOf('## Card - COPY'));
+  ok(!copyBlock.includes('<!--#abc-->'), "the duplicate's row must not carry the original's rid");
+  ok(after.includes('<!--#abc-->'), "the original's row must keep its own rid");
 });
 
 t('a row added in session survives a save and reload unchanged', () => {

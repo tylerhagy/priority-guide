@@ -175,6 +175,8 @@ These guides capture what each screen needs before anything is laid out.
 | [Visual] Photo | One photo, taken by facilities. Often missing. |  |  |  |  |
 | Report a problem |  |  | mailto |  | Goes to the building inbox, not a ticket queue |
 
+*Leftover from an earlier draft — check with facilities before deleting.*
+
 ## Sources
 
 [brief]: https://example.com/wiki/spaces/DL/pages/41007 "Deskline brief — what we are building and why"

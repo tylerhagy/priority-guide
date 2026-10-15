@@ -57,6 +57,10 @@
   --danger:#b3261e; --danger-soft:#fdf1ef;
   --none:#8b939f; --flag:var(--unanswered); --act:var(--action);
   --scrim:rgba(20,22,27,.34);
+  /* The minimap's scroll-position band sits over its own picture of the
+     guide — it has to stay translucent so that picture still reads through
+     it, the same reason --scrim stays rgba instead of a solid step. */
+  --accent-veil:rgba(37,99,235,.11); --accent-veil-hover:rgba(37,99,235,.2);
 
   --t-micro:11px; --t-small:12.5px; --t-body:13.5px; --t-ui:14px;
   --t-title:16px; --t-lede:17px; --t-display:28px; --t-hero:38px;
@@ -91,6 +95,7 @@
     --danger:#f08d84; --danger-soft:#331d1b;
     --none:#727c89;
     --scrim:rgba(0,0,0,.62);
+    --accent-veil:rgba(110,163,255,.16); --accent-veil-hover:rgba(110,163,255,.3);
   }
 }
 :root[data-theme="dark"]{
@@ -113,6 +118,7 @@
   --danger:#f08d84; --danger-soft:#331d1b;
   --none:#727c89;
   --scrim:rgba(0,0,0,.62);
+  --accent-veil:rgba(110,163,255,.16); --accent-veil-hover:rgba(110,163,255,.3);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -129,12 +135,15 @@ a:hover{text-decoration:underline}
 #bar{display:flex;align-items:center;gap:12px;height:52px;padding:0 14px;
   background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:6}
 #bar .brand{font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-#bar .file{color:var(--dim);white-space:nowrap;max-width:28ch;cursor:pointer;padding:4px 8px;
+#bar .file{color:var(--dim);white-space:nowrap;max-width:52ch;min-width:0;cursor:pointer;padding:4px 8px;
   border-radius:7px;display:flex;align-items:center;gap:6px}
 #bar .file span{overflow:hidden;text-overflow:ellipsis}
 #bar .file svg{color:var(--faint);flex:none}
 #bar .file:hover svg{color:var(--ink)}
 #bar .file:hover{background:var(--hover);color:var(--ink)}
+#bar .file .ft{color:var(--ink);font-weight:500}
+#bar .file.open{background:var(--hover);color:var(--ink)}
+.pop.menu.files{width:min(440px,calc(100vw - 24px));max-width:none}
 #bar .spacer{flex:1}
 .tabs{display:flex;gap:2px;background:var(--hover);padding:3px;border-radius:9px}
 .tabs button{padding:5px 12px;border-radius:7px;color:var(--dim);font-size:12.5px;font-weight:500;white-space:nowrap}
@@ -225,10 +234,10 @@ main{height:calc(100% - 52px);display:flex;overflow:hidden}
 .mshot{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
 /* Inset to the same edges as the picture, so the band reads as being on the
    document rather than across the column. */
-.mview{position:absolute;left:6px;right:2px;background:var(--accent-soft);
+.mview{position:absolute;left:6px;right:2px;background:var(--accent-veil);
   border-top:1px solid var(--accent);border-bottom:1px solid var(--accent);
   pointer-events:none;min-height:10px}
-#minimap:hover .mview{background:var(--accent-line)}
+#minimap:hover .mview{background:var(--accent-veil-hover)}
 body.present #minimap,body.is-paired #minimap{display:none}
 /* And if it still cannot fit — a very narrow window, or zoomed in — it scrolls
    sideways rather than hiding under anything. */
@@ -255,6 +264,16 @@ body.present #minimap,body.is-paired #minimap{display:none}
 #pagehead .sub .dot{color:var(--faint)}
 #pagehead .sub .open{color:var(--flag);font-weight:500}
 
+/* ---------- flow: a card says what it connects to; the bar is what actually
+   takes you there, so a click can stay a click instead of a jump ---------- */
+#flowbar{flex:none;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;
+  margin:0 auto 16px;width:max-content;max-width:calc(100% - 40px);
+  border-radius:16px;background:var(--panel);box-shadow:0 0 0 1px var(--line),var(--shadow-sm)}
+#flowbar .n{font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap}
+#flowbar .m{font-size:11.5px;color:var(--faint);margin-left:2px;white-space:nowrap}
+#flowbar .x{color:var(--faint);padding:4px;border-radius:6px;display:flex;flex:none}
+#flowbar .x:hover{color:var(--ink);background:var(--hover)}
+
 /* ---------- the palette: the one place you drag from ---------- */
 /* Floating, the width of what it holds. A full-bleed strip pinned to the bottom
    edge of the window is a status bar, and this is a set of tools. */
@@ -279,7 +298,8 @@ body.present #minimap,body.is-paired #minimap{display:none}
 body.dragging .item{cursor:grabbing}
 
 /* ---------- bottom toolbar: the creator tools ---------- */
-body.present #bar,body.present #railL,body.present #railR,body.present #palette{display:none}
+body.present #bar,body.present #railL,body.present #railR,body.present #palette,
+body.present #flowbar{display:none}
 body.present main{height:100%}
 body.present #pagehead{padding:22px 30px 16px}
 body.present #stage{padding:30px 30px 90px}
@@ -521,8 +541,12 @@ body.present .gzoom{max-width:1360px}
 .more:hover,.more.open{color:var(--ink);background:var(--hover)}
 .more.open{opacity:1}
 .g-item:hover .more,.g-item:focus-within .more,
-.cell.sechead:hover .more,.item:hover .more,.rowsel .more{opacity:1}
+.cell.sechead:hover .more,.item:hover .more,.rowsel .more,
+.sub:hover .more,.sub:focus-within .more,
+.ref:hover .more,.ref:focus-within .more{opacity:1}
 .secmore{position:absolute;right:10px;top:8px}
+.submore{position:absolute;right:6px;top:6px}
+.refmore{position:absolute;right:4px;top:2px}
 .cell.sechead{position:relative;background:var(--surface-2);padding-top:0;padding-bottom:0;
   border-bottom:1px solid var(--line);
   border-radius:var(--radius) var(--radius) 0 0}
@@ -701,15 +725,30 @@ body.present .gzoom{max-width:1360px}
 .sec-note:hover{background:var(--hover)}
 .sec-note:focus{outline:none;background:var(--accent-soft);font-style:normal;color:var(--ink)}
 .sec-note.none{color:var(--faint)}
-.sub{border-top:1px solid var(--line-2);margin-top:5px;padding-top:10px}
+.sub{position:relative;border-top:1px solid var(--line-2);margin-top:5px;padding-top:10px}
 .sub-t{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--dim);text-align:center;padding:1px 4px;border-radius:4px}
 .sub-t:focus{outline:none;background:var(--accent-soft)}
 .ref{border:1px dashed var(--line-2);border-radius:var(--radius-sm);padding:8px 11px;font-size:11.5px;
   color:var(--dim);text-align:center;line-height:1.45}
 .ref:focus{outline:none;background:var(--accent-soft)}
-.raw-table{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-  color:var(--faint);background:var(--panel);border-radius:4px;padding:6px 8px}
+/* A heading's label is editable text, and a reference's is a click target —
+   grabbing either one directly to drag is what a browser reads as starting a
+   text selection instead, so dragging the row underneath never fires. A grip
+   is a place that is neither: nothing to select, nothing to click, only to
+   drag — the same fix .dcard already uses for an editable, draggable title. */
+.sub .grip{position:absolute;left:6px;top:6px;color:var(--faint);cursor:grab;display:flex}
+.sub:hover .grip{color:var(--dim)}
+.ref .grip{position:absolute;left:4px;top:2px;color:var(--faint);cursor:grab;display:flex}
+.ref:hover .grip{color:var(--dim)}
+.rawblock{position:relative;padding:6px 26px 6px 8px;border-radius:4px;background:var(--panel)}
+.rawblock .text{white-space:pre;overflow-x:auto;font:10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--faint);outline:none;border-radius:3px}
+.rawblock .text:focus{background:var(--accent-soft)}
+.rawblock .x{position:absolute;right:4px;top:4px;color:var(--faint);font-size:14px;line-height:1;
+  padding:1px 4px;border-radius:4px;opacity:0;transition:opacity .1s var(--ease)}
+.rawblock:hover .x{opacity:1}
+.rawblock .x:hover{color:var(--act);background:var(--action-soft)}
 
 
 /* ---------- right panel ---------- */
@@ -793,11 +832,16 @@ body.present .gzoom{max-width:1360px}
 .item:hover .bubble.none,.rowsel .bubble.none{opacity:.5}
 .item:hover .bubble.none:hover{opacity:1}
 .thread{width:296px;display:block}
-.tlist{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin:5px 0 9px}
+.tlist{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:5px 0 9px}
 .tc{display:flex;align-items:flex-start;gap:7px;padding:6px 7px;border-radius:8px;
   background:var(--hover);font-size:12.5px;line-height:1.5}
-.tc.done{opacity:.55}
-.tc.done .t{text-decoration:line-through}
+/* Resolved is the same card, not a different one: same size, same padding,
+   same two-icon layout — only the text recedes. A blanket opacity used to
+   wash out the tick along with it, so the one signal that says "resolved"
+   read as faint instead of confident; muting just the text keeps the green
+   checkmark exactly as clear as the open circle it replaced. */
+.tc.done{background:var(--tint)}
+.tc.done .t{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line-2)}
 .tc .t{flex:1;min-width:0;border-radius:4px;padding:0 2px}
 .tc .t:focus{outline:none;background:var(--panel)}
 .tc .tick{flex:none;color:var(--faint);padding:1px;border-radius:5px;display:flex;margin-top:1px}
@@ -866,8 +910,11 @@ body.present .gzoom{max-width:1360px}
   background:var(--panel);margin-bottom:5px;font-size:12.5px}
 .srcform-foot{display:flex;gap:8px;align-items:center;margin-top:2px}
 .src .h{align-items:center}
-.src .title{font-weight:500;text-align:left}
-.src .x{margin-left:auto;color:var(--faint);font-size:14px;line-height:1;padding:0 3px}
+.src .title{font-weight:500;text-align:left;flex:1;min-width:0}
+.src .copybtn{display:flex;flex:none;color:var(--faint);padding:2px;border-radius:5px}
+.src .copybtn:hover{color:var(--ink);background:var(--hover)}
+.src .copybtn.copied{color:var(--ok)}
+.src .x{color:var(--faint);font-size:14px;line-height:1;padding:0 3px;flex:none}
 .src .x:hover{color:var(--act)}
 .src .quiet{margin-top:4px;display:block}
 
@@ -955,9 +1002,15 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
 .node text{font-size:12.5px;font-weight:500;fill:var(--ink)}
 .node text.m{font-size:11px;fill:var(--faint);font-weight:400}
 .node text.o{font-size:11px;fill:var(--flag);font-weight:600}
-.edge{fill:none;stroke:var(--line-2);stroke-width:1.5}
-.edge.hot{stroke:var(--accent);stroke-width:2}
+.edge{fill:none;stroke:var(--line-2);stroke-width:1.5;transition:opacity .12s var(--ease)}
+/* Picking a card recedes everything it is not connected to, so the lines that
+   matter do not have to fight a page full of equally grey ones for attention. */
+svg.has-sel .edge:not(.hot){opacity:.3}
 .edge.ref{stroke-dasharray:5 4;stroke:var(--line-2)}
+/* After .ref, not before it — a reference edge that is also the selected
+   one has to win the tie on stroke colour, or "hot" silently means "route
+   only" and a reference never visibly highlights at all. */
+.edge.hot{stroke:var(--accent);stroke-width:2}
 .elabel{font-size:10.5px;fill:var(--faint)}
 
 /* ---------- open items ---------- */
@@ -993,6 +1046,7 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
   <span class="count" id="open"></span>
   <button class="btn icon" id="theme" title="Theme"></button>
   <button class="btn" id="present" title="Read (P)">Read</button>
+  <button class="btn" id="discard" disabled>Discard</button>
   <button class="btn primary" id="save" disabled>Save</button>
 </div>
 <div id="banners"></div>
@@ -1006,6 +1060,7 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
       <div id="minimap"></div>
     </div>
     <div id="palette"></div>
+    <div id="flowbar" hidden></div>
   </div>
   <div id="railR"></div>
 </main>
@@ -1038,13 +1093,13 @@ import {
   parseDocument, serializeDocument, verifyRoundTrip,
   guides, findGuide, tablesOf, rowsOf, allRows, countRows,
   openItems, links, backlinks, unreachable, sourceUsage, resolveSource,
-  lintRow, addRow, touchRow, moveRow, moveSection, setField,
+  lintRow, addRow, touchRow, moveRow, moveSection, moveMarker, markerStep, splitAt, setField,
   addSection, addGuide, addSource, blankGuidesFile,
   parseContentCell, renderContentCell, parseCapabilities, renderCapabilities,
   parseLinkCell, renderLinkCell, parseFormCell, renderFormCell,
   parseNoteCell, renderNoteCell,
   parseUsers, renderUsers, userTypes, renameUserType, handleFor, isWebUrl, refsIn, hasAction,
-  moveGuide, placeGuide, removeGuide, setKind, CHART_KINDS, BLOCK_KINDS,
+  moveGuide, placeGuide, removeGuide, duplicateGuide, setKind, CHART_KINDS, BLOCK_KINDS,
   guideRefs, addGuideRef, setGuideRef, removeGuideRef,
   designLinks, figmaEmbed, isFigma, setSourceTitle,
   commentsFor, commentList, openComments, addComment, setComment, resolveComment,
@@ -1083,7 +1138,11 @@ const S = {
   theme: 'system',
   userFilter: null, shownField: null,
   zoom: 1, besideSplit: null,
-  railRWidth: 340, railRCollapsed: false
+  railRWidth: 340, railRCollapsed: false,
+  // Which card a click on the flow map has picked to highlight — undefined
+  // until first touched (renderFlow then defaults it to the open guide);
+  // null means picked, then explicitly cleared.
+  flowSel: undefined
 };
 // Restored before the first render: a guide that snaps from 100% to 70% after
 // it has already been read once is worse than not remembering at all.
@@ -1325,7 +1384,8 @@ async function loadFolder() {
       const d = parseDocument(text);
       f.blocks = countRows(d);
       f.guides = guides(d).length;
-    } catch { f.blocks = 0; f.guides = 0; }
+      f.title = d.title || '';
+    } catch { f.blocks = 0; f.guides = 0; f.title = ''; }
   }
 
   const real = S.files.filter((f) => f.blocks > 0);
@@ -1340,11 +1400,48 @@ async function loadFolder() {
   render();
 }
 
+/** What a file is called on screen: its own title (the # heading), else its file name. */
+function fileLabel(f) {
+  const t = (f === S.file && S.doc && S.doc.title) || f.title || f.name.replace(/\.md$/i, '');
+  // Every guides file is headed "Priority Guides — [project]"; the part after the dash is the part that tells two apart.
+  return t.replace(/^priority guides?\s*[—–-]\s*/i, '') || t;
+}
+
+/** The file menu: every guides file in the folder, the open one ticked, then another folder. */
+function fileMenu(anchor) {
+  const files = S.files.filter((f) => f.guides > 0 || f === S.file);
+  const items = files.map((f) => ({
+    glyph: f === S.file ? 'tick' : 'note',
+    label: fileLabel(f),
+    hint: `${f.name} · ${f.guides} guide${f.guides === 1 ? '' : 's'} · ${f.blocks} blocks`,
+    fn: () => switchFile(f),
+  }));
+  if (items.length) items.push({ sep: true });
+  items.push({ glyph: 'folder', label: 'Open a different folder', hint: S.dir ? 'Now: ' + S.dir.name : '', fn: () => switchFile(null) });
+  const m = openMenu(anchor, items);
+  m.classList.add('files');
+  placePop(m, anchor);   // placed again at its real width
+}
+
+/** Switch to another file, or to another folder (f = null). Unsaved changes are never dropped silently. */
+async function switchFile(f) {
+  if (f && f === S.file) return;
+  commitEditor();
+  if (S.dirty && !S.readOnly) {
+    banner('warn', '<b>Save or discard your changes first.</b> Switching would lose them.');
+    return;
+  }
+  if (!f) return pickFolder();
+  S.beside = null;
+  await openFile(f);
+}
+
 async function openFile(f) {
   clearBanners();
   const text = await (await f.handle.getFile()).text();
   const rt = verifyRoundTrip(text);
   S.file = f; S.originalText = text; S.doc = parseDocument(text);
+  f.title = S.doc.title || '';
   S.readOnly = !rt.ok; S.dirty = false; S.sel = null; S.editing = null;
   S.guide = guides(S.doc)[0] || null;
   S.captured = 0;
@@ -1422,6 +1519,28 @@ async function save() {
   setTimeout(() => b.remove(), 1500);
 }
 
+/** Throw away every edit since the last save — reopening the file does that for free. */
+async function discard() {
+  if (!S.file || !S.dirty || S.readOnly) return;
+  const a = document.activeElement;
+  if (a && a.isContentEditable) a.blur();
+  const ok = await ask({
+    title: 'Discard your changes?',
+    body: 'Every edit since the last save is thrown away. What is on disk is untouched.',
+    choices: [
+      { label: 'Keep editing', value: false, cancel: true },
+      { label: 'Discard', value: true, danger: true }
+    ]
+  });
+  if (!ok) return;
+  const was = { doc: S.doc, guide: S.guide, sel: S.sel };
+  await openFile(S.file);
+  toast('Changes discarded', 'Undo', () => {
+    S.doc = was.doc; S.guide = was.guide; S.sel = was.sel;
+    mark(); render();
+  });
+}
+
 function mark() { S.dirty = true; }
 
 // ---------------------------------------------------------------- helpers
@@ -1446,7 +1565,7 @@ function render() {
   renderUserBar();
   renderPageHead();
   renderPalette();
-  if (!S.doc) { renderHello(); return; }
+  if (!S.doc) { renderHello(); renderFlowBar(); return; }
   renderRailLeft();
   $('stage').innerHTML = '';
   if (S.view === 'guide' && S.beside) renderBeside();
@@ -1457,6 +1576,7 @@ function render() {
   else renderSource();
   renderRailRight();
   renderMinimap();
+  renderFlowBar();
   $('cap').hidden = !S.capture;
   if (S.capture) {
     const t = tablesOf(S.guide || {}).slice(-1)[0];
@@ -1483,7 +1603,12 @@ function renderBar() {
   const f = $('file');
   f.innerHTML = '';
   f.appendChild(icon('folder', 13));
-  f.appendChild(el('span', null, S.file ? S.file.name + (S.dirty ? ' ·' : '') : (S.dir ? S.dir.name : '')));
+  // The name of what you are looking at: the file's own title (its # heading), else its file name.
+  const label = S.file ? fileLabel(S.file) : (S.dir ? S.dir.name : '');
+  f.appendChild(el('span', S.file ? 'ft' : null, label + (S.file && S.dirty ? ' ·' : '')));
+  if (S.dir) f.appendChild(icon('chev', 12));
+  f.title = S.file ? `${(S.doc && S.doc.title) || S.file.name}\n${S.file.name} in ${S.dir.name}\n\nSwitch file or folder` : 'Open a different folder';
+  document.title = S.file ? `${label} · priority guide` : 'priority guide';
   $('file').style.display = S.dir ? '' : 'none';
   const sv = $('save');
   sv.disabled = !S.dirty || S.readOnly;
@@ -1502,6 +1627,13 @@ function renderBar() {
   } else {
     sv.style.display = 'none';
   }
+  // Discard sits next to Save because it answers the same fact — there is
+  // something unwritten — the other way. Read-only means there is nothing of
+  // yours to throw away; it was never written to the model in the first place.
+  const dc = $('discard');
+  dc.disabled = !S.dirty || S.readOnly;
+  dc.style.display = S.dirty && !S.readOnly && S.doc && !S.present ? '' : 'none';
+  dc.title = 'Throw away every change since the last save';
   $('present').classList.toggle('on', S.present);
   $('present').textContent = S.present ? 'Exit' : 'Read';
   $('present').title = S.present ? 'Leave reading mode (Esc)' : 'Read (P)';
@@ -1542,7 +1674,7 @@ function renderHello() {
     list.appendChild(el('div', 'rail-h', 'Files in ' + S.dir.name));
     for (const f of S.files) {
       const i = el('button', 'g-item');
-      i.innerHTML = `<span class="n">${esc(f.name)}</span><span class="m">${f.guides} guides · ${f.blocks} blocks</span>`;
+      i.innerHTML = `<span class="n">${esc(fileLabel(f))}</span><span class="m">${f.title ? esc(f.name) + ' · ' : ''}${f.guides} guides · ${f.blocks} blocks</span>`;
       i.onclick = () => openFile(f);
       list.appendChild(i);
     }
@@ -1605,6 +1737,10 @@ function guideMenu(anchor, g, i, total) {
     { glyph: 'edit', label: 'Rename', fn: () => {
       S.guide = g; S.renaming = g; render();
       focusSoon('#railL .g-item.on .n');
+    } },
+    { glyph: 'copy', label: 'Duplicate', fn: () => {
+      const dup = duplicateGuide(S.doc, g);
+      S.guide = dup; S.sel = null; mark(); render();
     } },
     { glyph: 'up', label: 'Move up', disabled: i === 0,
       fn: () => { if (moveGuide(S.doc, g, -1)) { mark(); render(); } } },
@@ -1676,7 +1812,7 @@ function renderRailLeft() {
     b.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
 
     if (!S.readOnly && !filtered) {
-      const more = menuButton('gmore', 'Rename, move or delete this guide');
+      const more = menuButton('gmore', 'Rename, duplicate, move or delete this guide');
       more.onclick = (e) => { e.stopPropagation(); guideMenu(more, g, gi, all.length); };
       b.appendChild(more);
 
@@ -2154,22 +2290,14 @@ function renderMinimap() {
     m.style.display = 'none'; m.style.visibility = ''; return;
   }
   const guide = stage.querySelector('.guide');
-  // A map is for when you cannot hold the guide in your head. Under about a
-  // screenful hidden, scrolling is one flick and a map is furniture — so a short
-  // guide draws none. But taking the column away as well moved the guide
-  // sideways every time you stepped from a short guide to a tall one, so the
-  // space stays reserved and only the picture goes.
-  if (!guide || stage.scrollHeight < stage.clientHeight * 1.75) {
-    m.style.display = '';
-    m.style.visibility = 'hidden';
-    return;
-  }
-  m.style.visibility = '';
   // The map costs 124px, so it goes only when the guide genuinely cannot spare
-  // them — below its own three-lane minimum. An earlier, far higher threshold
-  // took the map away from every laptop, which is the machine that needs it.
+  // them — below its own three-lane minimum. It used to also hide below a
+  // height threshold ("a short guide is one flick to scroll, a map is
+  // furniture"), but that read as the map going missing at random, so every
+  // real guide gets one now, short or tall.
+  if (!guide) { m.style.display = ''; m.style.visibility = 'hidden'; return; }
   if (stage.clientWidth < 600) { m.style.display = 'none'; m.style.visibility = ''; return; }
-  m.style.display = '';
+  m.style.display = ''; m.style.visibility = '';
 
   // The picture is the guide itself, cloned and shrunk. Drawing a second,
   // simplified version would be a second thing to keep true; a clone cannot
@@ -2196,40 +2324,75 @@ function renderMinimap() {
   m.appendChild(view);
 
   const gw = guide.offsetWidth || 1;
-  const scale = (m.clientWidth - 10) / gw;
   shot.style.width = gw + 'px';
-  shot.style.transform = `scale(${scale})`;
-  // A backdrop the height of the guide, so the picture reads as one document
-  // rather than as fragments floating in an empty column.
-  wrap.style.setProperty('--paper', (stage.scrollHeight * scale) + 'px');
+  // The clone's own natural height, measured directly rather than derived
+  // from stage.scrollHeight. That included the stage's own fixed padding,
+  // and — at any zoom but 100% — was deflated by the zoom transform the real
+  // guide has and this unzoomed clone never does, so the two disagreed on
+  // how tall "the guide" was by exactly the zoom factor. Without this, the
+  // paper and the band were sized against a height the picture never
+  // actually had, and stopped short of the true bottom the guide really
+  // scrolled to.
+  const naturalH = copy.offsetHeight || 1;
 
-  // Both the picture and the box are drawn in stage coordinates times the
-  // scale, so a thing is as far down the map as it is down the guide.
-  const contentH = stage.scrollHeight * scale;
-  const fits = contentH <= m.clientHeight;
+  // Recomputed on every call rather than captured once: a panel resize, a
+  // zoom change, a note that reflows — anything that changes how tall the
+  // guide really is — used to leave scale/contentH holding whatever was true
+  // at the last full render, so the band synced against a page that no
+  // longer existed.
+  const measure = () => {
+    const scale = (m.clientWidth - 10) / gw;
+    const contentH = naturalH * scale;
+    return { scale, contentH, fits: contentH <= m.clientHeight };
+  };
+
+  // scrollTop, scrollHeight and clientHeight describe the real, live page —
+  // stage.scrollHeight includes the stage's own fixed padding and, at any
+  // zoom but 100%, is deflated by a transform the unzoomed picture never
+  // has. contentH describes the picture, measured on its own terms. The two
+  // are different units, not two readings of the same height, so a band
+  // position can only cross between them as a *fraction* of each — never by
+  // multiplying a real-page pixel by the picture's own scale, which is what
+  // silently assumed the two were proportional and left the band short of
+  // (or past) the picture's true bottom whenever they were not.
+  const bandFor = (contentH) => {
+    const top = (stage.scrollTop / stage.scrollHeight) * contentH;
+    const h = (stage.clientHeight / stage.scrollHeight) * contentH;
+    return { top, h };
+  };
 
   const sync = () => {
+    const { scale, contentH, fits } = measure();
+    const { top: bandTop, h: bandH } = bandFor(contentH);
     const slack = Math.max(0, contentH - m.clientHeight);
     const maxScroll = Math.max(1, stage.scrollHeight - stage.clientHeight);
     // When the picture is taller than the column it slides, the way an editor's
     // does, so the box you are watching never leaves the window.
     const shift = fits ? 0 : slack * (stage.scrollTop / maxScroll);
+    // A backdrop the height of the guide, so the picture reads as one document
+    // rather than as fragments floating in an empty column.
+    wrap.style.setProperty('--paper', contentH + 'px');
     shot.style.transform = `translateY(${-shift}px) scale(${scale})`;
     shot.style.left = '8px';
     wrap.style.setProperty('--paper-top', (-shift) + 'px');
-    view.style.top = (stage.scrollTop * scale - shift) + 'px';
-    view.style.height = Math.max(10, stage.clientHeight * scale) + 'px';
+    view.style.top = (bandTop - shift) + 'px';
+    view.style.height = Math.max(10, bandH) + 'px';
   };
   sync();
   stage.onscroll = sync;
 
   const goTo = (clientY) => {
+    const { contentH } = measure();
     const r = m.getBoundingClientRect();
     const slack = Math.max(0, contentH - m.clientHeight);
     const maxScroll = Math.max(1, stage.scrollHeight - stage.clientHeight);
+    const fits = contentH <= m.clientHeight;
     const shift = fits ? 0 : slack * (stage.scrollTop / maxScroll);
-    const y = (clientY - r.top + shift) / scale;
-    stage.scrollTop = y - stage.clientHeight / 2;
+    // Where the click landed, as a fraction of the picture — then that same
+    // fraction of the real page, which is the only way to convert between
+    // the two when they do not share a scale.
+    const fraction = (clientY - r.top + shift) / contentH;
+    stage.scrollTop = fraction * stage.scrollHeight - stage.clientHeight / 2;
     sync();
   };
   m.onmousedown = (e) => {
@@ -2323,6 +2486,7 @@ function dropZone(cell, spot) {
     const d = S.drag;
     endDrag();
     if (d.kind === 'row') moveRowTo(d.row, spot, after);
+    else if (d.kind === 'chunk') moveChunkTo(d.chunk, d.sec, spot, after);
     else addAt(d.what, spot, after);
   };
 }
@@ -2357,30 +2521,24 @@ function moveRowTo(row, spot, after) {
 const NEW_CONTENT = { content: '', visual: '[Visual] ', chart: '[Chart] ', divider: '[Divider]' };
 
 /**
- * Put a chunk between two rows, splitting the table around it.
- *
- * A subsection and a reference are both things that sit between rows rather
- * than in the row list, so placing one means cutting the table at that point
- * and putting the new chunk in the gap. Dropped at either end, nothing is cut.
+ * Relocate an existing subsection heading or reference card to wherever it
+ * was dropped — the same {table, at} spot a fresh drop from the palette
+ * lands on, via the same splitAt. Dragging one is just this with the target
+ * chosen by hand instead of by one step.
  */
-function splitAt(sec, table, at, chunk) {
-  const chunks = sec.chunks;
-  let insertAt = chunks.indexOf(table) + 1;
-  if (at <= 0) {
-    insertAt = chunks.indexOf(table);
-  } else if (at < table.rows.length) {
-    const rest = table.rows.splice(at);
-    table.dirty = true;
-    chunks.splice(insertAt, 0, {
-      kind: 'table',
-      headerSrc: table.headerSrc ? table.headerSrc.slice() : null,
-      dividerSrc: table.dividerSrc ? table.dividerSrc.slice() : null,
-      cols: table.cols, rows: rest, dirty: true
-    });
+function moveChunkTo(chunk, fromSec, spot, after) {
+  const { g, sec, table, at, guideLevel } = resolveSpot(spot, after);
+  if (guideLevel) {
+    toast(chunk.kind === 'sub' ? 'A subsection has to live in a section' : 'A reference has to live in a section');
+    return;
   }
-  chunks.splice(insertAt, 0, { kind: 'raw', src: [''], dirty: false }, chunk,
-    { kind: 'raw', src: [''], dirty: false });
-  return chunk;
+  const i = fromSec.chunks.indexOf(chunk);
+  if (i === -1) return;
+  fromSec.chunks.splice(i, 1);
+  fromSec.dirty = true;
+  splitAt(sec, table, at, chunk);
+  sec.dirty = true;
+  mark(); render();
 }
 
 function addAt(what, spot, after) {
@@ -2488,13 +2646,20 @@ function renderGuide(host) {
       title.host.appendChild(more);
     }
 
+    // The first row of a section's own content sits right under the heading's
+    // surface, which is a different colour and reads as a hard edge — so it
+    // gets the heading's own breathing room (the .open padding), the same way
+    // the section's last row gets it back at the bottom via .close.
+    let firstContent = true;
+    const contentCls = () => { const c = firstContent ? 'open' : ''; firstContent = false; return c; };
+
     // The line of prose under a heading is part of the guide and editable like
     // everything else — but it is optional, so an empty one is not a permanent
     // placeholder on every section. Add it from the section menu.
     const prose = sec.chunks.find((c) => c.kind === 'raw' && !/^\s*\|/m.test(c.src.join('\n')));
     const hasProse = !!(prose && proseOf(prose));
     if (hasProse || S.addProse === sec) {
-      const pRow = gridRow(''); mine.push(pRow.band);
+      const pRow = gridRow(contentCls()); mine.push(pRow.band);
       pRow.host.appendChild(sectionProse(g, sec, prose));
     }
 
@@ -2504,21 +2669,74 @@ function renderGuide(host) {
         if (chunk === prose) continue;
         const text = chunk.src.join('\n').trim();
         if (!text) continue;
-        const row = gridRow(''); mine.push(row.band);
-        const t = el('div', 'raw-table');
+        const row = gridRow(contentCls()); mine.push(row.band);
+        // Nothing added to a guide is allowed to be stuck here — unreadable
+        // by the parser as a block, and, before this, also uneditable and
+        // undeletable from the UI. Text that lands here (an odd paste, a
+        // table missing its Content column, a stray paragraph) still needs a
+        // way out that does not mean opening the file by hand.
+        const w = el('div', 'rawblock');
+        w.title = "Not shaped like a block priority guide understands, so it is shown as text — "
+          + 'edit it in place, or remove it.';
+        const t = el('div', 'text');
         t.textContent = text;
-        t.title = 'This table has no Content column, so priority guide leaves it alone.';
-        row.host.appendChild(t);
+        if (!S.readOnly && !S.present) {
+          t.contentEditable = 'plaintext-only';
+          t.spellcheck = false;
+          t.tabIndex = 0;
+          t.onblur = () => {
+            const v = t.textContent;
+            if (v.trim() === text) return;
+            const src = chunk.src;
+            let i = 0; while (i < src.length && !src[i].trim()) i++;
+            let j = src.length - 1; while (j >= i && !src[j].trim()) j--;
+            chunk.src = [...src.slice(0, i), ...v.split('\n'), ...src.slice(j + 1)];
+            sec.dirty = true;
+            mark(); render();
+          };
+          t.onkeydown = (e) => {
+            if (e.metaKey || e.ctrlKey) return;
+            if (e.key === 'Escape') { e.preventDefault(); t.textContent = text; t.blur(); }
+            else e.stopPropagation();
+          };
+        }
+        w.appendChild(t);
+        if (!S.readOnly && !S.present) {
+          const x = el('button', 'x', '×');
+          x.title = 'Remove this text';
+          x.onclick = async (e) => {
+            e.stopPropagation();
+            if (!await confirmDelete('this text', "It is not part of any block, so nothing else depends on it.")) return;
+            const back = sec.chunks.indexOf(chunk);
+            sec.chunks.splice(back, 1);
+            sec.dirty = true; mark(); render();
+            undoable('Text', () => { sec.chunks.splice(back, 0, chunk); sec.dirty = true; });
+          };
+          w.appendChild(x);
+        }
+        row.host.appendChild(w);
       } else if (chunk.kind === 'sub') {
-        const row = gridRow(''); mine.push(row.band);
+        const row = gridRow(contentCls()); mine.push(row.band);
         const w = el('div', 'sub');
+        if (!S.readOnly && !S.present) {
+          const grip = el('span', 'grip');
+          grip.appendChild(icon('grip', 12));
+          grip.title = 'Drag to move this subsection';
+          w.appendChild(grip);
+        }
         const h = el('div', 'sub-t');
         h.textContent = chunk.title;
         editable(h, chunk.title, (v) => { chunk.title = v || 'Untitled'; chunk.dirty = true; sec.dirty = true; });
         w.appendChild(h);
+        if (!S.readOnly && !S.present) {
+          const more = menuButton('submore', 'Move or delete this subsection');
+          more.onclick = (e) => { e.stopPropagation(); markerMenu(more, sec, chunk, 'subsection'); };
+          w.appendChild(more);
+          dragMarker(w, row, sec, chunk);
+        }
         row.host.appendChild(w);
       } else if (chunk.kind === 'ref') {
-        const row = gridRow(''); mine.push(row.band);
+        const row = gridRow(contentCls()); mine.push(row.band);
         const p = el('div', 'ref' + (chunk.target ? '' : ' unset'));
         if (chunk.target) setLinked(p, chunk.text, g);
         else p.textContent = S.readOnly ? 'Reference — nothing chosen' : 'Choose what this references';
@@ -2526,21 +2744,20 @@ function renderGuide(host) {
           p.setAttribute('role', 'button');
           p.tabIndex = 0;
           p.title = 'Choose the guide this points at';
-          p.onclick = (e) => { if (e.target.closest('a')) return; openRefPicker(p, g, sec, chunk); };
-          const del = el('button', 'refx', '×');
-          del.title = 'Remove this reference';
-          del.onclick = async (e) => {
-            e.stopPropagation();
-            if (!await confirmDelete('this reference', 'The guide it points at is untouched.')) return;
-            sec.chunks.splice(sec.chunks.indexOf(chunk), 1);
-            sec.dirty = true; mark(); render();
-          };
-          p.appendChild(del);
+          p.onclick = (e) => { if (e.target.closest('a,.more,.grip')) return; openRefPicker(p, g, sec, chunk); };
+          const grip = el('span', 'grip');
+          grip.appendChild(icon('grip', 12));
+          grip.title = 'Drag to move this reference';
+          p.appendChild(grip);
+          const more = menuButton('refmore', 'Move or delete this reference');
+          more.onclick = (e) => { e.stopPropagation(); markerMenu(more, sec, chunk, 'reference'); };
+          p.appendChild(more);
+          dragMarker(p, row, sec, chunk);
         }
         row.host.appendChild(p);
       } else if (chunk.kind === 'table') {
         for (const rw of chunk.rows) {
-          const row = gridRow(''); mine.push(row.band);
+          const row = gridRow(contentCls()); mine.push(row.band);
           paintRow(row, g, sec, chunk, rw);
           if (!S.readOnly && !S.present) dropZone(row.c, { g, sec, table: chunk, row: rw });
         }
@@ -2689,6 +2906,17 @@ function sectionMenu(anchor, g, sec) {
       focusSoon('.guide .sec-note');
     } });
   }
+  // The Sources block, if there is one, always stays last — it is not a
+  // section to reorder against, so it is left out of "how many are there".
+  const list = g.sections.filter((s) => s.kind !== 'sources');
+  const i = list.indexOf(sec);
+  items.push(
+    { glyph: 'up', label: 'Move up', disabled: i <= 0,
+      fn: () => { if (moveSection(g, sec, -1)) { mark(); render(); } } },
+    { glyph: 'down', label: 'Move down', disabled: i === -1 || i === list.length - 1,
+      fn: () => { if (moveSection(g, sec, 1)) { mark(); render(); } } },
+    { sep: true }
+  );
   openMenu(anchor, items.concat([
     { glyph: 'trash', label: 'Delete section', danger: true, fn: async () => {
       if (!await confirmDelete(`the section “${sec.title}”`,
@@ -2699,6 +2927,36 @@ function sectionMenu(anchor, g, sec) {
       undoable(`“${sec.title}”`, () => { g.sections.splice(back, 0, sec); g.dirty = true; });
     } }
   ]));
+}
+
+/**
+ * Everything a subsection heading or a reference card can do. Moving either
+ * one is a single step — past exactly one row, or past a neighbouring marker
+ * if there is no row between them — the same step a drag would land on if you
+ * nudged it one place. A subsection heading carries nothing with it: the rows
+ * it used to introduce stay exactly where they are, now unlabelled.
+ */
+function markerMenu(anchor, sec, chunk, kind) {
+  const { canUp, canDown } = markerStep(sec, chunk);
+  openMenu(anchor, [
+    { glyph: 'up', label: 'Move up', disabled: !canUp,
+      fn: () => { if (moveMarker(sec, chunk, -1)) { mark(); render(); } } },
+    { glyph: 'down', label: 'Move down', disabled: !canDown,
+      fn: () => { if (moveMarker(sec, chunk, 1)) { mark(); render(); } } },
+    { sep: true },
+    { glyph: 'trash', label: `Delete ${kind}`, danger: true, fn: async () => {
+      const body = kind === 'subsection'
+        ? 'The heading goes; the blocks under it stay, now unlabeled. You can undo this straight afterwards.'
+        : 'The guide it points at is untouched.';
+      if (!await confirmDelete(`this ${kind}`, body)) return;
+      const back = sec.chunks.indexOf(chunk);
+      sec.chunks.splice(back, 1);
+      sec.dirty = true; mark(); render();
+      if (kind === 'subsection') {
+        undoable(`“${chunk.title}”`, () => { sec.chunks.splice(back, 0, chunk); sec.dirty = true; });
+      }
+    } }
+  ]);
 }
 
 // ---------------------------------------------------------------- comments
@@ -3670,6 +3928,22 @@ function wireDrag(row, ctx) {
   };
 }
 
+/** A subsection heading or a reference card can be dragged, the same as a row. */
+function dragMarker(el, row, sec, chunk) {
+  el.draggable = true;
+  el.ondragstart = (e) => {
+    S.drag = { kind: 'chunk', chunk, sec };
+    row.c.classList.add('lifting');
+    document.body.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', chunk.kind === 'sub' ? chunk.title : (chunk.text || 'reference'));
+  };
+  el.ondragend = () => {
+    row.c.classList.remove('lifting');
+    endDrag();
+  };
+}
+
 /** Move a row to an explicit position, possibly in another table. */
 function dropRow(g, row, table, sec, at) {
   for (const { table: t, section } of tablesOf(g)) {
@@ -3839,16 +4113,25 @@ function renderRailRight() {
     handle.classList.add('active');
     const startX = e.clientX;
     const startW = S.railRWidth || 340;
+    // Narrowing this panel is widening the guide's own column, which can
+    // reflow every note in it and change how tall the guide really is — the
+    // minimap has to be told, live, or it keeps showing the shape (and the
+    // scroll math) the guide had before the drag started.
+    let resyncSoon = null;
     const move = (ev) => {
       const w = Math.max(260, Math.min(520, startW - (ev.clientX - startX)));
       S.railRWidth = w;
       r.style.width = w + 'px';
+      clearTimeout(resyncSoon);
+      resyncSoon = setTimeout(renderMinimap, 60);
     };
     const up = () => {
       handle.classList.remove('active');
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
       setRailRWidth(S.railRWidth);
+      clearTimeout(resyncSoon);
+      renderMinimap();
     };
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
@@ -4094,33 +4377,33 @@ function userInput(list, commit) {
 // ---------------------------------------------------------------- sources tab
 function panelSources(body) {
   const usage = sourceUsage(S.doc);
-  const mine = usage.all.filter((s) => s.cites.some((c) => c.guide === S.guide.name));
-  const rest = usage.all.filter((s) => s.def && !mine.includes(s));
+  // Attached, not merely cited: a handle can appear here because it sits in
+  // this guide's own Sources field, or only because it was cited once from
+  // inside a note somewhere in the guide. Detaching only ever edits the
+  // Sources field, so a card built from the second kind looked exactly like
+  // the first but its × did nothing — the field never had it to remove.
+  const attached = refsIn(S.guide.fields.sources);
+  const mine = attached.map((h) => usage.all.find((s) => s.handle === h)
+    || { handle: h, def: resolveSource(S.doc, S.guide, h), cites: [] });
 
   if (!mine.length) {
     body.appendChild(el('div', 'rail-empty',
       'Nothing attached yet. A brief, a synthesis, a decision — anything this guide leans on.'));
   }
-  for (const s of mine) body.appendChild(sourceCard(s, true));
+  for (const s of mine) body.appendChild(sourceCard(s));
 
   if (!S.readOnly) {
     const add = el('button', 'rail-add', '+  Add a source');
     add.onclick = () => { add.style.display = 'none'; newSourceForm(add.parentNode, null, S.guide); };
     body.appendChild(add);
   }
-  if (rest.length) {
-    const h = el('div', 'rail-h', 'Also in this file');
-    h.style.marginTop = '20px';
-    body.appendChild(h);
-    for (const s of rest) body.appendChild(sourceCard(s, false));
-  }
 }
 
-function sourceCard(s, here) {
+function sourceCard(s) {
   const c = el('div', 'src' + (s.def ? '' : ' bad'));
   if (!s.def) {
     c.appendChild(el('div', 'h', s.handle));
-    c.appendChild(el('div', 't', 'Cited in this guide, but no source by that name is defined.'));
+    c.appendChild(el('div', 't', 'Attached, but no source by that name is defined.'));
     if (!S.readOnly) {
       const fix = el('button', 'quiet', 'Define it');
       fix.onclick = () => { fix.style.display = 'none'; newSourceForm(c, null, null); };
@@ -4129,10 +4412,39 @@ function sourceCard(s, here) {
     return c;
   }
   const head = el('div', 'h');
-  const link = outLink(s.def.url, s.def.title || s.handle, s.def.url);
+  const web = isWebUrl(s.def.url);
+  // A web link opens; a local path cannot, so clicking it used to copy the
+  // path and swap the whole title to say so — jarring, and gone the moment
+  // you looked away. A copy icon next to delete does the one thing it says.
+  let link;
+  if (web) {
+    link = outLink(s.def.url, s.def.title || s.handle, s.def.url);
+  } else {
+    link = el('span', null, s.def.title || s.handle);
+    link.title = s.def.url;
+  }
   link.classList.add('title');
   head.appendChild(link);
-  if (here && !S.readOnly) {
+  if (!web) {
+    const copy = el('button', 'copybtn');
+    copy.appendChild(icon('copy', 13));
+    copy.title = 'Copy the path — a browser cannot open a local file';
+    copy.onclick = (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(s.def.url).then(() => {
+        copy.classList.add('copied');
+        copy.innerHTML = '';
+        copy.appendChild(icon('tick', 13));
+        setTimeout(() => {
+          copy.classList.remove('copied');
+          copy.innerHTML = '';
+          copy.appendChild(icon('copy', 13));
+        }, 1200);
+      }, () => banner('warn', `<b>Could not copy.</b> The path is <code>${esc(s.def.url)}</code>`));
+    };
+    head.appendChild(copy);
+  }
+  if (!S.readOnly) {
     const x = el('button', 'x', '×');
     x.title = 'Detach from this guide. The source stays in the file.';
     x.onclick = () => detachFromGuide(S.guide, s.handle);
@@ -4140,11 +4452,6 @@ function sourceCard(s, here) {
   }
   c.appendChild(head);
   c.appendChild(el('div', 'u', shortUrl(s.def.url)));
-  if (!here && !S.readOnly) {
-    const a = el('button', 'quiet', '+ attach to this guide');
-    a.onclick = () => { attachToGuide(S.guide, s.handle); mark(); render(); };
-    c.appendChild(a);
-  }
   return c;
 }
 
@@ -4594,6 +4901,11 @@ function renderFlow() {
   const stage = $('stage');
   const gs = guides(S.doc);
   if (!gs.length) { stage.appendChild(el('div', 'rail-empty', 'No guides yet.')); return; }
+  // Re-resolve by name, not identity: a save re-parses the document, so a
+  // selection made before one would otherwise point at a guide object that
+  // no longer exists even though the guide itself is still right there.
+  if (S.flowSel) S.flowSel = gs.find((g) => g.name === S.flowSel.name) || null;
+  else if (S.flowSel === undefined) S.flowSel = S.guide;
   const { routes, references } = links(S.doc);
   const resolved = routes.filter((r) => r.resolved);
 
@@ -4640,11 +4952,13 @@ function renderFlow() {
     + '<marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" '
     + 'orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2563eb"/></marker>';
   svg.appendChild(defs);
+  svg.classList.toggle('has-sel', !!S.flowSel);
+  svg.onclick = () => { S.flowSel = null; render(); };
 
   const drawEdge = (from, to, cls) => {
     const a = pos.get(from), b = pos.get(to);
     if (!a || !b) return;
-    const hot = S.guide && (from === S.guide.name || to === S.guide.name);
+    const hot = S.flowSel && (from === S.flowSel.name || to === S.flowSel.name);
     const p = document.createElementNS(NS, 'path');
     const forward = b.x > a.x;
     const x1 = forward ? a.x + W : a.x;
@@ -4654,6 +4968,8 @@ function renderFlow() {
     p.setAttribute('d', `M${x1},${y1} C${x1 + (forward ? dx : -dx)},${y1} ${x2 - (forward ? dx : -dx)},${y2} ${x2},${y2}`);
     p.setAttribute('class', 'edge ' + cls + (hot ? ' hot' : ''));
     p.setAttribute('marker-end', hot ? 'url(#ah)' : 'url(#a)');
+    p.dataset.from = from;
+    p.dataset.to = to;
     svg.appendChild(p);
   };
   for (const r of resolved) if (r.from !== r.to) drawEdge(r.from, r.to, '');
@@ -4662,7 +4978,7 @@ function renderFlow() {
   for (const g of gs) {
     const p = pos.get(g.name);
     const grp = document.createElementNS(NS, 'g');
-    grp.setAttribute('class', 'node' + (g === S.guide ? ' on' : ''));
+    grp.setAttribute('class', 'node' + (g === S.flowSel ? ' on' : ''));
     grp.setAttribute('transform', `translate(${p.x},${p.y})`);
     grp.style.cursor = 'pointer';
     const rect = document.createElementNS(NS, 'rect');
@@ -4687,7 +5003,13 @@ function renderFlow() {
       t3.textContent = open + ' open';
       grp.appendChild(t3);
     }
-    grp.onclick = () => { S.guide = g; S.sel = null; S.view = 'guide'; render(); };
+    // A click picks the card, so its connections light up — it does not
+    // leave the map. Going to the guide is what the bar's button is for.
+    grp.onclick = (e) => {
+      e.stopPropagation();
+      S.flowSel = S.flowSel === g ? null : g;
+      render();
+    };
     svg.appendChild(grp);
   }
 
@@ -4724,6 +5046,31 @@ function renderFlow() {
   notes.appendChild(legend);
   w.appendChild(notes);
   stage.appendChild(w);
+}
+
+/**
+ * What a picked card is for. The map itself is for looking — a click there
+ * only turns a card's connections on, so getting to the guide takes one
+ * more, separate action: this bar's button. It sits outside the map's own
+ * scroll, the way the palette sits outside the guide's, so it stays in the
+ * same place no matter how far the diagram has been panned.
+ */
+function renderFlowBar() {
+  const bar = $('flowbar');
+  if (S.view !== 'flow' || !S.flowSel) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  bar.innerHTML = '';
+  const g = S.flowSel;
+  bar.appendChild(el('span', 'n', g.name));
+  bar.appendChild(el('span', 'm', rowsOf(g).length + ' blocks'));
+  const open = el('button', 'btn primary', 'Open guide');
+  open.title = 'Go to this guide';
+  open.onclick = () => { S.guide = g; S.sel = null; S.view = 'guide'; render(); };
+  bar.appendChild(open);
+  const x = el('button', 'x', '×');
+  x.title = 'Clear selection';
+  x.onclick = () => { S.flowSel = null; render(); };
+  bar.appendChild(x);
 }
 
 // ---------------------------------------------------------------- open items
@@ -4961,8 +5308,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------------------------------------------------------------- wiring
-$('file').onclick = pickFolder;
+$('file').onclick = () => (S.dir ? fileMenu($('file')) : pickFolder());
 $('save').onclick = save;
+$('discard').onclick = discard;
 $('present').onclick = () => { S.present = !S.present; S.editing = null; render(); };
 $('theme').onclick = cycleTheme;
 applyTheme();

@@ -45,6 +45,9 @@ const eq = (n, a, b) => ok(n, a === b, `expected ${JSON.stringify(b)}, got ${JSO
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+// A local source's copy button needs the real clipboard API, which a fresh
+// context otherwise refuses silently.
+await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: `http://localhost:${PORT}` });
 const errors = [];
 const badLoads = [];
 page.on('dialog', (d) => d.accept());
@@ -452,10 +455,31 @@ ok('a visual is dropped in as one', (await current()).includes('| [Visual] A pic
 const secBefore = await gcount('.sec-title');
 await dragOnto('Section', 'A new thing');
 eq('a section can be dragged in too', await gcount('.sec-title'), secBefore + 1);
-await page.evaluate(() => {
+
+// ---- a section can be moved too, not just added and deleted
+const secTitles = () => page.$$eval('.sec-title', (ns) => ns.map((n) => n.textContent.trim()));
+const openSecMenu = () => page.evaluate(() => {
   const t = [...document.querySelectorAll('.sec-title')].find((n) => n.textContent === 'New section');
   t.closest('.cell').querySelector('.more').click();
 });
+const secAt = (await secTitles()).indexOf('New section');
+await openSecMenu();
+await page.waitForSelector('.menu');
+ok('a section carries the same move controls as everything else',
+  await page.evaluate(() => {
+    const t = document.querySelector('.menu').textContent;
+    return t.includes('Move up') && t.includes('Move down');
+  }));
+await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Move up')).click());
+await page.waitForTimeout(300);
+eq('moving a section up swaps it with the one above it', (await secTitles())[secAt - 1], 'New section');
+await openSecMenu();
+await page.waitForSelector('.menu');
+await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Move down')).click());
+await page.waitForTimeout(300);
+eq('and moving it back down restores the order', (await secTitles())[secAt], 'New section');
+
+await openSecMenu();
 await page.waitForSelector('.menu');
 await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Delete section')).click());
 await okDelete();
@@ -467,6 +491,78 @@ eq('a subsection splits the section where it lands', await gcount('.sub-t'), sub
 await save();
 ok('and the file still round-trips', !(await text('#save')).includes('Read-only'));
 ok('with the split written as a heading', (await current()).includes('#### Actions'));
+
+// ---------------------------------------------------------------- a subsection moves one row at a time
+/** Every visible thing on the guide, in reading order — a row's label, or a
+ * marker's own text prefixed so the two read distinctly. */
+const chunkOrder = () => page.evaluate(() => [...document.querySelectorAll('#stage .cell')].map((c) => {
+  const lbl = c.querySelector('.item .lbl');
+  if (lbl) return lbl.textContent.trim();
+  const sub = c.querySelector('.sub-t');
+  if (sub) return 'SUB:' + sub.textContent.trim();
+  const ref = c.querySelector('.ref');
+  if (ref) return 'REF:' + ref.textContent.trim().replace(/\s+/g, ' ').slice(0, 30);
+  return null;
+}).filter(Boolean));
+const openSub = async (title) => {
+  await page.evaluate((t) => {
+    const h = [...document.querySelectorAll('.sub-t')].find((n) => n.textContent.trim() === t);
+    h.closest('.sub').querySelector('.more').click();
+  }, title);
+  await page.waitForSelector('.menu');
+};
+const clickItem = (label) => page.evaluate((l) =>
+  [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes(l)).click(), label);
+
+await openSub('Actions');
+ok('a subsection carries the same one-button menu as everything else',
+  await page.evaluate(() => {
+    const t = document.querySelector('.menu').textContent;
+    return t.includes('Move up') && t.includes('Move down') && t.includes('Delete subsection');
+  }));
+const beforeSubMove = await chunkOrder();
+const ai = beforeSubMove.indexOf('SUB:Actions');
+eq('it sits right after the row it was dropped onto', beforeSubMove[ai - 1], 'Status');
+const expectedSubMove = beforeSubMove.slice();
+[expectedSubMove[ai], expectedSubMove[ai + 1]] = [expectedSubMove[ai + 1], expectedSubMove[ai]];
+await clickItem('Move down');
+await page.waitForTimeout(250);
+eq('moving it down swaps it past exactly the one row after it, not the whole table below it',
+  JSON.stringify(await chunkOrder()), JSON.stringify(expectedSubMove));
+
+await openSub('Actions');
+await clickItem('Move up');
+await page.waitForTimeout(250);
+eq('and moving it back restores the order', JSON.stringify(await chunkOrder()), JSON.stringify(beforeSubMove));
+
+// ---- and it can be dragged to an arbitrary spot, not just one step
+await page.evaluate(() => {
+  const from = [...document.querySelectorAll('.sub-t')].find((n) => n.textContent.trim() === 'Actions').closest('.sub');
+  const item = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl') && x.querySelector('.lbl').textContent.trim() === 'Cancel');
+  const cell = item.closest('.cell');
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+  const r = cell.getBoundingClientRect();
+  cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+  cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+  from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+});
+await page.waitForTimeout(350);
+const draggedOrder = await chunkOrder();
+ok('a subsection heading can be dragged, the same gesture as a block, straight past several rows',
+  draggedOrder.indexOf('Cancel') < draggedOrder.indexOf('SUB:Actions')
+  && draggedOrder.indexOf('SUB:Actions') < draggedOrder.indexOf('Export the week'));
+await save();
+ok('and the file records it', (await current()).split('\n').findIndex((l) => l.startsWith('| Cancel'))
+  < (await current()).split('\n').findIndex((l) => l.startsWith('#### Actions')));
+
+await openSub('Actions');
+await clickItem('Delete subsection');
+await okDelete();
+eq('deleting a subsection removes only the heading', await gcount('.sub-t'), subBefore);
+await save();
+ok('and its rows stay in the file, just unheaded now',
+  !(await current()).includes('#### Actions') && (await current()).includes('| Who it is for |'));
 
 // ---------------------------------------------------------------- moving is dragging
 const orderWas = await labels();
@@ -536,12 +632,82 @@ ok('the file records a real link, not free text',
   (await current()).includes('> See [[Cancel a booking]]'));
 ok('and the flow map picks it up as a reference',
   (await current()).split('\n').filter((l) => l.startsWith('> See')).length >= 3);
+
+// ---- a reference can be moved too, the same way a subsection can
+const findMyRef = () => page.$$eval('#stage .ref',
+  (ns) => ns.some((n) => n.textContent.includes('Cancel a booking')));
+ok('the new reference is on the guide', await findMyRef());
+const cur1 = await current();
+ok('it lands right where it was dropped, after Date',
+  cur1.indexOf('| Date |') < cur1.indexOf('> See [[Cancel a booking]]')
+  && cur1.indexOf('> See [[Cancel a booking]]') < cur1.indexOf('| Space |'));
+
+const openMyRefMenu = () => page.evaluate(() => {
+  const r = [...document.querySelectorAll('#stage .ref')].find((n) => n.textContent.includes('Cancel a booking'));
+  r.querySelector('.more').click();
+});
+await openMyRefMenu();
+await page.waitForSelector('.menu');
+ok('a reference carries the same move controls as a subsection',
+  await page.evaluate(() => {
+    const t = document.querySelector('.menu').textContent;
+    return t.includes('Move up') && t.includes('Move down');
+  }));
+await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Move up')).click());
+await page.waitForTimeout(300);
+await save();
+const cur2 = await current();
+ok('moving it up swaps it past the row before it',
+  cur2.indexOf('> See [[Cancel a booking]]') < cur2.indexOf('| Date |'));
+
+await openMyRefMenu();
+await page.waitForSelector('.menu');
+await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Move down')).click());
+await page.waitForTimeout(300);
+await save();
+const cur3 = await current();
+ok('and moving it back down restores it after Date',
+  cur3.indexOf('| Date |') < cur3.indexOf('> See [[Cancel a booking]]')
+  && cur3.indexOf('> See [[Cancel a booking]]') < cur3.indexOf('| Space |'));
+
+// ---- a reference with genuinely nothing after it cannot move down
+await page.evaluate(() => {
+  const r = [...document.querySelectorAll('#stage .ref')].find((n) => n.textContent.includes('Booking detail'));
+  r.querySelector('.more').click();
+});
+await page.waitForSelector('.menu');
+ok('a reference with nothing after it cannot move down',
+  await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Move down')).disabled));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+
+// ---- and a reference can be dragged too, not just nudged one step
+await page.evaluate(() => {
+  const from = [...document.querySelectorAll('.ref')].find((n) => n.textContent.includes('Cancel a booking'));
+  const item = [...document.querySelectorAll('.item')].find((x) => x.querySelector('.lbl') && x.querySelector('.lbl').textContent.trim() === 'Time');
+  const cell = item.closest('.cell');
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+  const r = cell.getBoundingClientRect();
+  cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+  cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+  from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+});
+await page.waitForTimeout(350);
+await save();
+const cur3b = await current();
+ok('a reference can be dragged to an arbitrary spot, straight past a row it did not step through',
+  cur3b.indexOf('| Time |') < cur3b.indexOf('> See [[Cancel a booking]]')
+  && cur3b.indexOf('> See [[Cancel a booking]]') < cur3b.indexOf('| Status |'));
+
 const refsInFile = (t) => t.split('\n').filter((l) => l.startsWith('> See')).length;
 const refsBeforeRemoval = refsInFile(await current());
 await page.evaluate(() => {
-  const r = [...document.querySelectorAll('#stage .ref')].pop();
-  if (r && r.querySelector('.refx')) r.querySelector('.refx').click();
+  const r = [...document.querySelectorAll('#stage .ref')].find((n) => n.textContent.includes('Cancel a booking'));
+  if (r) r.querySelector('.more').click();
 });
+await page.waitForSelector('.menu');
+await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Delete reference')).click());
 await okDelete();
 await save();
 eq('and it can be removed again', refsInFile(await current()), refsBeforeRemoval - 1);
@@ -743,6 +909,41 @@ await save();
 ok('and saving takes both the button and the dot away again',
   await page.evaluate(() => getComputedStyle(document.getElementById('save')).display === 'none'
     && !document.getElementById('file').textContent.includes('·')));
+await pick('Status of it');
+await page.waitForTimeout(200);
+await typeInto('.rowsel .lbl', 'Status');
+await save();
+
+// ---------------------------------------------------------------- discarding is the other way out
+ok('discard is quiet too, until there is something to throw away',
+  await page.evaluate(() => getComputedStyle(document.getElementById('discard')).display === 'none'));
+await pick('Status');
+await page.waitForTimeout(200);
+await typeInto('.rowsel .lbl', 'Status of it');
+ok('editing shows a way to throw the edit away, next to the way to keep it',
+  await page.evaluate(() => getComputedStyle(document.getElementById('discard')).display !== 'none'));
+
+await page.click('#discard');
+await page.waitForSelector('.scrim .dialog');
+await page.evaluate(() => [...document.querySelectorAll('.dialog .dfoot button')]
+  .find((b) => b.textContent.trim() === 'Keep editing').click());
+await page.waitForTimeout(250);
+ok('cancelling the dialog leaves the edit alone', await hasItem('Status of it'));
+
+await page.click('#discard');
+await page.waitForSelector('.scrim .dialog');
+await page.evaluate(() => [...document.querySelectorAll('.dialog .dfoot button')]
+  .find((b) => b.textContent.trim() === 'Discard').click());
+await page.waitForTimeout(300);
+ok('discarding puts the guide back the way it was on disk',
+  !(await hasItem('Status of it')) && (await hasItem('Status')));
+ok('and takes the save and discard buttons away with it',
+  await page.evaluate(() => getComputedStyle(document.getElementById('save')).display === 'none'
+    && getComputedStyle(document.getElementById('discard')).display === 'none'));
+
+await page.click('.toast button');
+await page.waitForTimeout(300);
+ok('undo brings the discarded edit straight back', await hasItem('Status of it'));
 await pick('Status of it');
 await page.waitForTimeout(200);
 await typeInto('.rowsel .lbl', 'Status');
@@ -1340,11 +1541,9 @@ await page.evaluate(() => {
   [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Cancel a booking')).click();
 });
 await page.waitForTimeout(400);
-eq('a guide that fits on screen draws no map',
-  await page.$eval('#minimap', (n) => getComputedStyle(n).visibility), 'hidden');
-ok('but keeps its column, so the guide does not jump sideways between guides',
-  await page.$eval('#minimap', (n) =>
-    getComputedStyle(n).display !== 'none' && n.getBoundingClientRect().width > 100));
+ok('a guide that fits on screen still draws a map — every guide gets one now',
+  await page.$eval('#minimap', (n) => getComputedStyle(n).visibility !== 'hidden'
+    && getComputedStyle(n).display !== 'none' && n.getBoundingClientRect().width > 100));
 await page.evaluate(() => {
   [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
 });
@@ -1496,6 +1695,44 @@ eq('and deleted', await count('#railL .g-item'), orderBefore.length - 1);
 const guidesNow = await count('#railL .g-item');
 await save();
 
+// ---------------------------------------------------------------- duplicating a guide
+// Duplicating jumps to the copy, same as creating one does — restore whichever
+// guide was open before, so tests further down still land on what they expect.
+const openBefore = await text('#pagehead h1');
+const dupTarget = (await railNames())[0];
+await page.evaluate((n) => {
+  const item = [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes(n));
+  item.querySelector('.more').click();
+}, dupTarget);
+await page.waitForSelector('.menu');
+ok('duplicate sits in the same menu as rename, move and delete',
+  await page.evaluate(() => [...document.querySelectorAll('.mitem')].some((n) => n.textContent.includes('Duplicate'))));
+await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Duplicate')).click());
+await page.waitForTimeout(300);
+eq('it adds exactly one guide', await count('#railL .g-item'), guidesNow + 1);
+const afterDupNames = await railNames();
+eq('named after the original, suffixed', afterDupNames[1], `${dupTarget} - COPY`);
+eq('placed right after the original, not at the end', afterDupNames[0], dupTarget);
+ok('and it becomes the open guide', (await text('#pagehead h1')) === `${dupTarget} - COPY`);
+await save();
+ok('which the file records', (await current()).includes(`## ${dupTarget} - COPY`));
+
+// clean up so guide counts below still mean what they say
+await page.evaluate((n) => {
+  const item = [...document.querySelectorAll('#railL .g-item')]
+    .find((x) => x.querySelector('.n').textContent.trim() === `${n} - COPY`);
+  item.querySelector('.more').click();
+}, dupTarget);
+await page.waitForSelector('.menu');
+await page.evaluate(() => [...document.querySelectorAll('.mitem')].find((n) => n.textContent.includes('Delete guide')).click());
+await okDelete();
+eq('cleaned back up', await count('#railL .g-item'), guidesNow);
+await save();
+await page.evaluate((n) => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes(n)).click();
+}, openBefore);
+await page.waitForTimeout(250);
+
 // ---------------------------------------------------------------- the rail belongs to the guide view
 await page.click('#tabs button:nth-child(2)');
 await page.waitForTimeout(250);
@@ -1590,6 +1827,7 @@ await page.waitForTimeout(300);
 ok('clicking an action item goes to the block it came from', (await gcount('.rowsel')) >= 1);
 
 // ---------------------------------------------------------------- flow
+const guideBeforeFlow = await text('#pagehead h1');
 await page.click('#tabs button:nth-child(2)');
 await page.waitForSelector('#flow svg');
 eq('every guide is a node', await count('#flow .node'), guidesNow);
@@ -1606,8 +1844,97 @@ eq('references are drawn differently from routes, when they resolve',
 ok('the panel steps out of the way of a file-wide view',
   await page.evaluate(() => getComputedStyle(document.getElementById('railR')).display === 'none'));
 
-// ---------------------------------------------------------------- sources
+// ---- picking a card highlights its connections instead of leaving the map
+const clickFlowNode = (name) => page.evaluate((n) => {
+  const g = [...document.querySelectorAll('#flow .node')].find((x) => x.querySelector('text').textContent.trim() === n);
+  if (!g) return false;
+  g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  return true;
+}, name);
+const nodeOn = (name) => page.evaluate((n) => {
+  const g = [...document.querySelectorAll('#flow .node')].find((x) => x.querySelector('text').textContent.trim() === n);
+  return !!g && g.classList.contains('on');
+}, name);
+const onNode = () => page.evaluate(() => {
+  const g = document.querySelector('#flow .node.on');
+  return g ? g.querySelector('text').textContent.trim() : null;
+});
+const otherNode = (skip) => page.evaluate((s) => {
+  const g = [...document.querySelectorAll('#flow .node')].find((x) => x.querySelector('text').textContent.trim() !== s);
+  return g ? g.querySelector('text').textContent.trim() : null;
+}, skip);
+const tabOn = () => page.$eval('#tabs button.on', (n) => n.textContent.trim());
+
+// The still-open guide is the default selection when you arrive.
+const defaultSel = await onNode();
+ok('arriving at the map already has a card selected', !!defaultSel);
+ok('and a bar already offers a way back to it',
+  await page.evaluate(() => !document.getElementById('flowbar').hidden));
+
+const other = await otherNode(defaultSel);
+ok('picking a different card selects it instead', await clickFlowNode(other));
+await page.waitForTimeout(200);
+ok('and marks it as the selected one', await nodeOn(other));
+ok('taking the mark off the one before it', !(await nodeOn(defaultSel)));
+eq('it does not navigate away from the map', await tabOn(), 'Flow');
+ok('the bar names the newly picked card', (await text('#flowbar')).includes(other));
+ok('at least one connection lights up for it', (await count('#flow .edge.hot')) > 0);
+
+await clickFlowNode(other);
+await page.waitForTimeout(200);
+ok('clicking the same card again clears the selection', !(await nodeOn(other)));
+ok('and the bar goes with it', await page.$eval('#flowbar', (n) => n.hidden));
+
+await clickFlowNode(other);
+await page.waitForTimeout(200);
+await page.evaluate(() => document.querySelector('#flow svg').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+await page.waitForTimeout(200);
+ok('and clicking empty canvas clears it too', !(await nodeOn(other)));
+
+await clickFlowNode(other);
+await page.waitForTimeout(200);
+await page.click('#flowbar .btn.primary');
+await page.waitForTimeout(300);
+eq("the bar's button is the one thing that actually goes there", await text('#pagehead h1'), other);
+eq('landing back in the guide view', await tabOn(), 'Guide');
+
+// a reference edge has to highlight the same way a route does — a CSS tie
+// between .edge.ref and .edge.hot used to leave a hot reference the same
+// grey as an unselected one.
+await page.click('#tabs button:nth-child(2)');
+await page.waitForSelector('#flow svg');
+// Whichever card touches at least one reference edge, selected — a route
+// edge from the same card proves what "hot" is supposed to look like, and
+// the reference edge has to match it exactly, not fall back to grey.
+const refCard = await page.evaluate(() => {
+  const ref = document.querySelector('#flow .edge.ref');
+  return ref ? ref.dataset.from : null;
+});
+ok('there is a reference to check', !!refCard);
+if (!(await nodeOn(refCard))) await clickFlowNode(refCard);
+await page.waitForTimeout(200);
+const strokes = await page.evaluate(() => {
+  const ref = document.querySelector('#flow .edge.ref.hot');
+  const route = document.querySelector('#flow .edge.hot:not(.ref)');
+  return { ref: ref && getComputedStyle(ref).stroke, route: route && getComputedStyle(route).stroke };
+});
+ok('a highlighted reference edge matches a highlighted route, not a leftover grey',
+  !!strokes.ref && strokes.ref === strokes.route, JSON.stringify(strokes));
+
+// Leave the suite where it found it — the tests after this one assume a
+// specific guide is open.
 await page.click('#tabs button:nth-child(1)');
+await page.waitForTimeout(200);
+await page.evaluate((n) => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes(n)).click();
+}, guideBeforeFlow);
+await page.waitForTimeout(250);
+eq('back to the guide this section started on', await text('#pagehead h1'), guideBeforeFlow);
+
+// ---------------------------------------------------------------- sources
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
+});
 await page.waitForTimeout(250);
 eq("the panel has five tabs, all at the guide's own altitude", await count('#railR .ptabs button'), 5);
 ok('context opens first, because it is what you need to read the guide',
@@ -1622,7 +1949,20 @@ eq('and carries no number anyone has to interpret', await count('#railR .src .n'
 ok('a web source is a real link', await page.$('#railR .src a.title[href^="http"]') !== null);
 ok('a local path is not offered as a link that would fail',
   await page.evaluate(() => [...document.querySelectorAll('#railR .src .title')]
-    .some((n) => n.tagName === 'BUTTON' && n.className.includes('pathlink'))));
+    .every((n) => n.tagName !== 'A' || n.getAttribute('href').startsWith('http'))));
+ok('a local path gets a copy button instead, next to delete',
+  await page.evaluate(() => {
+    const card = [...document.querySelectorAll('#railR .src')]
+      .find((c) => c.querySelector('.title').tagName === 'SPAN');
+    return !!card && !!card.querySelector('.copybtn') && !!card.querySelector('.x');
+  }));
+await page.evaluate(() => {
+  const card = [...document.querySelectorAll('#railR .src')].find((c) => c.querySelector('.title').tagName === 'SPAN');
+  card.querySelector('.copybtn').click();
+});
+await page.waitForTimeout(150);
+ok('clicking copy turns it into a checkmark, not a text swap that hijacks the title',
+  await page.evaluate(() => !!document.querySelector('#railR .src .copybtn.copied')));
 
 const srcBefore = await count('#railR .src');
 await page.click('#railR .rail-add');
@@ -1640,8 +1980,17 @@ eq('the new source appears in the rail', await count('#railR .src'), srcBefore +
 await save();
 ok('it lands in the file as a definition, with a handle nobody had to invent',
   (await current()).includes('[door-reader-spec]: https://example.com/doors "Door reader spec"'));
+// Guides get reordered earlier in the suite, so the first "**Sources:**" line
+// in the file is no longer necessarily this guide's — find the one after its
+// own heading instead of trusting file position.
+const sourcesLineFor = async (heading) => {
+  const lines = (await current()).split('\n');
+  const start = lines.findIndex((l) => l.trim() === heading);
+  return start === -1 ? '' : (lines.slice(start).find((l) => l.startsWith('**Sources:**')) || '');
+};
 ok('and is attached to the guide it was added from',
-  (await line('**Sources:**')).includes('[door-reader-spec]'), await line('**Sources:**'));
+  (await sourcesLineFor('## Bookings — My Week')).includes('[door-reader-spec]'),
+  await sourcesLineFor('## Bookings — My Week'));
 
 await page.evaluate(() => {
   const card = [...document.querySelectorAll('#railR .src')].find((n) => n.textContent.includes('Door reader spec'));
@@ -1649,9 +1998,28 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(250);
 await save();
-ok('detaching takes it off the guide', !(await line('**Sources:**')).includes('door-reader-spec'));
+ok('detaching takes it off the guide',
+  !(await sourcesLineFor('## Bookings — My Week')).includes('door-reader-spec'));
 ok('but leaves the source in the file for anything else to use',
   (await current()).includes('[door-reader-spec]: https://example.com/doors'));
+
+// ---- a source cited only inline is not shown as attached, so delete always works
+/**
+ * The bug: a card here used to include anything cited anywhere in the guide
+ * — a row's note, not just the guide's own Sources field — so its × silently
+ * did nothing for a source that was never actually attached to detach.
+ */
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Booking detail')).click();
+});
+await page.waitForTimeout(250);
+await panel(2);
+await page.waitForTimeout(200);
+eq('only what the guide actually attaches shows here, not everything it cites inline',
+  await count('#railR .src'), 1);
+await page.evaluate(() => document.querySelector('#railR .src .x').click());
+await page.waitForTimeout(250);
+eq('so delete always has something real to remove', await count('#railR .src'), 0);
 
 // ---------------------------------------------------------------- links tab
 await page.evaluate(() => {
@@ -1781,11 +2149,49 @@ const dragged = await page.evaluate(() => {
 });
 eq('dragging a block lands it where it was dropped', dragged.index, 3);
 
+// ---------------------------------------------------------------- text the parser cannot shape into a block
+/**
+ * The bug: a stray paragraph the parser cannot fit into a block (a table
+ * missing its Content column, an odd paste, leftover prose) rendered as
+ * plain, inert text — no way to edit it, no way to remove it, short of
+ * opening the file by hand. Nothing added to a guide is allowed to be stuck
+ * like that.
+ */
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Space detail')).click();
+});
+await page.waitForTimeout(300);
+ok('it still shows up, as text', await page.$('.rawblock .text') !== null);
+eq('and it reads exactly what is in the file',
+  await page.$eval('.rawblock .text', (n) => n.textContent.trim()),
+  '*Leftover from an earlier draft — check with facilities before deleting.*');
+ok('the block count does not count it — it is not a block', (await text('#pagehead .sub')).includes('6 blocks'));
+
+await page.$eval('.rawblock .text', (n) => {
+  n.focus();
+  n.textContent = 'Confirmed stale by facilities, safe to drop.';
+  n.blur();
+});
+await page.waitForTimeout(250);
+await save();
+ok('it can be edited in place, like everything else on the guide',
+  (await current()).includes('Confirmed stale by facilities, safe to drop.'));
+
+await page.evaluate(() => document.querySelector('.rawblock .x').click());
+await okDelete();
+await save();
+ok('and removed outright, the same way a block is',
+  !(await current()).includes('Confirmed stale by facilities'));
+
 // ---------------------------------------------------------------- the right panel resizes, collapses, and remembers its shape
 // Last, because a reload throws away the in-memory document — every other
 // test that depends on edits made along the way has to run before this one.
 // A widened rail would also crowd the layout checks upstream, so this stays
 // self-contained at the end rather than leaving the rail resized mid-suite.
+await page.evaluate(() => {
+  [...document.querySelectorAll('#railL .g-item')].find((x) => x.textContent.includes('Bookings')).click();
+});
+await page.waitForTimeout(300);
 const railWidthBefore = await page.$eval('#railR', (n) => n.getBoundingClientRect().width);
 const rdrag = await page.$eval('.rdrag', (n) => {
   const r = n.getBoundingClientRect();
@@ -1800,6 +2206,53 @@ const railWidthAfter = await page.$eval('#railR', (n) => n.getBoundingClientRect
 ok('the right panel can be resized by dragging its left edge',
   railWidthAfter > railWidthBefore + 50,
   `before ${railWidthBefore} after ${railWidthAfter}`);
+
+// ---- the map's own arithmetic must not go stale while that drag reflows the guide
+/**
+ * The bug: narrowing the rail widens the guide's own column, which can
+ * reflow every note in it and change how tall the guide really is — live,
+ * with no scroll event ever firing. The map kept the scale and content
+ * height it measured before the drag, so the band it drew no longer matched
+ * the guide's real height and stopped short of the bottom even though the
+ * guide really was scrolled all the way down.
+ */
+// A short window so the shrunk picture is genuinely taller than the map's own
+// column — the sliding path (the one with the bug) only runs then.
+await page.setViewportSize({ width: 1600, height: 420 });
+await page.waitForTimeout(300);
+await page.evaluate(() => { document.getElementById('stage').scrollTop = 999999; });
+await page.waitForTimeout(200);
+const rdrag2 = await page.$eval('.rdrag', (n) => {
+  const r = n.getBoundingClientRect();
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+});
+await page.mouse.move(rdrag2.x, rdrag2.y);
+await page.mouse.down();
+await page.mouse.move(rdrag2.x + 120, rdrag2.y, { steps: 8 });
+await page.mouse.up();
+await page.waitForTimeout(300);
+await page.evaluate(() => { document.getElementById('stage').scrollTop = 999999; });
+await page.waitForTimeout(250);
+ok("the band still reaches the true bottom after a resize reflows the guide",
+  await page.evaluate(() => {
+    const m = document.getElementById('minimap');
+    const view = m.querySelector('.mview');
+    if (!view) return false;
+    const bottom = parseFloat(view.style.top) + parseFloat(view.style.height);
+    return Math.abs(bottom - m.clientHeight) < 3;
+  }));
+await page.setViewportSize({ width: 1600, height: 1000 });
+await page.waitForTimeout(300);
+// Undo that drag so the width tracked below (railWidthAfter) is still accurate.
+const rdrag3 = await page.$eval('.rdrag', (n) => {
+  const r = n.getBoundingClientRect();
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+});
+await page.mouse.move(rdrag3.x, rdrag3.y);
+await page.mouse.down();
+await page.mouse.move(rdrag3.x - 120, rdrag3.y, { steps: 8 });
+await page.mouse.up();
+await page.waitForTimeout(250);
 
 await page.click('.rcollapse');
 await page.waitForTimeout(250);
@@ -2066,6 +2519,18 @@ ok('nothing but the card and the section head paints a surface',
 ok('and the card cannot swallow a click meant for the page',
   await page.evaluate(() => [...document.querySelectorAll('#stage .paper')]
     .every((n) => getComputedStyle(n).pointerEvents === 'none')));
+// The heading's own surface is a different colour, so its bottom edge reads
+// as a hard line — the first thing under it needs the same breathing room
+// the heading itself has, or it reads as squished against that edge.
+ok("the first thing under a heading is not squished against it",
+  await page.evaluate(() => {
+    const cells = [...document.querySelectorAll('#stage .cell')];
+    const heads = cells.filter((c) => c.classList.contains('sechead'));
+    return heads.length > 0 && heads.every((h) => {
+      const i = cells.indexOf(h);
+      return i + 1 < cells.length && !!cells[i + 1].querySelector('.band.open');
+    });
+  }));
 // The gap between two cards belongs to neither, so it draws nothing — otherwise
 // the side lines run on and the two sections read as one card.
 ok('the break between two sections draws nothing',

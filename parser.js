@@ -1289,6 +1289,87 @@ export function moveSection(guide, section, dir) {
   return true;
 }
 
+/**
+ * Put a chunk at an explicit row-relative position, splitting the table
+ * around it. A subsection heading and a reference card both sit between
+ * rows rather than in the row list, so placing one means cutting the table
+ * at that point and putting the chunk in the gap. Dropped at either end,
+ * nothing is cut. This is the one primitive both a fresh drop from the
+ * palette and relocating an existing marker reduce to.
+ */
+export function splitAt(sec, table, at, chunk) {
+  const chunks = sec.chunks;
+  let insertAt = chunks.indexOf(table) + 1;
+  if (at <= 0) {
+    insertAt = chunks.indexOf(table);
+  } else if (at < table.rows.length) {
+    const rest = table.rows.splice(at);
+    table.dirty = true;
+    chunks.splice(insertAt, 0, {
+      kind: 'table',
+      headerSrc: table.headerSrc ? table.headerSrc.slice() : null,
+      dividerSrc: table.dividerSrc ? table.dividerSrc.slice() : null,
+      cols: table.cols, rows: rest, dirty: true
+    });
+  }
+  chunks.splice(insertAt, 0, { kind: 'raw', src: [''], dirty: false }, chunk,
+    { kind: 'raw', src: [''], dirty: false });
+  return chunk;
+}
+
+/**
+ * Everything a section shows, in reading order, at the grain a person
+ * actually sees: a subsection heading, a reference card, or one row — never
+ * a whole table, which can hold many rows at once. A blank line or a line of
+ * prose is not something to land next to, so neither appears here.
+ *
+ * This is what "one at a time" means for a marker (a subsection heading or a
+ * reference card): it swaps with whichever single entry in this list sits
+ * next to it, the same step a drag-and-drop would land on if you nudged it
+ * one row.
+ */
+function visibleUnits(sec) {
+  const out = [];
+  for (const c of sec.chunks) {
+    if (c.kind === 'table') for (const row of c.rows) out.push({ kind: 'row', table: c, row });
+    else if (c.kind === 'sub' || c.kind === 'ref') out.push({ kind: 'marker', chunk: c });
+  }
+  return out;
+}
+
+/** Where a marker sits among the section's visible units, for a menu's disabled state. */
+export function markerStep(sec, chunk) {
+  const units = visibleUnits(sec);
+  const idx = units.findIndex((u) => u.kind === 'marker' && u.chunk === chunk);
+  return { canUp: idx > 0, canDown: idx !== -1 && idx < units.length - 1 };
+}
+
+/**
+ * Move a subsection heading or a reference card one step. A subsection
+ * heading carries nothing with it — the rows it used to introduce stay
+ * exactly where they are, now unlabelled, or under whichever heading comes
+ * before them. That is deliberate: the earlier version moved a heading's
+ * whole run of rows at once, which is not "one block" and reads as several.
+ */
+export function moveMarker(sec, chunk, dir) {
+  const units = visibleUnits(sec);
+  const idx = units.findIndex((u) => u.kind === 'marker' && u.chunk === chunk);
+  if (idx === -1) return false;
+  const ni = idx + dir;
+  if (ni < 0 || ni >= units.length) return false;
+  const neighbor = units[ni];
+  const chunks = sec.chunks;
+  chunks.splice(chunks.indexOf(chunk), 1);
+  if (neighbor.kind === 'marker') {
+    chunks.splice(chunks.indexOf(neighbor.chunk) + (dir > 0 ? 1 : 0), 0, chunk);
+  } else {
+    const at = neighbor.table.rows.indexOf(neighbor.row) + (dir > 0 ? 1 : 0);
+    splitAt(sec, neighbor.table, at, chunk);
+  }
+  sec.dirty = true;
+  return true;
+}
+
 export function setField(guide, key, value) {
   guide.fields[key] = norm(value);
   guide.dirtyHeader = true;
@@ -1439,6 +1520,32 @@ export function removeGuide(doc, guide) {
   if (i === -1) return false;
   doc.segments.splice(i, 1);
   return true;
+}
+
+/**
+ * Copy a guide, placed right after the original.
+ *
+ * The clone carries none of the original's comments. A comment is pinned to a
+ * block by a short id embedded in that block's own line, and structuredClone
+ * copies that id along with everything else — so without stripping it, the
+ * copy's blocks would point at the same doc-wide comment thread as the
+ * original's, and a note nobody has looked at on the copy would show as
+ * already-seen, or vice versa.
+ */
+export function duplicateGuide(doc, guide) {
+  const copy = structuredClone(guide);
+  copy.name = `${guide.name} - COPY`;
+  copy.dirty = true; copy.dirtyHeading = true;
+  for (const { table } of tablesOf(copy)) {
+    for (const row of table.rows) {
+      if (!row.rid) continue;
+      delete row.rid;
+      row.dirty = true; table.dirty = true;
+    }
+  }
+  const i = doc.segments.indexOf(guide);
+  doc.segments.splice(i + 1, 0, copy);
+  return copy;
 }
 
 /**
