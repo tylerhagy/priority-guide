@@ -195,7 +195,7 @@ that is how markdown reference definitions work.
 
 ---
 
-## The four views
+## The views
 
 | | |
 | --- | --- |
@@ -203,6 +203,7 @@ that is how markdown reference definitions work.
 | **Flow** | Every route in the file, drawn. What leads where, and what nothing leads to. |
 | **Users** | Every user type, and the guides each one needs. Pick a group and the whole app narrows to their screens — present from there, and the arrow keys walk the set. |
 | **Open** | Every `ACTION:` and every `??`, with the block it came from. |
+| **Fields** | Every object and field in the folder's fields file — backend name, stored or derived, allowed values — and every block, on every guide, that shows it. Filters for fields no screen uses and for blocks whose values the field does not allow. |
 | **Source** | The markdown. |
 
 Beside each guide sit four tabs, and **all four belong to the guide you are
@@ -212,6 +213,44 @@ reorder, click a name to rename it, and a Figma link opens in a split view next
 to a read-only copy of the guide), **Sources** and **Links**.
 
 ![Flow](screenshots/03-flow.png)
+
+---
+
+## Fields
+
+A folder can hold one **fields file** beside its guides, named `Fields — [name].md`.
+It is an ordinary guides file read a different way: each `##` is an object
+(Opportunity, Customer, Interaction) and each row is a field it holds.
+
+```markdown
+## Opportunity
+
+### Fields
+
+| Label | Backend | Kind | Values | Definition | Note |
+| --- | --- | --- | --- | --- | --- |
+| Status | none: open while CloseDate is empty | derived | Open, Closed | Only two states | [erd] |
+| Start date | Opportunities.StartDate | stored | date | When it can be worked from |  |
+```
+
+- **Label** is what a screen calls it; **Backend** the database name, `??` until confirmed.
+- **Kind** is `stored` or `derived`; a derived field gives its rule in Definition.
+- **Values** lists the allowed values, comma-separated, or describes the format.
+  Starting with `e.g.` marks a sample rather than the full set.
+
+A block on a guide points at a field through an optional **Field** column,
+`Opportunity.Status`. Select a block and press **Link a field** to pick one, or
+type `Object.Label` to add it to the fields file on the spot. The column is
+added to a table the first time one of its blocks is linked — the header, the
+divider and an empty trailing cell on each row, nothing else. A blank Field is
+fine: the block is still conceptual, and the Fields view lists it so it is not
+forgotten. A linked block with no example of its own shows its field's values,
+greyed; one whose example lists values the field does not allow is flagged.
+
+The fields file saves with ⌘S alongside the guides file, round-trips the same
+way, and its `??` and `ACTION:` notes count in its own Open list.
+`node validate.mjs` reports broken field links and value disagreements when the
+guides file has a fields file beside it.
 
 ---
 
@@ -229,7 +268,7 @@ to a read-only copy of the guide), **Sources** and **Links**.
 | `←` `→` | In present mode, the previous and next screen |
 | `C` | Capture — type a line, `Enter`, next line |
 | `P` | Present — big type, chrome out of the way |
-| `G` `F` `U` `O` `S` | Guide · Flow · Users · Open · Source |
+| `G` `F` `U` `O` `D` `S` | Guide · Flow · Users · Open · Fields · Source |
 | `⌘S` | Save |
 
 ---

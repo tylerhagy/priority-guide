@@ -604,6 +604,98 @@ t('a file that already says both still round-trips — it is a lint, not a rejec
   ok(P.verifyRoundTrip(text).ok, 'must still open');
 });
 
+// ---------------------------------------------------------------- fields
+const FIELDS = [
+  '# Fields — Test', '',
+  '## Opportunity', '',
+  '### Fields', '',
+  '| Label | Backend | Kind | Values | Definition | Note |',
+  '| --- | --- | --- | --- | --- | --- |',
+  '| Status | TacticalOpportunity.StatusId | stored | Open, Closed | Only two stored states |  |',
+  '| New | ?? | derived | yes, no | Open with no attempts |  |',
+  '| Expiration date | TacticalOpportunity.ExpirationDate | stored | date |  |  |',
+  '', '## Sources', '', ''
+].join('\n');
+
+t('a fields file round-trips and reads its columns', () => {
+  ok(P.verifyRoundTrip(FIELDS).ok, 'must round-trip');
+  const idx = P.fieldIndex(P.parseDocument(FIELDS));
+  const f = idx.get('opportunity.status');
+  ok(f, 'Opportunity.Status must be indexed');
+  eq([f.row.backend, f.row.fkind, f.row.values], ['TacticalOpportunity.StatusId', 'stored', 'Open, Closed']);
+  eq(idx.size, 3);
+});
+
+t('an unknown backend name counts as open', () => {
+  const open = P.openItems(P.parseDocument(FIELDS));
+  ok(open.some((i) => i.text.includes('backend name')), 'the ?? backend should be listed');
+});
+
+t('a ref splits on its first dot only', () => {
+  eq(P.splitFieldRef('Opportunity.e.g. thing'), { object: 'Opportunity', label: 'e.g. thing' });
+  eq(P.splitFieldRef('loose'), { object: '', label: 'loose' });
+});
+
+const GUIDE = [
+  '# Priority Guides — Test', '',
+  '## List', '',
+  '### Card', '',
+  '| Content | Real data | Note |',
+  '| --- | --- | --- |',
+  '| Status | New, Attempted, Closed |  |',
+  '| Customer name | John Smith | a note |',
+  ''
+].join('\n');
+
+t('adding the Field column changes only the header, the divider and a trailing cell', () => {
+  const doc = P.parseDocument(GUIDE);
+  const { row, table, section } = P.rowsOf(P.findGuide(doc, 'List'))[0];
+  P.setRowField(row, table, section, 'Opportunity.Status');
+  const after = P.serializeDocument(doc);
+  ok(P.verifyRoundTrip(after).ok, 'result must round-trip');
+  const lines = after.split('\n');
+  eq(lines[6], '| Content | Real data | Note | Field |');
+  eq(lines[7], '| --- | --- | --- | --- |');
+  eq(lines[8], '| Status | New, Attempted, Closed |  | Opportunity.Status |');
+  eq(lines[9], '| Customer name | John Smith | a note | |', 'an untouched row only gains an empty cell');
+  const again = P.parseDocument(after);
+  eq(P.rowsOf(P.findGuide(again, 'List'))[0].row.field, 'Opportunity.Status');
+});
+
+t('usage finds linked, unlinked and broken rows, and values the field does not allow', () => {
+  const doc = P.parseDocument(GUIDE);
+  const rows = P.rowsOf(P.findGuide(doc, 'List'));
+  P.setRowField(rows[0].row, rows[0].table, rows[0].section, 'Opportunity.Status');
+  P.setRowField(rows[1].row, rows[1].table, rows[1].section, 'Customer.Name');
+  const u = P.fieldUsage(doc, P.parseDocument(FIELDS));
+  const st = u.used.get('opportunity.status');
+  ok(st && st.length === 1, 'Status is used once');
+  eq(st[0].mismatch, ['New', 'Attempted'], 'Closed is allowed; New and Attempted are not');
+  eq(u.unresolved.map((x) => x.ref), ['Customer.Name']);
+  eq(u.unlinked.length, 0);
+});
+
+t('values written as examples are never checked', () => {
+  eq(P.valueList('e.g. Winback, Cross Sell'), null);
+  eq(P.valueList('Open, Closed'), ['Open', 'Closed']);
+});
+
+t('a format example is never a mismatch', () => {
+  const f = P.fieldIndex(P.parseDocument(FIELDS)).get('opportunity.expiration date');
+  eq(P.valueMismatch({ realData: 'Day 20 of 30, closes Sat' }, f), []);
+});
+
+t('a new object and field write a valid fields file', () => {
+  const fdoc = P.parseDocument(P.blankFieldsFile('Test'));
+  P.addFieldTo(fdoc, 'Customer', 'Customer name', { backend: 'Party.Name', fkind: 'stored' });
+  P.addFieldTo(fdoc, 'Customer', 'Customer ID', { backend: 'Party.PartyNumber' });
+  const text = P.serializeDocument(fdoc);
+  ok(P.verifyRoundTrip(text).ok, 'must round-trip');
+  ok(text.indexOf('## Customer') < text.indexOf('## Sources'), 'objects sit before Sources');
+  const idx = P.fieldIndex(P.parseDocument(text));
+  eq(idx.get('customer.customer id').row.backend, 'Party.PartyNumber');
+});
+
 // ---------------------------------------------------------------- report
 
 console.log(`\n  ${pass} passed${fails.length ? `, ${fails.length} FAILED` : ''}\n`);

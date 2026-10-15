@@ -55,13 +55,32 @@ const FIELD_ALIASES = {
 // format gain a column later without breaking files written today, and lets
 // someone rename "Real data" to "Example" without the app losing the column.
 const COLUMN_ALIASES = {
-  content: ['content', 'item', 'element', 'data point'],
+  content: ['content', 'item', 'element', 'data point', 'label'],
   realData: ['real data', 'example', 'example content', 'secondary', 'secondary line', 'actual data'],
   capabilities: ['do', 'capabilities', 'search filter sort', 'sfse'],
   link: ['link', 'link type', 'links'],
   form: ['form', 'form type', 'input', 'input type'],
-  note: ['note', 'notes', 'context']
+  note: ['note', 'notes', 'context'],
+  // A guide row's pointer into the fields file: `Opportunity.Status`.
+  field: ['field', 'data field', 'object field'],
+  // The fields file's own columns. A fields file is a guides file whose `##`
+  // headings are objects and whose rows are the fields each object holds.
+  backend: ['backend', 'backend name', 'database name', 'db name', 'db column'],
+  fkind: ['kind', 'stored or derived'],
+  values: ['values', 'allowed values', 'options'],
+  definition: ['definition', 'meaning', 'description']
 };
+
+// The columns a new object in a fields file is written with.
+export const FIELD_COLUMNS = [
+  ['content', 'Label'],
+  ['backend', 'Backend'],
+  ['fkind', 'Kind'],
+  ['values', 'Values'],
+  ['definition', 'Definition'],
+  ['note', 'Note']
+];
+export const FIELD_KINDS = ['stored', 'derived'];
 
 const CANONICAL_COLUMNS = [
   ['content', 'Content'],
@@ -478,6 +497,11 @@ function parseBlockRow(line, cols) {
   row.link = parseLinkCell(at('link'));
   row.form = parseFormCell(at('form'));
   row.note = parseNoteCell(at('note'));
+  row.field = norm(at('field'));
+  row.backend = norm(at('backend'));
+  row.fkind = lower(at('fkind'));
+  row.values = norm(at('values'));
+  row.definition = norm(at('definition'));
   row.refs = rowRefs(row);
   return row;
 }
@@ -523,6 +547,11 @@ function renderRow(row, cols) {
     else if (key === 'link') out.push(cellSafe(renderLinkCell(row.link)));
     else if (key === 'form') out.push(cellSafe(renderFormCell(row.form)));
     else if (key === 'note') out.push(cellSafe(renderNoteCell(row.note)));
+    else if (key === 'field') out.push(cellSafe(row.field));
+    else if (key === 'backend') out.push(cellSafe(row.backend));
+    else if (key === 'fkind') out.push(cellSafe(row.fkind));
+    else if (key === 'values') out.push(cellSafe(row.values));
+    else if (key === 'definition') out.push(cellSafe(row.definition));
     else out.push(cellSafe(row.raw[i] || ''));   // a column we do not know: preserved
   }
   return `| ${out.join(' | ')} |`;
@@ -701,6 +730,9 @@ export function openItems(doc) {
       const un = [];
       if (norm(row.realData) === UNKNOWN) un.push('real data');
       if (norm(row.content.text) === UNKNOWN) un.push('content');
+      if (norm(row.backend) === UNKNOWN) un.push('backend name');
+      if (norm(row.values) === UNKNOWN) un.push('values');
+      if (norm(row.definition) === UNKNOWN) un.push('definition');
       if (un.length) {
         out.push({ kind: 'unknown', guide: g.name, where: `${section.title} · ${label}`, text: `${un.join(' and ')} not known`, target: row });
       }
@@ -1195,6 +1227,11 @@ export function addRow(table, section, fields = {}) {
     link: parseLinkCell(fields.link || ''),
     form: parseFormCell(fields.form || ''),
     note: parseNoteCell(fields.note || ''),
+    field: norm(fields.field || ''),
+    backend: norm(fields.backend || ''),
+    fkind: lower(fields.fkind || ''),
+    values: norm(fields.values || ''),
+    definition: norm(fields.definition || ''),
     rid: '',
     refs: []
   };
@@ -1627,6 +1664,207 @@ export function blankGuidesFile(title) {
     `| ${CANONICAL_COLUMNS.map((c) => c[1]).join(' | ')} |`,
     `| ${CANONICAL_COLUMNS.map(() => '---').join(' | ')} |`,
     '| ?? | ?? |  |  |  | ACTION: nothing has been captured for this screen yet |',
+    '',
+    '## Sources',
+    '',
+    ''
+  ].join('\n');
+}
+
+// ---------------------------------------------------------------- fields
+
+/**
+ * A fields file is an ordinary guides file read a different way: each `##` is an
+ * object (Opportunity, Customer, Interaction), each row a field it holds, with
+ * its backend name, whether it is stored or derived, and its allowed values.
+ * Being a guides file is the point — it round-trips, saves, and feeds the Open
+ * list exactly like one, and reads as a plain table in Obsidian.
+ *
+ * A guide row points at a field in its Field column as `Object.Label`. A blank
+ * Field is allowed and means the row is still conceptual; nothing forces a pick.
+ */
+export function isFieldsFileName(name) { return /^fields\s*[—–-]/i.test(norm(name)); }
+
+export function fieldRef(object, label) { return `${norm(object)}.${norm(label)}`; }
+
+/** `Opportunity.Expiration date` → object and label. The object never holds a dot; a label may. */
+export function splitFieldRef(ref) {
+  const s = norm(ref);
+  const i = s.indexOf('.');
+  if (i < 0) return { object: '', label: s };
+  return { object: norm(s.slice(0, i)), label: norm(s.slice(i + 1)) };
+}
+
+/** Every field in a fields document, keyed by lower-cased `Object.Label`. */
+export function fieldIndex(fdoc) {
+  const out = new Map();
+  if (!fdoc) return out;
+  for (const g of guides(fdoc)) {
+    for (const { row, table, section } of rowsOf(g)) {
+      if (row.content.kind === 'divider') continue;
+      const label = norm(row.content.text);
+      if (!label || label === UNKNOWN) continue;
+      const ref = fieldRef(g.name, label);
+      out.set(lower(ref), { ref, object: g.name, label, row, table, section, guide: g });
+    }
+  }
+  return out;
+}
+
+export function resolveField(fdoc, ref) {
+  if (!norm(ref)) return null;
+  return fieldIndex(fdoc).get(lower(ref)) || null;
+}
+
+/** The allowed values of a field when it names them, `Open, Closed`; null when it describes a format. */
+export function valueList(values) {
+  const v = norm(values);
+  if (!v || v === UNKNOWN || !v.includes(',')) return null;
+  // "e.g. Winback, Cross Sell" is a sample, not the full set: nothing to check against.
+  if (/^(e\.g\.|eg\b|for example|examples?\b|such as)/i.test(v)) return null;
+  const list = v.split(/\s*,\s*/).map(norm).filter(Boolean);
+  return list.length > 1 ? list : null;
+}
+
+/**
+ * The values a guide row shows that its field does not allow. Only checked when
+ * the field names its values and the row lists some, so a format example
+ * ("Day 20 of 30") is never mistaken for a disagreement.
+ */
+export function valueMismatch(row, field) {
+  const allowed = field && valueList(field.row.values);
+  const shown = norm(row.realData);
+  if (!allowed || !shown || shown === UNKNOWN) return [];
+  const ok = new Set(allowed.map(lower));
+  return shown.split(/\s*,\s*/).map(norm).filter(Boolean).filter((t) => !ok.has(lower(t)));
+}
+
+/**
+ * Which guide rows use which field, which name a field that does not exist, and
+ * which are not linked at all. Derived on every read, so it is never stale.
+ */
+export function fieldUsage(doc, fdoc) {
+  const index = fieldIndex(fdoc);
+  const used = new Map();
+  const unresolved = [];
+  const unlinked = [];
+  for (const g of guides(doc)) {
+    for (const { row, section, table } of rowsOf(g)) {
+      if (row.content.kind === 'divider') continue;
+      const ref = norm(row.field);
+      if (!ref) { unlinked.push({ guide: g, section, table, row }); continue; }
+      const hit = index.get(lower(ref));
+      if (!hit) { unresolved.push({ guide: g, section, table, row, ref }); continue; }
+      if (!used.has(lower(ref))) used.set(lower(ref), []);
+      used.get(lower(ref)).push({ guide: g, section, table, row, mismatch: valueMismatch(row, hit) });
+    }
+  }
+  return { index, used, unresolved, unlinked };
+}
+
+/**
+ * Give a table a column it does not have yet, at the end. Only the header, the
+ * divider and an empty trailing cell on each row change, so the diff stays
+ * small and every row keeps the rest of its line exactly as written.
+ */
+export function ensureColumn(table, key, name) {
+  const cols = table.cols;
+  if (cols.byKey[key] !== undefined) return cols.byKey[key];
+  const at = cols.names.length;
+  table.cols = {
+    names: [...cols.names, name],
+    keyAt: [...cols.keyAt, key],
+    byKey: { ...cols.byKey, [key]: at }
+  };
+  table.headerSrc = [renderHeader(table.cols)];
+  table.dividerSrc = [dividerFor(table.cols)];
+  for (const row of table.rows) {
+    const need = at + 1 - row.raw.length;
+    if (need > 0 && row.src != null && /\|\s*$/.test(row.src)) {
+      row.src = row.src.replace(/\s*$/, '') + ' |'.repeat(need);
+    } else if (need > 0) {
+      row.dirty = true;
+    }
+    while (row.raw.length <= at) row.raw.push('');
+  }
+  table.dirty = true;
+  return at;
+}
+
+/** Point a guide row at a field, adding the Field column to its table if it has none. */
+export function setRowField(row, table, section, ref) {
+  ensureColumn(table, 'field', 'Field');
+  row.field = norm(ref);
+  return touchRow(row, table, section);
+}
+
+/** A new object: a `##` heading with one Fields table, before the file's Sources. */
+export function addObject(fdoc, name) {
+  const n = norm(name);
+  const guide = {
+    kind: 'guide', name: n,
+    headingSrc: [`## ${n}`],
+    headerSrc: [''],
+    fields: { type: '', userGoal: '', businessGoal: '', primaryUsers: '', notes: '', sources: '' },
+    fieldLine: {},
+    sections: [],
+    localSources: {},
+    dirty: true, dirtyHeading: false, dirtyHeader: false
+  };
+  let at = fdoc.segments.findIndex((s) => s.kind === 'sources');
+  let last = -1;
+  fdoc.segments.forEach((s, i) => { if (s.kind === 'guide') last = i; });
+  if (last !== -1) at = last + 1;
+  else if (at === -1) at = fdoc.segments.length;
+  fdoc.segments.splice(at, 0, guide);
+  guide.sections.push({
+    kind: 'section', title: 'Fields',
+    headingSrc: ['### Fields'],
+    chunks: [
+      { kind: 'raw', src: [''], dirty: false },
+      {
+        kind: 'table',
+        headerSrc: [`| ${FIELD_COLUMNS.map((c) => c[1]).join(' | ')} |`],
+        dividerSrc: [`| ${FIELD_COLUMNS.map(() => '---').join(' | ')} |`],
+        cols: {
+          keyAt: FIELD_COLUMNS.map((c) => c[0]),
+          byKey: Object.fromEntries(FIELD_COLUMNS.map((c, i) => [c[0], i])),
+          names: FIELD_COLUMNS.map((c) => c[1])
+        },
+        rows: [], dirty: true
+      },
+      { kind: 'raw', src: [''], dirty: false }
+    ],
+    dirty: true, dirtyHeading: false
+  });
+  return guide;
+}
+
+/** Add a field to an object, creating the object if it is new. Returns the field. */
+export function addFieldTo(fdoc, object, label, fields = {}) {
+  const g = findGuide(fdoc, object) || addObject(fdoc, object);
+  let t = tablesOf(g)[0];
+  if (!t) {
+    // An object written by hand without a table: give it the standard one.
+    const fresh = addObject({ segments: [] }, g.name);
+    g.sections.push(fresh.sections[0]);
+    t = tablesOf(g)[0];
+  }
+  const row = addRow(t.table, t.section, { ...fields, content: label });
+  return { ref: fieldRef(g.name, label), object: g.name, label: norm(label), row, table: t.table, section: t.section, guide: g };
+}
+
+export function blankFieldsFile(title) {
+  const t = norm(title) || 'Untitled';
+  return [
+    `# Fields — ${t}`,
+    '',
+    'The data behind the priority guides in this folder. Each `##` is an object and each row is one field it holds.',
+    'A guide row points at a field in its Field column, written `Object.Label`. A blank Field is fine: it means the row is still conceptual.',
+    '',
+    '- **Label** is what the screen calls it. **Backend** is the database name, `??` until someone confirms it.',
+    '- **Kind** is `stored` or `derived`. A derived field gives its rule in Definition.',
+    '- **Values** lists every allowed value when there are few, comma-separated, or describes the format when there are many.',
     '',
     '## Sources',
     '',

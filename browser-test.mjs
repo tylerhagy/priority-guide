@@ -2638,6 +2638,112 @@ if (process.env.SHOTS) {
   console.log('  screenshots/guide.png, screenshots/panel-tabs.png');
 }
 
+// ------------------------------------------------------- fields
+/*
+ * A folder with a guides file and a fields file. A block points at a field, the
+ * Fields view shows where each field is used, and Save writes both files.
+ */
+{
+  const GUIDES = ['# Priority Guides — Fieldtest', '', '## List', '', '**User goal:** pick who to call', '',
+    '### Card', '', '| Content | Real data | Note | Field |', '| --- | --- | --- | --- |',
+    '| Status | New, Attempted | | Opportunity.Status |',
+    '| Expiration date |  | | Opportunity.Expiration date |',
+    '| Customer name | John Smith | |  |', '', '## Sources', '', ''].join('\n');
+  const FIELDS = ['# Fields — Fieldtest', '', '## Opportunity', '', '### Fields', '',
+    '| Label | Backend | Kind | Values | Definition | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Status | TacticalOpportunity.StatusId | stored | Open, Closed | Only two stored states |  |',
+    '| Expiration date | ?? | stored | Open, Expired, Closed | Ends the opportunity |  |',
+    '| Start date | TacticalOpportunity.StartDate | stored | date |  |  |',
+    '', '## Sources', '', ''].join('\n');
+  const p3 = await browser.newPage({ viewport: { width: 1500, height: 950 } });
+  const errs3 = [];
+  p3.on('pageerror', (e) => errs3.push(e.message));
+  await p3.addInitScript(([g, f]) => {
+    const store = { 'Priority Guides — Fieldtest.md': g, 'Fields — Fieldtest.md': f };
+    const fh = (name) => ({ kind: 'file', name,
+      getFile: async () => ({ text: async () => store[name] }),
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      createWritable: async () => ({ write: async (t) => { store[name] = t; }, close: async () => {} }) });
+    window.showDirectoryPicker = async () => ({ kind: 'directory', name: 'Fieldtest',
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      getFileHandle: async (n) => { if (!(n in store)) store[n] = ''; return fh(n); },
+      entries: async function* () { for (const n of Object.keys(store)) yield [n, fh(n)]; } });
+    window.__store = store;
+  }, [GUIDES, FIELDS]);
+  await p3.goto(`http://localhost:${PORT}/`);
+  await p3.waitForSelector('#stage');
+  await p3.click('.hello .btn.primary');
+  await p3.waitForSelector('#stage .item', { timeout: 8000 });
+  await p3.waitForTimeout(300);
+  const store3 = (n) => p3.evaluate((k) => window.__store[k], n);
+  const save3 = async () => {
+    await p3.keyboard.down('Meta'); await p3.keyboard.press('s'); await p3.keyboard.up('Meta');
+    await p3.waitForTimeout(500);
+  };
+
+  ok('fields: the fields file opens the guides file, not itself',
+    (await p3.$eval('#file', (n) => n.textContent)).includes('Fieldtest') && (await p3.$$eval('#railL .g-item', (n) => n.length)) === 1);
+  ok('fields: a linked block shows its field',
+    (await p3.$$eval('#stage .fchip', (n) => n.map((x) => x.textContent))).includes('Opportunity › Status'));
+  ok('fields: a block with no example shows the values its field allows',
+    (await p3.$$eval('#stage .eg.inherit', (n) => n.map((x) => x.textContent))).includes('Open, Expired, Closed'));
+  ok('fields: values the field does not allow are flagged',
+    (await p3.$$eval('#stage .flag', (n) => n.map((x) => x.textContent).join(' '))).includes('are not values of Opportunity.Status'));
+
+  // Link the unlinked block through the picker.
+  const items = await p3.$$('#stage .item');
+  await items[2].click();
+  await p3.waitForSelector('#stage .rowstrip');
+  const linkBtn = await p3.$('#stage .rowstrip .sbtn:has-text("Link a field")');
+  ok('fields: a selected block offers Link a field', !!linkBtn);
+  await linkBtn.click();
+  await p3.waitForSelector('.fieldpop input');
+  await p3.fill('.fieldpop input', 'Customer.Customer name');
+  await p3.waitForTimeout(150);
+  const addOpt = await p3.$('.fieldpop .refopt.add');
+  ok('fields: an unknown Object.Label offers to add it', !!addOpt
+    && (await addOpt.textContent()).includes('Add Customer › Customer name'));
+  await addOpt.click();
+  await p3.waitForTimeout(200);
+  await save3();
+  const g3 = await store3('Priority Guides — Fieldtest.md');
+  const f3 = await store3('Fields — Fieldtest.md');
+  ok('fields: the guide row is saved with its field',
+    g3.includes('| Customer name | John Smith |  | Customer.Customer name |'), g3.split('\n').find((l) => l.startsWith('| Customer name')));
+  ok('fields: the new object and field are saved to the fields file',
+    f3.includes('## Customer') && /\| Customer name \| \?\? \|/.test(f3));
+  ok('fields: the rest of the fields file is untouched',
+    f3.includes('| Status | TacticalOpportunity.StatusId | stored | Open, Closed | Only two stored states |  |'));
+
+  // The Fields view.
+  await p3.click('#tabs button:has-text("Fields")');
+  await p3.waitForSelector('.fgrid');
+  ok('fields: the view lists each object',
+    (await p3.$$eval('.fobj-n', (n) => n.map((x) => x.textContent))).join('|').startsWith('Opportunity|Customer'));
+  ok('fields: a used field lists the block that shows it',
+    (await p3.$$eval('.fuse', (n) => n.map((x) => x.textContent))).includes('List › Status'));
+  ok('fields: an unused field says so',
+    (await p3.$$eval('.fc.used .none', (n) => n.length)) === 1);
+  await p3.click('.fpill:has-text("Values disagree")');
+  await p3.waitForTimeout(150);
+  ok('fields: the disagree filter keeps only Status',
+    (await p3.$$eval('.fc.lbl', (n) => n.map((x) => x.textContent))).join('|') === 'Status');
+  await p3.click('.fpill:has-text("All fields")');
+  await p3.waitForTimeout(150);
+  // Edit a backend name in the view.
+  const cells = await p3.$$('.fc.mono');
+  await cells[1].click();
+  await p3.keyboard.press('Meta+A');
+  await p3.keyboard.type('TacticalOpportunity.ExpirationDate');
+  await p3.keyboard.press('Enter');
+  await p3.waitForTimeout(200);
+  await save3();
+  ok('fields: a backend name edited in the view is saved',
+    (await store3('Fields — Fieldtest.md')).includes('| Expiration date | TacticalOpportunity.ExpirationDate | stored |'));
+  ok('fields: no errors on the way', errs3.length === 0, errs3.slice(0, 3).join(' | '));
+  await p3.close();
+}
+
 // ------------------------------------------------------- the single-file build
 /*
  * The app needs the File System Access API, and file:// is a secure context in

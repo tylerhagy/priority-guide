@@ -1020,6 +1020,49 @@ svg.has-sel .edge:not(.hot){opacity:.3}
 .oi .t{font-weight:500}
 .oi.act .t{color:var(--act)}
 .oi.unk .t{color:var(--flag)}
+/* ---- fields: the chip on a block, the picker, the Fields view */
+.fchip{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:1px 7px 1px 5px;border-radius:6px;
+  font-size:10.5px;color:var(--dim);background:var(--tint);border:1px solid var(--line);max-width:100%}
+.fchip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip:hover{border-color:var(--accent-line);color:var(--accent-ink)}
+.fchip.broken{color:var(--action);border-color:var(--action-line);background:var(--action-soft)}
+.eg.inherit{color:var(--faint);font-style:italic}
+.fieldpop{width:330px}
+.fieldpop .reflist{max-height:320px;overflow:auto;margin-top:6px}
+.fieldpop .refopt.add .n{color:var(--accent-ink)}
+.fieldpop .refopt.clear .n{color:var(--dim)}
+.fieldpop .btn{margin-top:10px}
+.fwrap{max-width:1180px}
+.fbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.fpill{padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--dim);background:var(--panel)}
+.fpill.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-ink)}
+.fbar .btn{margin-left:auto}
+.fsec{margin-bottom:26px}
+.fobj{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.fobj-n{font-size:15px;font-weight:650;margin:0;letter-spacing:-.01em}
+.fobj-c{font-size:12px;color:var(--faint)}
+.fobj .btn{margin-left:auto}
+.fgrid{display:grid;grid-template-columns:minmax(120px,1fr) minmax(210px,1.9fr) 92px minmax(130px,1.2fr) minmax(150px,1.5fr) minmax(160px,1.5fr);
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.fh{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);padding:8px 10px;background:var(--tint);border-bottom:1px solid var(--line)}
+.fc{font-size:12.5px;padding:8px 10px;border-bottom:1px solid var(--line);min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.fc:focus{outline:none;background:var(--accent-soft)}
+.fc.none{color:transparent}
+.fc.none:hover,.fc.none:focus{color:var(--faint)}
+.fc.unk{color:var(--unanswered)}
+.fc.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;overflow-wrap:break-word;word-break:normal;hyphens:none}
+.fc.lbl{font-weight:550}
+.fc.kind select{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:2px 4px;background:var(--panel);color:var(--ink)}
+.fc.used{display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start}
+.fc.used .none{color:var(--faint);font-size:11.5px}
+.fempty{grid-column:1/-1;padding:12px 10px;color:var(--faint);font-size:12.5px}
+.fuse{font-size:11px;padding:2px 7px;border-radius:6px;border:1px solid var(--line);background:var(--tint);color:var(--dim);text-align:left}
+.fuse:hover{border-color:var(--accent-line);color:var(--accent-ink)}
+.fuse.off{color:var(--action);border-color:var(--action-line);background:var(--action-soft)}
+.fuse.quiet{background:transparent}
+.funl{display:flex;flex-wrap:wrap;gap:4px;align-items:baseline;margin:8px 0}
+.funl .g{font-size:12px;font-weight:600;margin-right:6px}
+@media (max-width:900px){.fgrid{grid-template-columns:1fr 1fr}.fh{display:none}}
 .oi .w{font-size:12px;color:var(--faint);margin-top:2px}
 .done{padding:40px 0;text-align:center;color:var(--ok);font-size:15px;font-weight:500}
 .done span{display:block;color:var(--faint);font-size:12.5px;font-weight:400;margin-top:5px}
@@ -1105,7 +1148,9 @@ import {
   commentsFor, commentList, openComments, addComment, setComment, resolveComment,
   removeComment, commentTarget, ensureRid, commentsInGuide, openCommentCount, orphanComments,
   proseOf, setProse,
-  LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS
+  LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
+  isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
+  fieldUsage, setRowField, addFieldTo, addObject, blankFieldsFile, FIELD_KINDS
 } from './parser.js';
 
 const $ = (id) => document.getElementById(id);
@@ -1133,6 +1178,8 @@ const FIELD_PLACEHOLDER = {
 const S = {
   dir: null, files: [], file: null, originalText: '', doc: null,
   readOnly: false, dirty: false,
+  // The folder's fields file, read beside the guides file: objects and the fields they hold.
+  ffile: null, fdoc: null, fOriginal: '', fDirty: false, fReadOnly: false, fieldFilter: 'all',
   guide: null, sel: null, editing: null,
   view: 'guide', present: false, capture: false, captured: 0, addProse: null,
   theme: 'system',
@@ -1374,7 +1421,7 @@ async function loadFolder() {
   clearBanners();
   S.files = [];
   for await (const [name, h] of S.dir.entries()) {
-    if (h.kind === 'file' && name.toLowerCase().endsWith('.md')) S.files.push({ name, handle: h });
+    if (h.kind === 'file' && name.toLowerCase().endsWith('.md')) S.files.push({ name, handle: h, isFields: isFieldsFileName(name) });
   }
   S.files.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -1388,7 +1435,7 @@ async function loadFolder() {
     } catch { f.blocks = 0; f.guides = 0; f.title = ''; }
   }
 
-  const real = S.files.filter((f) => f.blocks > 0);
+  const real = S.files.filter((f) => f.blocks > 0 && !f.isFields);
   if (!S.files.length) {
     banner('warn', '<b>No markdown files here.</b> Point priority guide at a folder holding a guides file.', true);
     render(); return;
@@ -1409,7 +1456,7 @@ function fileLabel(f) {
 
 /** The file menu: every guides file in the folder, the open one ticked, then another folder. */
 function fileMenu(anchor) {
-  const files = S.files.filter((f) => f.guides > 0 || f === S.file);
+  const files = S.files.filter((f) => (f.guides > 0 && !f.isFields) || f === S.file);
   const items = files.map((f) => ({
     glyph: f === S.file ? 'tick' : 'note',
     label: fileLabel(f),
@@ -1445,6 +1492,7 @@ async function openFile(f) {
   S.readOnly = !rt.ok; S.dirty = false; S.sel = null; S.editing = null;
   S.guide = guides(S.doc)[0] || null;
   S.captured = 0;
+  await loadFields();
 
   if (!rt.ok) {
     banner('err', `<b>Read-only.</b> This file did not reproduce byte-for-byte on a test round-trip, `
@@ -1466,6 +1514,83 @@ async function openFile(f) {
       + ' lands on the first one. Rename one of them.', true);
   }
   render();
+}
+
+// ---------------------------------------------------------------- fields file
+/**
+ * The folder's fields file — `Fields — [name].md` — read beside the guides file.
+ * It is optional: without one, every guide works exactly as before and the
+ * Fields view offers to start one.
+ */
+async function loadFields() {
+  S.ffile = S.files.find((f) => f.isFields) || null;
+  S.fdoc = null; S.fOriginal = ''; S.fDirty = false; S.fReadOnly = false;
+  if (!S.ffile) return;
+  try {
+    const text = await (await S.ffile.handle.getFile()).text();
+    S.fOriginal = text;
+    S.fdoc = parseDocument(text);
+    S.fReadOnly = !verifyRoundTrip(text).ok;
+    if (S.fReadOnly) banner('warn', `<b>${esc(S.ffile.name)} is read-only.</b> It did not reproduce byte-for-byte, so priority guide will not write to it.`);
+  } catch (e) {
+    banner('err', `<b>Could not read ${esc(S.ffile.name)}.</b> ${esc(e.message)}`);
+  }
+}
+
+/** A field edit is an edit like any other: it lights Save, and Save writes both files. */
+function markFields() { S.fDirty = true; mark(); }
+const fieldsEditable = () => !!S.fdoc && !S.fReadOnly && !S.readOnly && !S.present;
+
+/** Start the folder's fields file, named after the guides file it sits beside. */
+async function createFieldsFile() {
+  if (!S.dir || S.ffile) return;
+  const base = ((S.doc && S.doc.title) || 'Untitled').replace(/^priority guides?\s*[—–-]\s*/i, '').trim() || 'Untitled';
+  const name = `Fields — ${base}.md`;
+  try {
+    if (!(await ensureWritable(S.dir))) { banner('err', '<b>Write permission was declined.</b>'); return; }
+    const h = await S.dir.getFileHandle(name, { create: true });
+    const w = await h.createWritable();
+    await w.write(blankFieldsFile(base)); await w.close();
+    S.files.push({ name, handle: h, isFields: true, guides: 0, blocks: 0, title: `Fields — ${base}` });
+    S.files.sort((a, b) => a.name.localeCompare(b.name));
+    await loadFields();
+    toast(`Started ${name}`);
+    render();
+  } catch (e) {
+    banner('err', `<b>Could not create the fields file.</b> ${esc(e.message)}`);
+  }
+}
+
+async function saveFields() {
+  if (!S.ffile || !S.fdoc || S.fReadOnly || !S.fDirty) return true;
+  if (!(await ensureWritable(S.ffile.handle))) {
+    banner('err', '<b>Write permission was declined</b> for the fields file.');
+    return false;
+  }
+  const onDisk = await (await S.ffile.handle.getFile()).text();
+  if (onDisk !== S.fOriginal) {
+    const keep = await ask({
+      title: 'The fields file changed on disk',
+      body: 'Something else edited it since you opened it. Keep your version, or take what is on disk?',
+      choices: [
+        { label: 'Reload from disk', value: false, cancel: true },
+        { label: 'Keep mine', value: true, primary: true }
+      ]
+    });
+    if (keep === null) return false;
+    if (!keep) { await loadFields(); return true; }
+  }
+  const text = serializeDocument(S.fdoc);
+  const rt = verifyRoundTrip(text);
+  if (!rt.ok) {
+    banner('err', `<b>Refusing to save the fields file.</b> It does not round-trip (line ${rt.line}). Nothing was written.`);
+    return false;
+  }
+  await backup(S.ffile.name, S.fOriginal);
+  const w = await S.ffile.handle.createWritable();
+  await w.write(text); await w.close();
+  S.fOriginal = text; S.fdoc = parseDocument(text); S.fDirty = false;
+  return true;
 }
 
 // ---------------------------------------------------------------- save
@@ -1513,6 +1638,7 @@ async function save() {
     const hit = rowsOf(S.guide).find((r) => renderContentCell(r.row.content) === keepSel);
     if (hit) S.sel = hit.row;
   }
+  if (!(await saveFields())) { render(); return; }
   S.dirty = false; S.editing = null;
   render();
   const b = banner('info', '<b>Saved.</b>');
@@ -1573,6 +1699,7 @@ function render() {
   else if (S.view === 'flow') renderFlow();
   else if (S.view === 'users') renderUsersView();
   else if (S.view === 'open') renderOpen();
+  else if (S.view === 'fields') renderFields();
   else renderSource();
   renderRailRight();
   renderMinimap();
@@ -1645,7 +1772,7 @@ function renderBar() {
   // In a room, the only things worth showing are the guide and what is still open.
   tabs.style.display = S.present || !S.doc ? 'none' : '';
   $('file').style.display = S.present || !S.dir ? 'none' : '';
-  for (const [k, label] of [['guide', 'Guide'], ['flow', 'Flow'], ['users', 'Users'], ['open', 'Open'], ['source', 'Source']]) {
+  for (const [k, label] of [['guide', 'Guide'], ['flow', 'Flow'], ['users', 'Users'], ['open', 'Open'], ['fields', 'Fields'], ['source', 'Source']]) {
     const b = el('button', S.view === k ? 'on' : '', label);
     b.onclick = () => { commitEditor(); S.view = k; render(); };
     tabs.appendChild(b);
@@ -1672,7 +1799,7 @@ function renderHello() {
     const list = el('div');
     list.style.cssText = 'margin-top:26px;text-align:left';
     list.appendChild(el('div', 'rail-h', 'Files in ' + S.dir.name));
-    for (const f of S.files) {
+    for (const f of S.files.filter((x) => !x.isFields)) {
       const i = el('button', 'g-item');
       i.innerHTML = `<span class="n">${esc(fileLabel(f))}</span><span class="m">${f.title ? esc(f.name) + ' · ' : ''}${f.guides} guides · ${f.blocks} blocks</span>`;
       i.onclick = () => openFile(f);
@@ -3312,6 +3439,16 @@ function paintRow(row, g, sec, table, rw) {
     return eg;
   };
   if (cur) inner.appendChild(makeExample(cur));
+  const fref = (rw.field || '').trim();
+  const fhit = fref && S.fdoc ? resolveField(S.fdoc, fref) : null;
+  if (!cur && fhit && fhit.row.values && !isUnknown(fhit.row.values)) {
+    // No example of its own: show what the field allows, greyed, so the row is
+    // never blank when the answer already exists elsewhere.
+    const inh = el('div', 'eg inherit', fhit.row.values);
+    inh.title = `From ${fhit.ref} in the fields file. Add an example to say what this screen shows.`;
+    inner.appendChild(inh);
+  }
+  if (fref) inner.appendChild(fieldChip(ctx, fref, fhit));
   box.appendChild(inner);
 
   if (rw.form.type === 'single select' || rw.form.type === 'multi select') {
@@ -3337,6 +3474,16 @@ function paintRow(row, g, sec, table, rw) {
   item._rw = rw;
   row.host.appendChild(item);
 
+  if (!S.present && fhit) {
+    const off = valueMismatch(rw, fhit);
+    if (off.length) {
+      const n = el('div', 'flag');
+      n.innerHTML = off.map((x) => '<b>' + esc(x) + '</b>').join(', ')
+        + (off.length === 1 ? ' is not a value of ' : ' are not values of ') + esc(fhit.ref)
+        + ' (' + esc(fhit.row.values) + ').';
+      row.host.appendChild(n);
+    }
+  }
   if (!S.present) {
     for (const f of lintRow(rw)) {
       const n = el('div', 'flag');
@@ -3432,6 +3579,15 @@ function rowStrip(ctx, kind, openExample) {
     strip.appendChild(b);
   }
 
+  if (kind !== 'divider') {
+    const fb = el('button', 'sbtn');
+    fb.appendChild(icon('gridicon', 12));
+    fb.appendChild(el('span', null, rw.field ? 'Field' : 'Link a field'));
+    fb.title = 'Which field this block shows, from the fields file. Optional.';
+    fb.onclick = (e) => { e.stopPropagation(); openFieldPicker(fb, ctx); };
+    strip.appendChild(fb);
+  }
+
   const dup = el('button', 'sbtn');
   dup.appendChild(icon('copy', 12));
   dup.appendChild(el('span', null, 'Duplicate'));
@@ -3444,6 +3600,7 @@ function rowStrip(ctx, kind, openExample) {
     copy.link = { ...rw.link };
     copy.form = { ...rw.form };
     copy.note = rw.note.map((n) => ({ ...n }));
+    if (rw.field) setRowField(copy, table, sec, rw.field);
     touchRow(copy, table, sec);
     S.sel = copy; mark(); render(); focusSoon('.rowsel .lbl');
   };
@@ -3638,6 +3795,137 @@ function openRefPicker(anchor, g, sec, chunk) {
     }
   };
   setTimeout(() => { document.addEventListener('mousedown', popAway); search.focus(); }, 0);
+}
+
+// ---------------------------------------------------------------- fields on a row
+/** The field a block shows, under its example: Object › Label, red when nothing by that name exists. */
+function fieldChip(ctx, ref, hit) {
+  const { object, label } = splitFieldRef(ref);
+  const c = el('button', 'fchip' + (hit ? '' : ' broken'));
+  c.appendChild(icon('gridicon', 11));
+  c.appendChild(el('span', null, object ? `${object} › ${label}` : label));
+  c.title = hit
+    ? [hit.ref, hit.row.backend ? `Backend: ${hit.row.backend}` : '', hit.row.fkind ? `Kind: ${hit.row.fkind}` : '',
+      hit.row.definition || ''].filter(Boolean).join('\n')
+    : (S.fdoc ? `No field called ${ref} in the fields file.` : 'This folder has no fields file yet.');
+  c.onclick = (e) => {
+    e.stopPropagation();
+    if (S.readOnly || S.present) { if (hit) { S.view = 'fields'; render(); } return; }
+    openFieldPicker(c, ctx);
+  };
+  return c;
+}
+
+/**
+ * Pick the field a block shows, or name a new one. Typing `Object.Label` that
+ * does not exist offers to add it, so the fields file grows from the guides
+ * rather than having to be written first.
+ */
+function openFieldPicker(anchor, ctx) {
+  closePop();
+  const { sec, table, rw } = ctx;
+  const pop = el('div', 'pop refpop fieldpop');
+  pop.appendChild(el('div', 'pop-h', 'Field this block shows'));
+
+  if (!S.fdoc) {
+    pop.appendChild(el('div', 'rail-empty', S.ffile
+      ? 'The fields file could not be read.'
+      : 'This folder has no fields file yet. Start one to keep field names, backend names and values consistent across guides.'));
+    if (!S.ffile && !S.readOnly) {
+      const b = el('button', 'btn primary', 'Start the fields file');
+      b.onclick = async () => { closePop(); await createFieldsFile(); };
+      pop.appendChild(b);
+    }
+    document.body.appendChild(pop); placePop(pop, anchor); S.pop = pop;
+    setTimeout(() => document.addEventListener('mousedown', popAway), 0);
+    return;
+  }
+
+  const search = el('input');
+  search.type = 'text';
+  search.placeholder = 'Search fields, or type Object.Label';
+  search.value = rw.field || '';
+  pop.appendChild(search);
+  const list = el('div', 'reflist');
+  pop.appendChild(list);
+
+  const pick = (ref) => {
+    setRowField(rw, table, sec, ref);
+    mark(); closePop(); render();
+  };
+  const create = (object, label) => {
+    addFieldTo(S.fdoc, object, label, { backend: '??' });
+    markFields();
+    pick(fieldRef(object, label));
+  };
+
+  const paint = () => {
+    list.innerHTML = '';
+    const q = search.value.trim();
+    const ql = q.toLowerCase();
+    const all = [...fieldIndex(S.fdoc).values()];
+    const label = (rw.content.text || '').trim().toLowerCase();
+    const hits = all.filter((f) => !ql || f.ref.toLowerCase().includes(ql)
+      || (f.row.backend || '').toLowerCase().includes(ql) || (f.row.definition || '').toLowerCase().includes(ql))
+      .sort((a, b) => (b.label.toLowerCase() === label) - (a.label.toLowerCase() === label) || a.ref.localeCompare(b.ref))
+      .slice(0, 40);
+    for (const f of hits) {
+      const b = el('button', 'refopt' + ((rw.field || '').toLowerCase() === f.ref.toLowerCase() ? ' on' : ''));
+      b.appendChild(el('div', 'n', `${f.object} › ${f.label}`));
+      const meta = [f.row.backend, f.row.fkind, f.row.values].filter((x) => x && !isUnknown(x)).join(' · ');
+      if (meta) b.appendChild(el('div', 'm', meta));
+      b.onclick = () => pick(f.ref);
+      list.appendChild(b);
+    }
+    if (q && !all.some((f) => f.ref.toLowerCase() === ql)) {
+      const sp = splitFieldRef(q);
+      const objects = guides(S.fdoc).map((g) => g.name);
+      const taken = (o, l) => all.some((f) => f.object.toLowerCase() === o.toLowerCase() && f.label.toLowerCase() === l.toLowerCase());
+      // A bare word that already finds fields is a search, not a new field: only
+      // Object.Label, or a word that finds nothing, offers to add one.
+      const offers = (sp.object
+        ? [[sp.object, sp.label]]
+        : hits.length ? [] : objects.slice(0, 4).map((o) => [o, sp.label])).filter(([o, l]) => !taken(o, l));
+      if (!sp.object && hits.length) {
+        const hint = el('div', 'rail-empty', 'Not here? Type Object.Label to add a new field.');
+        list.appendChild(hint);
+      }
+      for (const [o, l] of offers) {
+        if (!l || S.fReadOnly) continue;
+        const b = el('button', 'refopt add');
+        b.appendChild(el('div', 'n', `Add ${o} › ${l}`));
+        b.appendChild(el('div', 'm', objects.some((x) => x.toLowerCase() === o.toLowerCase())
+          ? 'A new field on this object' : 'A new object, with this as its first field'));
+        b.onclick = () => create(o, l);
+        list.appendChild(b);
+      }
+      if (!sp.object && !objects.length) list.appendChild(el('div', 'rail-empty', 'Write it as Object.Label to start the first object.'));
+    }
+    if (!list.childNodes.length) list.appendChild(el('div', 'rail-empty', 'No field matches that.'));
+    if (rw.field) {
+      const clr = el('button', 'refopt clear');
+      clr.appendChild(el('div', 'n', 'Clear the field'));
+      clr.appendChild(el('div', 'm', 'Keep this block conceptual'));
+      clr.onclick = () => pick('');
+      list.appendChild(clr);
+    }
+  };
+  search.oninput = paint;
+  paint();
+
+  document.body.appendChild(pop);
+  placePop(pop, anchor);
+  S.pop = pop;
+  pop.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') { closePop(); render(); }
+    if (e.key === 'Enter') {
+      const first = list.querySelector('.refopt');
+      if (document.activeElement === search && first) first.click();
+    }
+  };
+  setTimeout(() => { document.addEventListener('mousedown', popAway); search.focus(); search.select(); }, 0);
 }
 
 function placePop(pop, anchor) {
@@ -5140,6 +5428,194 @@ function renderOpen() {
   stage.appendChild(w);
 }
 
+// ---------------------------------------------------------------- fields view
+/** Jump to a block in the guide view, selected and in sight. */
+function gotoRow(guide, row) {
+  S.guide = guide; S.view = 'guide'; S.sel = row; S.shownField = null;
+  render();
+  const on = $('stage').querySelector('.rowsel');
+  if (on) on.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+/**
+ * The data side of the guides: every object, every field it holds, and every
+ * block on every guide that shows it. The question it answers is the one the
+ * guide view cannot — where is this used, and does every screen agree on it.
+ */
+function renderFields() {
+  const stage = $('stage');
+  const w = el('div', 'wrap fwrap');
+  const head = el('div');
+  head.style.cssText = 'margin-bottom:18px';
+  head.appendChild(el('h1', 'g-title', 'Fields'));
+  w.appendChild(head);
+
+  if (!S.fdoc) {
+    const d = el('div', 'done');
+    d.innerHTML = S.ffile
+      ? `Could not read <b>${esc(S.ffile.name)}</b>.`
+      : 'No fields file in this folder yet.<span>A fields file lists each object (Opportunity, Customer, Interaction), the fields it holds, '
+        + 'their backend names and allowed values. Guide blocks can then point at a field, and this view shows where each one is used.</span>';
+    w.appendChild(d);
+    if (!S.ffile && !S.readOnly) {
+      const b = el('button', 'btn primary', 'Start the fields file');
+      b.style.marginTop = '14px';
+      b.onclick = createFieldsFile;
+      w.appendChild(b);
+    }
+    stage.appendChild(w);
+    return;
+  }
+
+  const u = fieldUsage(S.doc, S.fdoc);
+  const objects = guides(S.fdoc);
+  const linked = [...u.used.values()].reduce((n, l) => n + l.length, 0);
+  const unused = [...u.index.values()].filter((f) => !u.used.has(f.ref.toLowerCase()));
+  const mism = [...u.used.values()].flat().filter((x) => x.mismatch.length);
+  head.appendChild(el('div', 'blurb',
+    `${objects.length} object${objects.length === 1 ? '' : 's'} · ${u.index.size} field${u.index.size === 1 ? '' : 's'} in ${S.ffile.name}. `
+    + `${linked} block${linked === 1 ? '' : 's'} on this file's guides point at a field; ${u.unlinked.length} do not.`));
+
+  // Filters: everything, only what no screen uses, only what disagrees.
+  const bar = el('div', 'fbar');
+  for (const [k, label, n] of [['all', 'All fields', u.index.size], ['unused', 'Not on any screen', unused.length],
+    ['issues', 'Values disagree', mism.length]]) {
+    const b = el('button', 'fpill' + (S.fieldFilter === k ? ' on' : ''), `${label} ${n}`);
+    b.onclick = () => { S.fieldFilter = k; render(); };
+    bar.appendChild(b);
+  }
+  if (fieldsEditable()) {
+    const add = el('button', 'btn', '+ Object');
+    add.onclick = async () => {
+      const name = await askText({ title: 'New object', body: 'A thing the system holds: Opportunity, Customer, Interaction.', placeholder: 'Object name', action: 'Add' });
+      if (!name) return;
+      if (objects.some((g) => g.name.toLowerCase() === name.toLowerCase())) { toast(`${name} already exists`); return; }
+      addObject(S.fdoc, name); markFields(); render();
+    };
+    bar.appendChild(add);
+  }
+  w.appendChild(bar);
+
+  const edit = fieldsEditable();
+  const cell = (cls, value, placeholder, commit) => {
+    const c = el('div', 'fc ' + cls);
+    if (isUnknown(value)) { c.textContent = value; c.classList.add('unk'); }
+    else blankable(c, value, edit ? placeholder : '', 'none');
+    if (edit) editable(c, value, (v) => { commit(v); markFields(); });
+    return c;
+  };
+
+  for (const g of objects) {
+    const rows = [...u.index.values()].filter((f) => f.guide === g);
+    const shown = rows.filter((f) => {
+      const uses = u.used.get(f.ref.toLowerCase()) || [];
+      if (S.fieldFilter === 'unused') return !uses.length;
+      if (S.fieldFilter === 'issues') return uses.some((x) => x.mismatch.length);
+      return true;
+    });
+    if (S.fieldFilter !== 'all' && !shown.length) continue;
+    const sec = el('div', 'sec fsec');
+    const h = el('div', 'fobj');
+    h.appendChild(el('h2', 'fobj-n', g.name));
+    h.appendChild(el('span', 'fobj-c', `${rows.length} field${rows.length === 1 ? '' : 's'}`));
+    if (edit) {
+      const add = el('button', 'btn quiet', '+ Field');
+      add.onclick = async () => {
+        const label = await askText({ title: `New field on ${g.name}`, body: 'What the screen calls it.', placeholder: 'Label', action: 'Add' });
+        if (!label) return;
+        addFieldTo(S.fdoc, g.name, label, { backend: '??' }); markFields(); render();
+      };
+      h.appendChild(add);
+    }
+    sec.appendChild(h);
+
+    const grid = el('div', 'fgrid');
+    for (const t of ['Label', 'Backend', 'Kind', 'Values', 'Definition', 'Used in']) grid.appendChild(el('div', 'fh', t));
+    if (!shown.length) {
+      const e = el('div', 'fempty', edit ? 'No fields yet. Add one, or link one from a block on a guide.' : 'No fields yet.');
+      grid.appendChild(e);
+    }
+    for (const f of shown) {
+      const touch = () => { f.row.dirty = true; f.table.dirty = true; f.section.dirty = true; };
+      grid.appendChild(cell('lbl', f.label, 'Label', (v) => {
+        if (!v) return;
+        const before = f.ref;
+        f.row.content = { ...f.row.content, text: v }; touch();
+        // Renaming a field renames it on every block in this guides file that points at it.
+        const after = fieldRef(g.name, v);
+        for (const x of u.used.get(before.toLowerCase()) || []) setRowField(x.row, x.table, x.section, after);
+      }));
+      grid.appendChild(cell('mono', f.row.backend, 'Backend name', (v) => { f.row.backend = v; touch(); }));
+      const kind = el('div', 'fc kind');
+      if (edit) {
+        const sel = el('select');
+        for (const k of ['', ...FIELD_KINDS]) {
+          const o = el('option', null, k || '—'); o.value = k;
+          if ((f.row.fkind || '') === k) o.selected = true;
+          sel.appendChild(o);
+        }
+        sel.onchange = () => { f.row.fkind = sel.value; touch(); markFields(); render(); };
+        kind.appendChild(sel);
+      } else kind.textContent = f.row.fkind || '';
+      grid.appendChild(kind);
+      grid.appendChild(cell('vals', f.row.values, 'Values, comma-separated, or the format', (v) => { f.row.values = v; touch(); }));
+      grid.appendChild(cell('def', f.row.definition, 'What it means', (v) => { f.row.definition = v; touch(); }));
+
+      const used = el('div', 'fc used');
+      const uses = u.used.get(f.ref.toLowerCase()) || [];
+      if (!uses.length) used.appendChild(el('span', 'none', 'Not on any screen'));
+      for (const x of uses) {
+        const b = el('button', 'fuse' + (x.mismatch.length ? ' off' : ''));
+        b.textContent = `${x.guide.name} › ${(x.row.content.text || '').trim() || '(unnamed)'}`;
+        b.title = `${x.guide.name} · ${x.section.title}`
+          + (x.row.realData ? `\nShows: ${x.row.realData}` : '')
+          + (x.mismatch.length ? `\nNot allowed by this field: ${x.mismatch.join(', ')}` : '');
+        b.onclick = () => gotoRow(x.guide, x.row);
+        used.appendChild(b);
+      }
+      grid.appendChild(used);
+    }
+    sec.appendChild(grid);
+    w.appendChild(sec);
+  }
+
+  // Blocks that name a field nobody has defined, then blocks with none at all.
+  if (u.unresolved.length && S.fieldFilter === 'all') {
+    const sec = el('div', 'sec fsec');
+    sec.appendChild(el('h2', 'fobj-n', 'Blocks pointing at a field that does not exist'));
+    for (const x of u.unresolved) {
+      const b = el('button', 'oi unk');
+      b.appendChild(el('div', 't', `${x.ref}`));
+      b.appendChild(el('div', 'w', `${x.guide.name}  ·  ${x.section.title}  ·  ${(x.row.content.text || '').trim()}`));
+      b.onclick = () => gotoRow(x.guide, x.row);
+      sec.appendChild(b);
+    }
+    w.appendChild(sec);
+  }
+  if (u.unlinked.length && S.fieldFilter === 'all') {
+    const sec = el('div', 'sec fsec');
+    sec.appendChild(el('h2', 'fobj-n', `Blocks not linked to a field · ${u.unlinked.length}`));
+    sec.appendChild(el('div', 'blurb', 'Fine while a block is still conceptual. Select one on its guide and press Link a field.'));
+    const byGuide = new Map();
+    for (const x of u.unlinked) {
+      if (!byGuide.has(x.guide)) byGuide.set(x.guide, []);
+      byGuide.get(x.guide).push(x);
+    }
+    for (const [gd, list] of byGuide) {
+      const line = el('div', 'funl');
+      line.appendChild(el('span', 'g', gd.name));
+      for (const x of list) {
+        const b = el('button', 'fuse quiet', (x.row.content.text || '').trim() || '(unnamed)');
+        b.onclick = () => gotoRow(gd, x.row);
+        line.appendChild(b);
+      }
+      sec.appendChild(line);
+    }
+    w.appendChild(sec);
+  }
+  stage.appendChild(w);
+}
+
 // ---------------------------------------------------------------- source
 function renderSource() {
   const stage = $('stage');
@@ -5294,6 +5770,7 @@ document.addEventListener('keydown', (e) => {
   else if (!mod && k === 'f') { commitEditor(); S.view = 'flow'; render(); }
   else if (!mod && k === 'u') { commitEditor(); S.view = 'users'; render(); }
   else if (!mod && k === 'o') { commitEditor(); S.view = 'open'; render(); }
+  else if (!mod && k === 'd') { commitEditor(); S.view = 'fields'; render(); }
   else if ((e.metaKey || e.ctrlKey) && (k === '=' || k === '+')) { e.preventDefault(); stepZoom(1); }
   else if ((e.metaKey || e.ctrlKey) && k === '-') { e.preventDefault(); stepZoom(-1); }
   else if ((e.metaKey || e.ctrlKey) && k === '0') { e.preventDefault(); setZoom(1); renderPageHead(); }

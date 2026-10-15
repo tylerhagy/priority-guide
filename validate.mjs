@@ -12,6 +12,7 @@
  *   node validate.mjs <file.md> --json   machine-readable
  */
 import fs from 'node:fs';
+import path from 'node:path';
 import * as P from './parser.js';
 
 const args = process.argv.slice(2);
@@ -74,7 +75,30 @@ for (const g of gs) {
   if (seen.has(k)) duplicates.push(g.name); else seen.set(k, g);
 }
 
+// The folder's fields file, if it has one, checked against this file's Field column.
+let fields = null;
+if (!P.isFieldsFileName(path.basename(file))) {
+  const dir = path.dirname(path.resolve(file));
+  const ff = fs.readdirSync(dir).find((n) => n.toLowerCase().endsWith('.md') && P.isFieldsFileName(n));
+  if (ff) {
+    const fdoc = P.parseDocument(fs.readFileSync(path.join(dir, ff), 'utf8'));
+    const u = P.fieldUsage(doc, fdoc);
+    const linked = [...u.used.values()].flat();
+    fields = {
+      file: ff,
+      fields: u.index.size,
+      linked: linked.length,
+      unlinked: u.unlinked.length,
+      unknownFields: u.unresolved.map((x) => ({ guide: x.guide.name, block: P.renderContentCell(x.row.content), ref: x.ref })),
+      valueMismatches: linked.filter((x) => x.mismatch.length)
+        .map((x) => ({ guide: x.guide.name, block: P.renderContentCell(x.row.content), ref: x.row.field, values: x.mismatch })),
+      unusedFields: [...u.index.values()].filter((f) => !u.used.has(f.ref.toLowerCase())).map((f) => f.ref)
+    };
+  }
+}
+
 Object.assign(report, {
+  fields,
   duplicateNames: duplicates,
   title: doc.title,
   guides: gs.map((g) => ({
@@ -123,6 +147,12 @@ say('Handles cited but never defined:', report.undefinedSources, (h) => `[${h}]`
 say('Sources defined but never cited:', report.unusedSources, (h) => `[${h}]`);
 say('Guides nothing routes to:', report.unreachable, (n) => n);
 say('Guide names used more than once (routes to them are ambiguous):', report.duplicateNames, (n) => n);
+if (fields) {
+  console.log('');
+  console.log(`  Fields (${fields.file}): ${fields.fields} defined · ${fields.linked} blocks linked · ${fields.unlinked} not linked`);
+  say('Blocks pointing at a field that does not exist:', fields.unknownFields, (x) => `${x.guide} · ${x.block} → ${x.ref}`);
+  say('Values a block shows that its field does not allow:', fields.valueMismatches, (x) => `${x.guide} · ${x.block} (${x.ref}): ${x.values.join(', ')}`);
+}
 say('Visual answers where functionality belongs:', report.lint,
   (l) => `${l.guide} · ${l.where}  "${l.word}"${l.ask ? ` — ${l.ask}` : ''}`);
 console.log('');
