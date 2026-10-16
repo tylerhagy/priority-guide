@@ -1523,6 +1523,72 @@ export function groupFindings(doc, fdoc) {
   return { foreign, mayRepeat, unknownObject };
 }
 
+/**
+ * Rename a guide, and carry every link to it along: routes in a Link column,
+ * `> See [[X]]` references, `[[X]]` written in a note, an example, a line of
+ * clarity, a guide's header, and the Open order. A name is how a guide is
+ * pointed at, so changing it without these would quietly break each one.
+ * Returns how many places were updated, not counting the heading itself.
+ */
+export function renameGuide(doc, guide, name) {
+  const to = norm(name);
+  const from = guide.name;
+  if (!to || to === from) return 0;
+  const re = new RegExp('\\[\\[\\s*' + from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(\\|[^\\]]*)?\\]\\]', 'gi');
+  const swap = (t) => String(t == null ? '' : t).replace(re, (m, alias) => `[[${to}${alias || ''}]]`);
+  let n = 0;
+  const lines = (src) => {
+    let hit = false;
+    for (let i = 0; i < src.length; i++) {
+      const v = swap(src[i]);
+      if (v !== src[i]) { src[i] = v; hit = true; n++; }
+    }
+    return hit;
+  };
+
+  guide.name = to;
+  guide.dirtyHeading = true;
+  guide.dirty = true;
+
+  for (const seg of doc.segments) {
+    if (seg.kind === 'raw') { if (lines(seg.src)) seg.dirty = true; continue; }
+    if (seg.kind !== 'guide') continue;
+    if (lines(seg.headerSrc)) seg.dirty = true;
+    for (const k of Object.keys(seg.fields || {})) {
+      const v = swap(seg.fields[k]);
+      if (v !== seg.fields[k]) { seg.fields[k] = v; seg.dirtyHeader = true; }
+    }
+    for (const sec of seg.sections) {
+      if (sec.kind !== 'section') continue;
+      for (const c of sec.chunks) {
+        if (c.kind === 'raw') { if (lines(c.src)) { c.dirty = true; sec.dirty = true; } }
+        else if (c.kind === 'ref') {
+          const t = swap(c.text);
+          if (t !== c.text) {
+            c.text = t; c.dirty = true; sec.dirty = true; n++;
+            if (lower(c.target) === lower(from)) c.target = to;
+          }
+        } else if (c.kind === 'table') {
+          for (const row of c.rows) {
+            let hit = false;
+            if (row.link && row.link.type !== 'trigger' && lower(row.link.target) === lower(from)) {
+              row.link = { ...row.link, target: to }; hit = true;
+            }
+            const rd = swap(row.realData);
+            if (rd !== row.realData) { row.realData = rd; hit = true; }
+            for (const note of row.note || []) {
+              const t = swap(note.text);
+              if (t !== note.text) { note.text = t; hit = true; }
+            }
+            if (hit) { n++; touchRow(row, c, sec); }
+          }
+        }
+      }
+    }
+  }
+  return n;
+}
+
 /** Any edit to a row re-renders that one line and nothing else. */
 export function touchRow(row, table, section) {
   row.dirty = true;

@@ -1660,6 +1660,26 @@ await menu('#railL .g-item .more', 'Rename');
 await typeInto('#railL .g-item.on .n', orderBefore[0]);
 await save();
 
+// Renaming a guide that others link to carries every link along.
+const beforeRename = await current();
+await page.evaluate(() => [...document.querySelectorAll('#railL .g-item')].find((n) => n.textContent.includes('Booking detail')).click());
+await page.waitForTimeout(250);
+await menu('#railL .g-item.on .more', 'Rename');
+await typeInto('#railL .g-item.on .n', 'One booking');
+await save();
+{
+  const f = await current();
+  ok('renaming a guide updates every route and reference to it',
+    !f.includes('[[Booking detail]]') && f.includes('onsite page → [[One booking]]') && f.includes('> See [[One booking]]'));
+  ok('and says how many moved with it', (await page.$$eval('.toast', (n) => n.map((x) => x.textContent).join(' '))).includes('updated'));
+}
+await menu('#railL .g-item.on .more', 'Rename');
+await typeInto('#railL .g-item.on .n', 'Booking detail');
+await save();
+ok('renaming it back restores the file exactly', (await current()) === beforeRename);
+await page.evaluate(() => document.querySelectorAll('#railL .g-item')[0].click());
+await page.waitForTimeout(250);
+
 await menu('#railL .g-item .more', 'Move down');
 eq('the menu can still move one', (await railNames())[0], orderBefore[1]);
 await page.evaluate(() => document.querySelectorAll('#railL .g-item')[1].querySelector('.more').click());

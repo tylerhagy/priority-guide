@@ -1301,7 +1301,7 @@ import {
   designLinks, figmaEmbed, isFigma, setSourceTitle,
   commentsFor, commentList, openComments, addComment, setComment, resolveComment,
   removeComment, commentTarget, ensureRid, commentsInGuide, openCommentCount, orphanComments,
-  proseOf, setProse, groupChunk, ensureGroupChunk, metaOf, setGroupMeta, groupFindings,
+  proseOf, setProse, renameGuide, groupChunk, ensureGroupChunk, metaOf, setGroupMeta, groupFindings,
   belongsTo, setBelongsTo, objectRelations,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
   isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
@@ -2115,7 +2115,7 @@ function renderRailLeft() {
     // Renaming happens on purpose, from the menu — never because a click for
     // navigation happened to land on the words.
     if (!S.readOnly && S.renaming === g) {
-      editable(nm, g.name, (v) => { S.renaming = null; if (v) { g.name = v; g.dirtyHeading = true; } });
+      editable(nm, g.name, (v) => { S.renaming = null; if (v) renamed(g, v); });
       nm.addEventListener('blur', () => { if (S.renaming === g) { S.renaming = null; render(); } });
     }
     b.appendChild(nm);
@@ -2329,6 +2329,12 @@ function outLink(url, label, title) {
   return b;
 }
 
+/** Rename a guide and every link to it, and say how many moved with it. */
+function renamed(g, name) {
+  const n = renameGuide(S.doc, g, name);
+  if (n) toast(`Renamed. ${n} link${n === 1 ? '' : 's'} to it updated`);
+}
+
 function guideLink(name) {
   return `<a href="#" data-goto="${esc(name)}">${esc(name)}</a>`;
 }
@@ -2488,7 +2494,7 @@ function renderPageHead() {
   const line = el('div', 'headline');
   const t = el('h1');
   t.textContent = g.name;
-  if (!S.present) editable(t, g.name, (v) => { if (v) { g.name = v; g.dirtyHeading = true; } });
+  if (!S.present) editable(t, g.name, (v) => { if (v) renamed(g, v); });
   line.appendChild(t);
   const cluster = el('div', 'hnav');
   if (S.present && scope.length > 1) {

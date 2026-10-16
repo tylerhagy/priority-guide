@@ -928,6 +928,42 @@ t('groups: findings — a foreign field, a group that may repeat, an unknown obj
   eq(r.foreign.length, 2, 'Plain now names Person, so its Contact field is foreign too');
 });
 
+// ---------------------------------------------------------------- renaming a guide keeps its links
+
+t('renaming a guide carries every link to it along, and touches nothing else', () => {
+  const src = ['# Priority Guides — R', '', '**Open order:** First: [[Customer]], [[List]]', '',
+    '## List', '', '**User goal:** pick one', '**Notes:** Opens [[Customer]] for the one picked', '',
+    '> See [[Customer]] — the fields live there', '',
+    '### Rows', '', '*Each row opens [[Customer]]*', '',
+    '| Content | Real data | Do | Link | Form | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Name | First Last |  | onsite page → [[Customer]] |  | Same as [[Customer]] |',
+    '| Untouched | x |  | modal → [[Other]] |  | Not about the customer page |',
+    '| Plain target |  |  | onsite page → Customer |  |  |',
+    '| A trigger |  |  | trigger → Opens Customer later |  |  |', '',
+    '> See [[Customer]] — and here', '',
+    '## Customer', '', '**User goal:** call', '', '### Who', '',
+    '| Content | Real data | Do | Link | Form | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Name | First Last |  |  |  |  |', '', '## Other', '', '**User goal:** x', ''].join('\n');
+  const doc = P.parseDocument(src);
+  const g = P.findGuide(doc, 'Customer');
+  const n = P.renameGuide(doc, g, 'Opportunity');
+  const out = P.serializeDocument(doc);
+  ok(!/\[\[Customer/.test(out), out);
+  ok(out.includes('## Opportunity\n'));
+  ok(out.includes('**Open order:** First: [[Opportunity]], [[List]]'));
+  ok(out.includes('**Notes:** Opens [[Opportunity]] for the one picked'));
+  ok(out.includes('> See [[Opportunity]] — the fields live there'));
+  ok(out.includes('*Each row opens [[Opportunity]]*'));
+  ok(out.includes('| Name | First Last |  | onsite page → [[Opportunity]] |  | Same as [[Opportunity]] |'));
+  ok(out.includes('| Plain target |  |  | onsite page → Opportunity |  |  |'));
+  ok(out.includes('| A trigger |  |  | trigger → Opens Customer later |  |  |'), 'a trigger says what happens; it is not a link');
+  ok(out.includes('| Untouched | x |  | modal → [[Other]] |  | Not about the customer page |'));
+  ok(out.includes('> See [[Opportunity]] — and here'));
+  eq(n, 7);
+  eq(P.links(doc).routes.filter((r) => !r.resolved).length, 0, 'no route is left dangling');
+  eq(diffLines(src, out).n, 8, 'only the heading and the lines that pointed at it change');
+});
+
 // ---------------------------------------------------------------- report
 
 console.log(`\n  ${pass} passed${fails.length ? `, ${fails.length} FAILED` : ''}\n`);
