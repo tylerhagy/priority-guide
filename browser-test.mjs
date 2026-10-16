@@ -588,7 +588,7 @@ await page.waitForTimeout(200);
 ok('a selected row says what it is', (await text('.rowsel .rowstrip .kind')).includes('Content'));
 await page.evaluate(() => document.querySelector('.rowsel .rowstrip .kind').click());
 await page.waitForSelector('.kindpop');
-ok('and offers the others', (await count('.kindopt')) === 3 && (await count('.chartopt')) === 7);
+ok('and offers the others, controls included', (await count('.kindopt')) === 7 && (await count('.chartopt')) === 7);
 await page.evaluate(() => [...document.querySelectorAll('.chartopt')]
   .find((b) => b.textContent.includes('Pie')).click());
 await page.waitForTimeout(300);
@@ -2740,6 +2740,55 @@ if (process.env.SHOTS) {
   await save3();
   ok('fields: a backend name edited in the view is saved',
     (await store3('Fields — Fieldtest.md')).includes('| Expiration date | TacticalOpportunity.ExpirationDate | stored |'));
+  // ---- controls: make a block a Search, answer it, point it at two fields
+  await p3.click('#tabs button:has-text("Guide")');
+  await p3.waitForSelector('#stage .item');
+  const cn = await p3.$('#stage .item:has-text("Customer name")');
+  await cn.click();
+  await p3.click('#stage .rowsel .rowstrip .kind');
+  await p3.waitForSelector('.kindpop');
+  await p3.click('.kindpop .kindopt:has-text("Search")');
+  await p3.waitForTimeout(250);
+  ok('controls: the block now reads as a search', (await p3.$$eval('#stage .kbadge.search', (n) => n.length)) === 1);
+  const sitem = await p3.$('#stage .item:has(.kbadge.search)');
+  ok('controls: an unanswered search says how much is left',
+    /\d+ to answer/.test(await sitem.$eval('.specline', (n) => n.textContent)));
+  await sitem.click();
+  await p3.waitForSelector('#stage .specform');
+  ok('controls: a selected control asks its questions', (await p3.$$eval('#stage .specform .spec-q', (n) => n.length)) > 5);
+  ok('controls: no live-search question before the mode is set',
+    !(await p3.$$eval('#stage .specform .spec-q .k', (n) => n.map((x) => x.textContent))).includes('Starts after'));
+  await p3.selectOption('#stage .specform .spec-q:has(.k:text-is("Mode")) select', 'live');
+  await p3.waitForTimeout(250);
+  ok('controls: choosing live asks when it starts',
+    (await p3.$$eval('#stage .specform .spec-q .k', (n) => n.map((x) => x.textContent))).includes('Starts after'));
+  await p3.fill('#stage .specform .spec-q:has(.k:text-is("Placeholder")) input', 'Find a customer');
+  await p3.press('#stage .specform .spec-q:has(.k:text-is("Placeholder")) input', 'Enter');
+  await p3.waitForTimeout(150);
+  ok('controls: an answer shows on the block straight away',
+    (await p3.$eval('#stage .item:has(.kbadge.search) .specline', (n) => n.textContent)).includes('“Find a customer”'));
+  // Two fields for one search.
+  await p3.click('#stage .specform .spec-h button');
+  await p3.waitForSelector('.fieldpop');
+  await p3.fill('.fieldpop input', 'Opportunity.Start date');
+  await p3.waitForTimeout(120);
+  await p3.click('.fieldpop .refopt:has-text("Opportunity › Start date")');
+  await p3.waitForTimeout(150);
+  await p3.fill('.fieldpop input', 'status');
+  await p3.waitForTimeout(120);
+  await p3.click('.fieldpop .refopt:has-text("Opportunity › Status")');
+  await p3.waitForTimeout(150);
+  ok('controls: the picker stays open to add more than one field', !!(await p3.$('.fieldpop')));
+  await p3.keyboard.press('Escape');
+  await p3.waitForTimeout(150);
+  await save3();
+  const g4 = await store3('Priority Guides — Fieldtest.md');
+  const line4 = g4.split('\n').find((l) => l.startsWith('| [Search] Customer name')) || '';
+  ok('controls: the kind is saved as a marker', line4.length > 0, g4.split('\n').filter((l) => l.includes('Customer name')).join(' / '));
+  ok('controls: the fields are saved together', line4.includes('Customer.Customer name, Opportunity.Start date, Opportunity.Status'), line4);
+  ok('controls: the answers are saved in the Spec column', line4.includes('placeholder: Find a customer; mode: live'), line4);
+  ok('controls: an unanswered search is open', (await p3.$eval('#open', (n) => n.textContent)).match(/\d+/) !== null);
+
   ok('fields: no errors on the way', errs3.length === 0, errs3.slice(0, 3).join(' | '));
   await p3.close();
 }

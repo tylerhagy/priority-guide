@@ -68,7 +68,9 @@ const COLUMN_ALIASES = {
   backend: ['backend', 'backend name', 'database name', 'db name', 'db column'],
   fkind: ['kind', 'stored or derived'],
   values: ['values', 'allowed values', 'options'],
-  definition: ['definition', 'meaning', 'description']
+  definition: ['definition', 'meaning', 'description'],
+  // A control's answers: `mode: live; match: contains`.
+  spec: ['spec', 'specs', 'properties', 'settings', 'behaviour', 'behavior']
 };
 
 // The columns a new object in a fields file is written with.
@@ -165,7 +167,12 @@ function readColumnHeader(line) {
  *   [Divider]                  a rule, to break a section up
  */
 export const CHART_KINDS = ['pie', 'bar', 'line', 'table', 'number', 'map', 'other'];
-export const BLOCK_KINDS = ['text', 'visual', 'chart', 'divider'];
+// Controls: blocks that do something with data rather than show it. Each has
+// its own set of questions (SPECS) answered in the Spec column.
+export const CONTROL_KINDS = ['search', 'filter', 'sort', 'action'];
+export const BLOCK_KINDS = ['text', 'visual', 'chart', 'divider', ...CONTROL_KINDS];
+export function isControl(kind) { return CONTROL_KINDS.includes(kind); }
+const KIND_TAG = { search: 'Search', filter: 'Filter', sort: 'Sort', action: 'Action' };
 
 export function parseContentCell(v) {
   const raw = norm(v);
@@ -175,6 +182,7 @@ export function parseContentCell(v) {
     const rest = norm(m[3]);
     if (tag === 'visual') return { kind: 'visual', chart: '', text: rest, type: 'Visual' };
     if (tag === 'divider') return { kind: 'divider', chart: '', text: rest, type: 'Text' };
+    if (CONTROL_KINDS.includes(tag)) return { kind: tag, chart: '', text: rest, type: 'Text' };
     if (tag === 'chart' || tag === 'data' || tag === 'data visual') {
       const k = lower(m[2] || '').replace(/\s*(chart|graph)$/, '').trim();
       return { kind: 'chart', chart: CHART_KINDS.includes(k) ? k : '', text: rest, type: 'Visual' };
@@ -188,6 +196,7 @@ export function renderContentCell(c) {
   const kind = (c && c.kind) || (c && c.type === 'Visual' ? 'visual' : 'text');
   if (kind === 'visual') return text ? `[Visual] ${text}` : '[Visual]';
   if (kind === 'divider') return '[Divider]';
+  if (KIND_TAG[kind]) return text ? `[${KIND_TAG[kind]}] ${text}` : `[${KIND_TAG[kind]}]`;
   if (kind === 'chart') {
     const k = c.chart && CHART_KINDS.includes(c.chart) ? `: ${c.chart}` : '';
     return text ? `[Chart${k}] ${text}` : `[Chart${k}]`;
@@ -502,6 +511,7 @@ function parseBlockRow(line, cols) {
   row.fkind = lower(at('fkind'));
   row.values = norm(at('values'));
   row.definition = norm(at('definition'));
+  row.spec = parseSpecCell(at('spec'));
   row.refs = rowRefs(row);
   return row;
 }
@@ -552,6 +562,7 @@ function renderRow(row, cols) {
     else if (key === 'fkind') out.push(cellSafe(row.fkind));
     else if (key === 'values') out.push(cellSafe(row.values));
     else if (key === 'definition') out.push(cellSafe(row.definition));
+    else if (key === 'spec') out.push(cellSafe(renderSpecCell(row.spec, row.content.kind)));
     else out.push(cellSafe(row.raw[i] || ''));   // a column we do not know: preserved
   }
   return `| ${out.join(' | ')} |`;
@@ -735,6 +746,12 @@ export function openItems(doc) {
       if (norm(row.definition) === UNKNOWN) un.push('definition');
       if (un.length) {
         out.push({ kind: 'unknown', guide: g.name, where: `${section.title} · ${label}`, text: `${un.join(' and ')} not known`, target: row });
+      }
+      // Without the fields file here, a filter linked to a field is taken to get its options from it.
+      const gaps = specGaps(row, rowFieldRefs(row).length > 0);
+      if (gaps.length) {
+        out.push({ kind: 'unknown', guide: g.name, where: `${section.title} · ${label}`,
+          text: `${KIND_TAG[row.content.kind]}: ${gaps.map((x) => x.label.toLowerCase()).join(', ')} not answered`, target: row });
       }
     }
   }
@@ -1232,6 +1249,7 @@ export function addRow(table, section, fields = {}) {
     fkind: lower(fields.fkind || ''),
     values: norm(fields.values || ''),
     definition: norm(fields.definition || ''),
+    spec: parseSpecCell(fields.spec || ''),
     rid: '',
     refs: []
   };
@@ -1751,12 +1769,16 @@ export function fieldUsage(doc, fdoc) {
   for (const g of guides(doc)) {
     for (const { row, section, table } of rowsOf(g)) {
       if (row.content.kind === 'divider') continue;
-      const ref = norm(row.field);
-      if (!ref) { unlinked.push({ guide: g, section, table, row }); continue; }
-      const hit = index.get(lower(ref));
-      if (!hit) { unresolved.push({ guide: g, section, table, row, ref }); continue; }
-      if (!used.has(lower(ref))) used.set(lower(ref), []);
-      used.get(lower(ref)).push({ guide: g, section, table, row, mismatch: valueMismatch(row, hit) });
+      const refs = rowFieldRefs(row);
+      if (!refs.length) { unlinked.push({ guide: g, section, table, row }); continue; }
+      for (const ref of refs) {
+        const hit = index.get(lower(ref));
+        if (!hit) { unresolved.push({ guide: g, section, table, row, ref }); continue; }
+        if (!used.has(lower(ref))) used.set(lower(ref), []);
+        // Values are only compared when the block shows one field: a search over
+        // five fields lists none of their values.
+        used.get(lower(ref)).push({ guide: g, section, table, row, mismatch: refs.length === 1 ? valueMismatch(row, hit) : [] });
+      }
     }
   }
   return { index, used, unresolved, unlinked };
@@ -1870,4 +1892,118 @@ export function blankFieldsFile(title) {
     '',
     ''
   ].join('\n');
+}
+
+// ---------------------------------------------------------------- controls
+
+/**
+ * What each control has to answer. `req` questions count as open until answered;
+ * `when` shows a question only once another answer makes it relevant. The fields
+ * a control works on (what a search searches, what a filter filters) live in the
+ * Field column, never here, so there is one place for them.
+ */
+export const SPECS = {
+  search: [
+    { key: 'placeholder', label: 'Placeholder', type: 'text', ask: 'What the empty box says', req: true },
+    { key: 'label', label: 'Label', type: 'text', ask: 'Its name for screen readers, when the placeholder is not enough' },
+    { key: 'mode', label: 'Mode', type: 'choice', choices: ['live', 'applied'], ask: 'Results as you type, or when you submit', req: true },
+    { key: 'min chars', label: 'Starts after', type: 'number', ask: 'Characters before a live search runs', req: true, when: ['mode', 'live'] },
+    { key: 'submit', label: 'Submitted by', type: 'choice', choices: ['enter', 'button', 'enter or button'], ask: 'What runs an applied search', req: true, when: ['mode', 'applied'] },
+    { key: 'scope', label: 'Scope', type: 'text', ask: 'What pool it searches, e.g. my assigned opportunities', req: true },
+    { key: 'match', label: 'Match', type: 'choice', choices: ['exact', 'starts with', 'contains', 'fuzzy'], ask: 'How a term matches', req: true },
+    { key: 'normalize', label: 'Clean-up', type: 'text', ask: 'e.g. a phone matches with or without dashes' },
+    { key: 'results', label: 'Results', type: 'choice', choices: ['inline suggestions', 'results page', 'results modal', 'narrows the list'], ask: 'Where results appear', req: true },
+    { key: 'limit', label: 'Limit', type: 'number', ask: 'Most results shown' },
+    { key: 'order', label: 'Order', type: 'text', ask: 'How results are ranked' },
+    { key: 'empty', label: 'No results', type: 'text', ask: 'What shows when nothing matches', req: true },
+    { key: 'too many', label: 'Too many', type: 'text', ask: 'What shows past the limit' },
+    { key: 'clear', label: 'Clear control', type: 'choice', choices: ['yes', 'no'], ask: 'A way to empty it in one press' },
+    { key: 'persists', label: 'Remembered', type: 'choice', choices: ['yes', 'no'], ask: 'Still filled after leaving the screen' },
+    { key: 'shortcut', label: 'Shortcut', type: 'text', ask: 'A key that jumps into it' }
+  ],
+  filter: [
+    { key: 'select', label: 'Pick', type: 'choice', choices: ['one', 'several'], ask: 'One option at a time, or several', req: true },
+    { key: 'options', label: 'Options', type: 'text', ask: 'From the field values, or list them', req: true, fromField: true },
+    { key: 'default', label: 'Default', type: 'text', ask: 'What is selected before anyone touches it' },
+    { key: 'any', label: 'Unfiltered option', type: 'text', ask: 'e.g. All, Any' },
+    { key: 'narrows', label: 'Narrows', type: 'text', ask: 'What it filters, e.g. my list', req: true },
+    { key: 'applies', label: 'Applies', type: 'choice', choices: ['immediately', 'on apply'], ask: 'At once, or with an Apply button', req: true },
+    { key: 'counts', label: 'Counts', type: 'choice', choices: ['yes', 'no'], ask: 'How many match each option' },
+    { key: 'persists', label: 'Remembered', type: 'choice', choices: ['yes', 'no'], ask: 'Kept after leaving the screen' }
+  ],
+  sort: [
+    { key: 'direction', label: 'Direction', type: 'choice', choices: ['ascending', 'descending'], ask: 'The way it sorts first', req: true },
+    { key: 'default', label: 'Default sort', type: 'choice', choices: ['yes', 'no'], ask: 'Is this how the list starts', req: true },
+    { key: 'then by', label: 'Then by', type: 'text', ask: 'The tie-breaker' },
+    { key: 'reversible', label: 'Reversible', type: 'choice', choices: ['yes', 'no'], ask: 'Can someone flip it' },
+    { key: 'blanks', label: 'Blanks', type: 'choice', choices: ['first', 'last'], ask: 'Where empty values go' }
+  ],
+  action: [
+    { key: 'does', label: 'Does', type: 'text', ask: 'What happens when pressed', req: true },
+    { key: 'confirm', label: 'Confirm', type: 'choice', choices: ['none', 'ask first', 'undo after'], ask: 'Any check before or after', req: true },
+    { key: 'disabled when', label: 'Disabled when', type: 'text', ask: 'When it cannot be pressed' },
+    { key: 'success', label: 'Afterwards', type: 'text', ask: 'What the person sees when it worked' },
+    { key: 'failure', label: 'If it fails', type: 'text', ask: 'What the person sees when it did not' },
+    { key: 'shortcut', label: 'Shortcut', type: 'text', ask: 'A key that does it' }
+  ]
+};
+
+/** `mode: live; match: contains` → [{ key, value }], in written order. */
+export function parseSpecCell(v) {
+  const out = [];
+  for (const part of norm(v).split(/\s*;\s*/)) {
+    if (!norm(part)) continue;
+    const i = part.indexOf(':');
+    if (i < 0) { out.push({ key: '', value: norm(part) }); continue; }
+    out.push({ key: lower(part.slice(0, i)), value: norm(part.slice(i + 1)) });
+  }
+  return out;
+}
+
+/** Known questions in their schema order, then anything else as written. A blank answer is left out. */
+export function renderSpecCell(spec, kind) {
+  const list = (spec || []).filter((e) => norm(e.value));
+  const order = (SPECS[kind] || []).map((q) => q.key);
+  const known = order.map((k) => list.find((e) => e.key === k)).filter(Boolean);
+  const rest = list.filter((e) => !order.includes(e.key));
+  const clean = (x) => norm(x).replace(/;/g, ',');
+  return [...known, ...rest].map((e) => (e.key ? `${e.key}: ${clean(e.value)}` : clean(e.value))).join('; ');
+}
+
+export function getSpec(row, key) {
+  const e = (row.spec || []).find((x) => x.key === lower(key));
+  return e ? e.value : '';
+}
+
+/** Answer one question, adding the Spec column to the table if it has none. */
+export function setSpec(row, table, section, key, value) {
+  ensureColumn(table, 'spec', 'Spec');
+  const k = lower(key);
+  const list = (row.spec || []).filter((x) => x.key !== k);
+  if (norm(value)) list.push({ key: k, value: norm(value) });
+  row.spec = list;
+  return touchRow(row, table, section);
+}
+
+/** The questions this control shows now: conditional ones only once they apply. */
+export function specQuestions(row) {
+  return (SPECS[row.content.kind] || []).filter((q) => !q.when || lower(getSpec(row, q.when[0])) === q.when[1]);
+}
+
+/** Required questions not answered, or answered `??`. A filter's options count as answered by a field with values. */
+export function specGaps(row, fieldHasValues) {
+  if (!isControl(row.content.kind)) return [];
+  return specQuestions(row).filter((q) => {
+    if (!q.req) return false;
+    const v = norm(getSpec(row, q.key));
+    if (v && v !== UNKNOWN) return false;
+    // A filter's options can come from its field's values, or be the ones its example lists.
+    if (q.fromField && !v && (fieldHasValues || (norm(row.realData) && norm(row.realData) !== UNKNOWN))) return false;
+    return true;
+  });
+}
+
+/** The fields a block works on: one for most, several for a search. */
+export function rowFieldRefs(row) {
+  return norm(row.field).split(/\s*,\s*/).map(norm).filter(Boolean);
 }

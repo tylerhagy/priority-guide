@@ -254,6 +254,38 @@ guides file has a fields file beside it.
 
 ---
 
+## Controls
+
+Some blocks do something with data rather than show it. Four kinds are
+controls, marked in front of the name like `[Visual]` is:
+
+```markdown
+| Content | Real data | Do | Link | Form | Note | Spec | Field |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [Search] Find an opportunity |  | search |  |  |  | mode: applied; scope: my assigned opportunities only; results: results modal | Customer.Customer name, Customer.Phone numbers |
+| [Filter] Utility | e.g AEP Ohio | filter |  |  |  | select: several; narrows: my list | Account.Utility |
+```
+
+Each kind has its own questions, answered in the **Spec** column as
+`key: value; key: value` and asked as a short form under the block while it is
+selected. Required questions count in Open until answered; `??` counts too.
+A question that only matters after another answer — how many characters start
+a live search — appears once it applies.
+
+| Kind | Asks |
+| --- | --- |
+| **Search** | placeholder · label · mode (live or applied) · starts after / submitted by · scope · match · clean-up · results · limit · order · no results · too many · clear control · remembered · shortcut |
+| **Filter** | pick one or several · options · default · unfiltered option · narrows · applies · counts · remembered |
+| **Sort** | direction · default sort · then by · reversible · blanks |
+| **Action** | does · confirm · disabled when · afterwards · if it fails · shortcut |
+
+What a control works on lives in the **Field** column, never in Spec: a search
+lists every field it looks in, comma-separated, and the picker adds and removes
+rather than replaces. A filter's options count as answered when its field has
+values or its example lists them.
+
+---
+
 ## Keyboard
 
 | | |

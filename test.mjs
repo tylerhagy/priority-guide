@@ -696,6 +696,82 @@ t('a new object and field write a valid fields file', () => {
   eq(idx.get('customer.customer id').row.backend, 'Party.PartyNumber');
 });
 
+// ---------------------------------------------------------------- controls
+const CTRL = [
+  '# Priority Guides — Ctrl', '',
+  '## Bar', '',
+  '### Top', '',
+  '| Content | Real data | Note |',
+  '| --- | --- | --- |',
+  '| [Search] Find a customer |  |  |',
+  '| [Filter] Utility | AEP Ohio |  |',
+  '| Plain | x |  |',
+  ''
+].join('\n');
+
+t('control kinds round-trip as markers', () => {
+  ok(P.verifyRoundTrip(CTRL).ok, 'must round-trip');
+  const rows = P.rowsOf(P.findGuide(P.parseDocument(CTRL), 'Bar'));
+  eq(rows.map((r) => r.row.content.kind), ['search', 'filter', 'text']);
+  eq(rows[0].row.content.text, 'Find a customer');
+});
+
+t('a control with nothing answered is open, once per block', () => {
+  const open = P.openItems(P.parseDocument(CTRL)).filter((i) => /not answered/.test(i.text));
+  eq(open.length, 2);
+  ok(open[0].text.startsWith('Search: placeholder, mode, scope, match, results, no results'), open[0].text);
+});
+
+t('answering a spec adds the column once and writes in schema order', () => {
+  const doc = P.parseDocument(CTRL);
+  const { row, table, section } = P.rowsOf(P.findGuide(doc, 'Bar'))[0];
+  P.setSpec(row, table, section, 'match', 'contains');
+  P.setSpec(row, table, section, 'mode', 'live');
+  P.setSpec(row, table, section, 'mode', 'applied');
+  const out = P.serializeDocument(doc);
+  ok(P.verifyRoundTrip(out).ok, 'must round-trip');
+  const lines = out.split('\n');
+  eq(lines[6], '| Content | Real data | Note | Spec |');
+  eq(lines[8], '| [Search] Find a customer |  |  | mode: applied; match: contains |');
+  eq(lines[10], '| Plain | x |  | |', 'an untouched row only gains an empty cell');
+});
+
+t('a conditional question appears only when it applies', () => {
+  const doc = P.parseDocument(CTRL);
+  const { row, table, section } = P.rowsOf(P.findGuide(doc, 'Bar'))[0];
+  ok(!P.specQuestions(row).some((q) => q.key === 'min chars'), 'no mode yet');
+  P.setSpec(row, table, section, 'mode', 'live');
+  ok(P.specQuestions(row).some((q) => q.key === 'min chars'), 'live asks when it starts');
+  ok(!P.specQuestions(row).some((q) => q.key === 'submit'), 'live never asks what submits');
+});
+
+t('?? still counts as not answered, and a semicolon cannot split an answer', () => {
+  const doc = P.parseDocument(CTRL);
+  const { row, table, section } = P.rowsOf(P.findGuide(doc, 'Bar'))[0];
+  P.setSpec(row, table, section, 'mode', '??');
+  ok(P.specGaps(row).some((q) => q.key === 'mode'));
+  P.setSpec(row, table, section, 'empty', 'No match; try a phone number');
+  eq(P.parseSpecCell(P.renderSpecCell(row.spec, 'search')).find((e) => e.key === 'empty').value, 'No match, try a phone number');
+});
+
+t('a filter with a field takes its options from it', () => {
+  const doc = P.parseDocument(CTRL);
+  const { row } = P.rowsOf(P.findGuide(doc, 'Bar'))[1];
+  ok(!P.specGaps(row, false).some((q) => q.key === 'options'), 'its example lists an option');
+  row.realData = '';
+  ok(P.specGaps(row, false).some((q) => q.key === 'options'));
+  ok(!P.specGaps(row, true).some((q) => q.key === 'options'));
+});
+
+t('a search over several fields is used by each, with no value check', () => {
+  const doc = P.parseDocument(CTRL);
+  const { row, table, section } = P.rowsOf(P.findGuide(doc, 'Bar'))[0];
+  P.setRowField(row, table, section, 'Opportunity.Status, Opportunity.New');
+  const u = P.fieldUsage(doc, P.parseDocument(FIELDS));
+  ok(u.used.get('opportunity.status') && u.used.get('opportunity.new'), 'both are used');
+  eq(u.used.get('opportunity.status')[0].mismatch, []);
+});
+
 // ---------------------------------------------------------------- report
 
 console.log(`\n  ${pass} passed${fails.length ? `, ${fails.length} FAILED` : ''}\n`);

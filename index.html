@@ -1021,6 +1021,22 @@ svg.has-sel .edge:not(.hot){opacity:.3}
 .oi.act .t{color:var(--act)}
 .oi.unk .t{color:var(--flag)}
 /* ---- fields: the chip on a block, the picker, the Fields view */
+.kbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);border-radius:5px;padding:1px 6px 1px 4px;margin-bottom:3px}
+.fchips{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px}
+.fchips .fchip{margin-top:0}
+.fchips-l{font-size:10.5px;color:var(--faint)}
+.specline{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-top:4px;font-size:11px;line-height:1.4}
+.specline .said{color:var(--dim)}
+.specline .gaps{color:var(--unanswered);background:var(--unanswered-soft);border:1px solid var(--unanswered-line);border-radius:5px;padding:0 6px}
+.specform{flex-basis:100%;margin-top:6px;padding:8px 6px 4px;border-top:1px dashed var(--line);display:grid;grid-template-columns:1fr;gap:5px}
+.spec-h{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.spec-h button{margin-left:auto;font-size:11px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--accent-ink)}
+.spec-q{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center;font-size:11.5px}
+.spec-q .k{color:var(--dim)}
+.spec-q.req .k::after{content:" *";color:var(--unanswered)}
+.spec-q input,.spec-q select{font:inherit;font-size:11.5px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);min-width:0;width:100%}
+.spec-q input:focus,.spec-q select:focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 2px var(--accent-soft)}
 .fchip{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:1px 7px 1px 5px;border-radius:6px;
   font-size:10.5px;color:var(--dim);background:var(--tint);border:1px solid var(--line);max-width:100%}
 .fchip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1150,7 +1166,8 @@ import {
   proseOf, setProse,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
   isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
-  fieldUsage, setRowField, addFieldTo, addObject, blankFieldsFile, FIELD_KINDS
+  fieldUsage, setRowField, addFieldTo, addObject, blankFieldsFile, FIELD_KINDS,
+  CONTROL_KINDS, isControl, SPECS, getSpec, setSpec, specQuestions, specGaps, rowFieldRefs
 } from './parser.js';
 
 const $ = (id) => document.getElementById(id);
@@ -3419,6 +3436,12 @@ function paintRow(row, g, sec, table, rw) {
     box.appendChild(gl);
   }
   const inner = el('div', 'boxin');
+  if (isControl(kind)) {
+    const badge = el('div', 'kbadge ' + kind);
+    badge.appendChild(icon(KIND_GLYPH[kind], 11));
+    badge.appendChild(el('span', null, KIND_LABEL[kind]));
+    inner.appendChild(badge);
+  }
   const lbl = el('div', 'lbl');
   const label = rw.content.text.trim();
   if (isUnknown(label)) lbl.innerHTML = '<span class="unk">?? not known</span>';
@@ -3439,7 +3462,8 @@ function paintRow(row, g, sec, table, rw) {
     return eg;
   };
   if (cur) inner.appendChild(makeExample(cur));
-  const fref = (rw.field || '').trim();
+  const frefs = rowFieldRefs(rw);
+  const fref = frefs.length === 1 ? frefs[0] : '';
   const fhit = fref && S.fdoc ? resolveField(S.fdoc, fref) : null;
   if (!cur && fhit && fhit.row.values && !isUnknown(fhit.row.values)) {
     // No example of its own: show what the field allows, greyed, so the row is
@@ -3448,7 +3472,13 @@ function paintRow(row, g, sec, table, rw) {
     inh.title = `From ${fhit.ref} in the fields file. Add an example to say what this screen shows.`;
     inner.appendChild(inh);
   }
-  if (fref) inner.appendChild(fieldChip(ctx, fref, fhit));
+  if (frefs.length) {
+    const chips = el('div', 'fchips');
+    if (kind === 'search') chips.appendChild(el('span', 'fchips-l', 'Searches'));
+    for (const r of frefs) chips.appendChild(fieldChip(ctx, r, S.fdoc ? resolveField(S.fdoc, r) : null));
+    inner.appendChild(chips);
+  }
+  if (isControl(kind)) inner.appendChild(specLine(rw, fhit));
   box.appendChild(inner);
 
   if (rw.form.type === 'single select' || rw.form.type === 'multi select') {
@@ -3549,7 +3579,9 @@ const CHART_GLYPH = {
   pie: 'pie', bar: 'bar', line: 'linechart', table: 'gridicon',
   number: 'number', map: 'mapicon', other: 'chartother'
 };
-const KIND_LABEL = { text: 'Content', visual: 'Visual', chart: 'Data visual', divider: 'Divider' };
+const KIND_LABEL = { text: 'Content', visual: 'Visual', chart: 'Data visual', divider: 'Divider',
+  search: 'Search', filter: 'Filter', sort: 'Sort', action: 'Action' };
+const KIND_GLYPH = { search: 'search', filter: 'filter', sort: 'sort', action: 'trigger' };
 
 /**
  * What you can do to the row you selected, in the row, in reading order, with
@@ -3561,7 +3593,7 @@ function rowStrip(ctx, kind, openExample) {
 
   const k = el('button', 'sbtn kind');
   k.appendChild(icon(kind === 'chart' ? (CHART_GLYPH[rw.content.chart] || 'chartother')
-    : kind === 'visual' ? 'visual' : kind === 'divider' ? 'rule' : 'line1', 12));
+    : kind === 'visual' ? 'visual' : kind === 'divider' ? 'rule' : KIND_GLYPH[kind] || 'line1', 12));
   k.appendChild(el('span', null, kind === 'chart'
     ? (rw.content.chart ? rw.content.chart : 'Data visual')
     : KIND_LABEL[kind]));
@@ -3623,6 +3655,7 @@ function rowStrip(ctx, kind, openExample) {
     });
   };
   strip.appendChild(del);
+  if (isControl(kind)) strip.appendChild(specForm(ctx));
   return strip;
 }
 
@@ -3686,6 +3719,24 @@ function openKindPicker(anchor, ctx) {
   opt('visual', 'visual', 'Visual', 'An image, a map, a photo');
   opt('divider', 'rule', 'Divider', 'A rule, to break a section up');
   pop.appendChild(list);
+
+  pop.appendChild(el('div', 'pop-h', 'Control'));
+  const ctl = el('div', 'kinds');
+  const copt = (kind, label, blurb) => {
+    const b = el('button', 'kindopt' + (now === kind ? ' on' : ''));
+    b.appendChild(icon(KIND_GLYPH[kind], 15));
+    const t = el('div');
+    t.appendChild(el('div', 'n', label));
+    t.appendChild(el('div', 'b', blurb));
+    b.appendChild(t);
+    b.onclick = () => apply(kind);
+    ctl.appendChild(b);
+  };
+  copt('search', 'Search', 'Find something by typing');
+  copt('filter', 'Filter', 'Narrow a list by a value');
+  copt('sort', 'Sort', 'Put a list in an order');
+  copt('action', 'Action', 'A button that does something');
+  pop.appendChild(ctl);
 
   pop.appendChild(el('div', 'pop-h', 'Data visual'));
   const charts = el('div', 'charts');
@@ -3797,6 +3848,101 @@ function openRefPicker(anchor, g, sec, chunk) {
   setTimeout(() => { document.addEventListener('mousedown', popAway); search.focus(); }, 0);
 }
 
+// ---------------------------------------------------------------- controls
+/** One line under a control: what is answered, then how much is not. */
+function specLine(rw, fhit) {
+  const line = el('div', 'specline');
+  const kind = rw.content.kind;
+  const hasValues = !!(fhit && fhit.row.values && !isUnknown(fhit.row.values));
+  const said = [];
+  for (const q of specQuestions(rw)) {
+    const v = getSpec(rw, q.key);
+    if (!v || isUnknown(v)) continue;
+    if (q.key === 'min chars') { said.push(`after ${v} characters`); continue; }
+    if (q.type === 'choice' && (v === 'yes' || v === 'no')) { if (v === 'yes') said.push(q.label.toLowerCase()); continue; }
+    if (q.key === 'placeholder') { said.push(`“${v}”`); continue; }
+    if (q.type === 'text' && v.length > 40) continue;
+    said.push(v);
+  }
+  if (kind === 'filter' && !getSpec(rw, 'options') && hasValues) said.push('options from the field');
+  if (said.length) line.appendChild(el('span', 'said', said.join(' · ')));
+  const gaps = specGaps(rw, hasValues);
+  if (gaps.length) {
+    const g = el('span', 'gaps', `${gaps.length} to answer`);
+    g.title = gaps.map((q) => q.label).join(', ');
+    line.appendChild(g);
+  }
+  if (!said.length && !gaps.length) line.appendChild(el('span', 'said', 'All answered'));
+  return line;
+}
+
+/**
+ * The questions a control has to answer, asked under it while it is selected.
+ * A blank answer is unanswered; `??` says someone has to find out. Changes are
+ * written as you go and the guide only redraws when an answer changes which
+ * questions apply, so tabbing through the form never loses your place.
+ */
+function specForm(ctx) {
+  const { sec, table, rw } = ctx;
+  const kind = rw.content.kind;
+  const wrap = el('div', 'specform');
+  wrap.onclick = (e) => e.stopPropagation();
+  wrap.onmousedown = (e) => e.stopPropagation();
+  const frefs = rowFieldRefs(rw);
+  const fhit = frefs.length === 1 && S.fdoc ? resolveField(S.fdoc, frefs[0]) : null;
+  const drivers = new Set((SPECS[kind] || []).filter((q) => q.when).map((q) => q.when[0]));
+  const refreshLine = () => {
+    const item = wrap.closest('.item');
+    const old = item && item.querySelector('.specline');
+    if (old) old.replaceWith(specLine(rw, fhit));
+    renderBar();
+  };
+  const write = (q, v) => {
+    setSpec(rw, table, sec, q.key, v);
+    mark();
+    if (drivers.has(q.key)) { render(); return; }
+    refreshLine();
+  };
+
+  const head = el('div', 'spec-h');
+  head.appendChild(el('span', null, `${KIND_LABEL[kind]} — what it needs`));
+  if (kind === 'search' || kind === 'filter' || kind === 'sort') {
+    const fb = el('button', 'quiet', frefs.length ? (kind === 'search' ? `${frefs.length} field${frefs.length === 1 ? '' : 's'} searched` : 'Change field') : (kind === 'search' ? 'Pick the fields it searches' : 'Pick the field'));
+    fb.onclick = (e) => { e.stopPropagation(); openFieldPicker(fb, ctx); };
+    head.appendChild(fb);
+  }
+  wrap.appendChild(head);
+
+  for (const q of specQuestions(rw)) {
+    const rowEl = el('label', 'spec-q' + (q.req ? ' req' : ''));
+    rowEl.appendChild(el('span', 'k', q.label));
+    const cur = getSpec(rw, q.key);
+    let input;
+    if (q.type === 'choice') {
+      input = el('select');
+      const opts = [['', '—'], ...q.choices.map((c) => [c, c]), ['??', 'Not known (??)']];
+      for (const [v, t] of opts) {
+        const o = el('option', null, t); o.value = v;
+        if (cur === v) o.selected = true;
+        input.appendChild(o);
+      }
+      input.onchange = () => write(q, input.value);
+    } else {
+      input = el('input');
+      input.type = q.type === 'number' ? 'number' : 'text';
+      input.value = cur;
+      const inherited = q.fromField && fhit && fhit.row.values && !isUnknown(fhit.row.values);
+      input.placeholder = inherited ? `From ${fhit.ref}: ${fhit.row.values}` : q.ask;
+      input.onchange = () => write(q, input.value.trim());
+      input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } };
+    }
+    input.title = q.ask;
+    rowEl.appendChild(input);
+    wrap.appendChild(rowEl);
+  }
+  return wrap;
+}
+
 // ---------------------------------------------------------------- fields on a row
 /** The field a block shows, under its example: Object › Label, red when nothing by that name exists. */
 function fieldChip(ctx, ref, hit) {
@@ -3825,7 +3971,7 @@ function openFieldPicker(anchor, ctx) {
   closePop();
   const { sec, table, rw } = ctx;
   const pop = el('div', 'pop refpop fieldpop');
-  pop.appendChild(el('div', 'pop-h', 'Field this block shows'));
+  pop.appendChild(el('div', 'pop-h', rw.content.kind === 'search' ? 'Fields this search looks in' : 'Field this block shows'));
 
   if (!S.fdoc) {
     pop.appendChild(el('div', 'rail-empty', S.ffile
@@ -3849,7 +3995,18 @@ function openFieldPicker(anchor, ctx) {
   const list = el('div', 'reflist');
   pop.appendChild(list);
 
+  // A search runs over several fields, so picking adds and removes rather than replaces.
+  const multi = rw.content.kind === 'search';
+  if (multi) search.value = '';
   const pick = (ref) => {
+    if (multi && ref) {
+      const have = rowFieldRefs(rw);
+      const i = have.findIndex((x) => x.toLowerCase() === ref.toLowerCase());
+      if (i >= 0) have.splice(i, 1); else have.push(ref);
+      setRowField(rw, table, sec, have.join(', '));
+      mark(); render(); paint(); search.focus();
+      return;
+    }
     setRowField(rw, table, sec, ref);
     mark(); closePop(); render();
   };
@@ -3870,7 +4027,7 @@ function openFieldPicker(anchor, ctx) {
       .sort((a, b) => (b.label.toLowerCase() === label) - (a.label.toLowerCase() === label) || a.ref.localeCompare(b.ref))
       .slice(0, 40);
     for (const f of hits) {
-      const b = el('button', 'refopt' + ((rw.field || '').toLowerCase() === f.ref.toLowerCase() ? ' on' : ''));
+      const b = el('button', 'refopt' + (rowFieldRefs(rw).some((x) => x.toLowerCase() === f.ref.toLowerCase()) ? ' on' : ''));
       b.appendChild(el('div', 'n', `${f.object} › ${f.label}`));
       const meta = [f.row.backend, f.row.fkind, f.row.values].filter((x) => x && !isUnknown(x)).join(' · ');
       if (meta) b.appendChild(el('div', 'm', meta));
@@ -3904,9 +4061,9 @@ function openFieldPicker(anchor, ctx) {
     if (!list.childNodes.length) list.appendChild(el('div', 'rail-empty', 'No field matches that.'));
     if (rw.field) {
       const clr = el('button', 'refopt clear');
-      clr.appendChild(el('div', 'n', 'Clear the field'));
+      clr.appendChild(el('div', 'n', rowFieldRefs(rw).length > 1 ? 'Clear every field' : 'Clear the field'));
       clr.appendChild(el('div', 'm', 'Keep this block conceptual'));
-      clr.onclick = () => pick('');
+      clr.onclick = () => { setRowField(rw, table, sec, ''); mark(); closePop(); render(); };
       list.appendChild(clr);
     }
   };
