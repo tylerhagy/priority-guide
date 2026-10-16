@@ -2880,6 +2880,39 @@ if (process.env.SHOTS) {
   await p4.close();
 }
 
+// ------------------------------------------------------- deleting keeps your place
+{
+  const rows = Array.from({ length: 40 }, (_, i) => `| Block ${i + 1} | example ${i + 1} |  |  |  | a note |`).join('\n');
+  const G = ['# Priority Guides — Scroll', '', '## Long', '', '**User goal:** read it', '', '### Many', '',
+    '| Content | Real data | Do | Link | Form | Note |', '| --- | --- | --- | --- | --- | --- |', rows, '', '## Sources', '', ''].join('\n');
+  const p5 = await browser.newPage({ viewport: { width: 1500, height: 900 } });
+  await p5.addInitScript((g) => {
+    const store = { 'Priority Guides — Scroll.md': g };
+    const fh = (name) => ({ kind: 'file', name, getFile: async () => ({ text: async () => store[name] }),
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      createWritable: async () => ({ write: async (t) => { store[name] = t; }, close: async () => {} }) });
+    window.showDirectoryPicker = async () => ({ kind: 'directory', name: 'Scroll',
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      entries: async function* () { for (const n of Object.keys(store)) yield [n, fh(n)]; } });
+  }, G);
+  await p5.goto(`http://localhost:${PORT}/`);
+  await p5.click('.hello .btn.primary');
+  await p5.waitForSelector('#stage .item');
+  const target = p5.locator('#stage .item', { hasText: 'Block 30' }).first();
+  await target.scrollIntoViewIfNeeded();
+  await target.click({ position: { x: 20, y: 10 } });
+  await p5.waitForSelector('#stage .sbtn.danger', { timeout: 5000 });
+  const before = await p5.$eval('#stage', (n) => n.scrollTop);
+  await p5.click('#stage .sbtn.danger');
+  await p5.waitForSelector('.dialog .btn.danger', { timeout: 5000 });
+  await p5.click('.dialog .btn.danger');
+  await p5.waitForTimeout(300);
+  const after = await p5.$eval('#stage', (n) => n.scrollTop);
+  ok('deleting a block keeps the scroll position', before > 300 && Math.abs(after - before) < 60, `before ${before}, after ${after}`);
+  ok('and the block is gone', (await p5.locator('#stage .item', { hasText: /Block 30\b/ }).count()) === 0);
+  await p5.close();
+}
+
 // ------------------------------------------------------- the single-file build
 /*
  * The app needs the File System Access API, and file:// is a secure context in

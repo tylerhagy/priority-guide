@@ -1828,6 +1828,11 @@ function render() {
   if (!S.doc) { renderHello(); renderFlowBar(); return; }
   renderRailLeft();
   renderRailRight();   // first, so the stage is measured at the width it will have
+  // A redraw in place — a delete, an undo, a duplicate — keeps you where you
+  // were. Only going somewhere else (another guide, view or file) starts at the top.
+  const place = `${S.view}\u241f${S.guide ? S.guide.name : ''}\u241f${S.beside ? 1 : 0}\u241f${S.file ? S.file.name : ''}`;
+  const keepY = place === S.lastPlace ? $('stage').scrollTop : null;
+  S.lastPlace = place;
   $('stage').innerHTML = '';
   if (S.view === 'guide' && S.beside) renderBeside();
   else if (S.view === 'guide') renderGuide();
@@ -1836,6 +1841,7 @@ function render() {
   else if (S.view === 'open') renderOpen();
   else if (S.view === 'fields') renderFields();
   else renderSource();
+  if (keepY !== null) $('stage').scrollTop = keepY;
   renderMinimap();
   renderFlowBar();
   $('cap').hidden = !S.capture;
