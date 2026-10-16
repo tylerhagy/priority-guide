@@ -2356,15 +2356,24 @@ function setLinked(node, text, guide) {
  */
 function editable(node, current, commit, opts = {}) {
   if (S.readOnly) return node;
+  current = current == null ? '' : String(current);
   node.contentEditable = 'plaintext-only';
   node.spellcheck = false;
   node.tabIndex = 0;
   node.onfocus = () => {
     if (node.dataset.blank === '1') { node.textContent = ''; node.classList.remove('none', 'empty'); }
+    // What is shown can differ from what is written — a [handle] reads as its
+    // title, a [[link]] as a link. Edit what is written, so nothing shown in
+    // short is lost by clicking in and out.
+    else if (current && node.textContent !== current) {
+      node._shown = [...node.childNodes];
+      node.textContent = current;
+    }
   };
   node.onblur = () => {
     const v = node.textContent.trim();
-    if (v === current) {
+    if (v === current.trim()) {
+      if (node._shown) { node.replaceChildren(...node._shown); node._shown = null; }
       if (node.dataset.ph && !v) {
         node.textContent = node.dataset.ph;
         node.classList.add(node.dataset.phcls || 'none');

@@ -2923,14 +2923,15 @@ if (process.env.SHOTS) {
   const G = ['# Priority Guides — Groups', '', '## Opp', '', '**User goal:** call', '',
     '### Who to reach', '', '*Stays put*', '',
     '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
-    '| Customer name | e.g John Smith |  |  |  |  | Customer.Customer name |', '',
+    '| Customer name | e.g John Smith |  |  |  | The account holder [kick] | Customer.Customer name |', '',
     '#### Contacts', '', '*One per person*', '', '**Object:** Contact', '**Repeats:** account holder first', '',
     '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
     '| Name | e.g John Smith |  |  |  |  | Contact.Name |',
     '| Mailing address |  |  |  |  |  | Customer.Mailing address |', '',
     '#### Plain', '',
     '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
-    '| Phone | (614) 555-0134 |  |  |  |  | Contact.Phone |', '', '## Sources', '', ''].join('\n');
+    '| Phone | (614) 555-0134 |  |  |  |  | Contact.Phone |', '', '## Sources', '',
+    '[kick]: https://example.com/kickoff "Kickoff notes, 2026-06-02"', ''].join('\n');
   const F = ['# Fields — Groups', '', '## Customer', '', '### Fields', '',
     '| Label | Backend | Kind | Values | Definition | Note |', '| --- | --- | --- | --- | --- | --- |',
     '| Customer name | ?? | stored |  |  |  |', '| Mailing address | ?? | stored |  |  |  |', '',
@@ -3023,6 +3024,23 @@ if (process.env.SHOTS) {
   await save6();
   ok('fields: Belongs to is written into the object\'s header',
     (await file6('Fields — Groups.md')).includes('## Customer\n\n**Belongs to:** Contact (one)\n\n### Fields'));
+  // Clicking into a note that shows a citation, and out again, keeps the citation.
+  await p6.click('#tabs button:has-text("Guide")');
+  await p6.waitForSelector('#stage .note .t');
+  const nt = p6.locator('#stage .note .t', { hasText: 'The account holder' }).first();
+  await nt.click();                 // the first press selects the block
+  await p6.waitForTimeout(250);
+  await nt.click();                 // the second goes into the note
+  await p6.waitForTimeout(150);
+  ok('notes: editing shows the note as written, [handle] included',
+    (await nt.textContent()).includes('[kick]'), await nt.textContent());
+  await p6.keyboard.press('End');
+  await p6.keyboard.type(', per Ryan');
+  await p6.click('#stage', { position: { x: 5, y: 400 } });
+  await p6.waitForTimeout(250);
+  await save6();
+  const kept6 = await file6('Priority Guides — Groups.md');
+  ok('notes: and the edit keeps it', kept6.includes('The account holder [kick], per Ryan'), (kept6.split('\n').find((l) => l.includes('account holder')) || '').slice(0, 160));
   ok('groups: no errors on the way', errs6.length === 0, errs6.slice(0, 3).join(' | '));
   await p6.close();
 }
