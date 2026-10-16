@@ -1476,8 +1476,8 @@ export function objectRelations(fdoc) {
  * What the groups in a guides file disagree with in the fields file. Findings
  * only, never verdicts:
  *  - a block in a group whose field belongs to another object;
- *  - a group whose blocks all come from an object that is many-per-parent,
- *    which says nothing about repeating — a suggestion, nothing more;
+ *  - a group that names no object, whose blocks all come from an object that
+ *    is many-per-parent, and says nothing about repeating — a suggestion only;
  *  - a group naming an object the fields file does not have.
  */
 export function groupFindings(doc, fdoc) {
@@ -1487,6 +1487,17 @@ export function groupFindings(doc, fdoc) {
   const mayRepeat = [];
   const unknownObject = [];
   for (const g of guides(doc)) {
+    // A guide's subject — the object most of its fields come from — is never a
+    // list on its own page: an Opportunity page's Opportunity fields do not repeat.
+    const count = new Map();
+    for (const { row } of rowsOf(g)) {
+      for (const ref of rowFieldRefs(row)) {
+        const o = lower(splitFieldRef(ref).object);
+        if (o) count.set(o, (count.get(o) || 0) + 1);
+      }
+    }
+    const ranked = [...count.entries()].sort((a, b) => b[1] - a[1]);
+    const subject = ranked.length && (ranked.length === 1 || ranked[0][1] > ranked[1][1]) ? ranked[0][0] : '';
     for (const gr of groupsOf(g)) {
       if (gr.object && fdoc && !objects.has(lower(gr.object))) unknownObject.push({ guide: g, group: gr });
       const seen = new Set();
@@ -1502,7 +1513,9 @@ export function groupFindings(doc, fdoc) {
       }
       const only = seen.size === 1 ? [...seen][0] : (gr.object ? lower(gr.object) : '');
       const r = only && rel.get(only);
-      if (gr.repeats === null && r && r.many && (!gr.object || lower(gr.object) === only)) {
+      // Only a group that has not said what it is: naming the object means the
+      // question was already considered (an opportunity's one Account is not a list).
+      if (gr.repeats === null && !gr.object && r && r.many && only !== subject) {
         mayRepeat.push({ guide: g, group: gr, object: r.object, parent: r.parent });
       }
     }
