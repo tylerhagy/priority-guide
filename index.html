@@ -1169,10 +1169,21 @@ button.tp:hover{box-shadow:inset 0 0 0 1px currentColor}
   overflow-x:auto;color:var(--ink)}
 
 /* ---------- empty state ---------- */
-.hello{max-width:520px;margin:14vh auto 0;text-align:center}
-.hello .btn.primary{height:28px;padding:0 11px;display:inline-flex;align-items:center;justify-content:center}
-.hello h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0 0 10px}
-.hello p{color:var(--dim);line-height:1.65;margin:0 0 22px}
+/* the landing page: one centred column, nothing either side until a file is open */
+body.nofile #railL,body.nofile #railR,body.nofile #minimap{display:none}
+#flowbar[hidden]{display:none}
+.hello{max-width:560px;margin:0 auto;padding:14vh 24px 64px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.hello h1{font-size:28px;font-weight:650;letter-spacing:-.02em;margin:0}
+.hello-p{color:var(--dim);font-size:14px;line-height:1.6;margin:8px 0 28px}
+.hello .hello-go{height:34px;padding:0 16px;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center}
+.hello-hint{color:var(--faint);font-size:12.5px;line-height:1.55;margin:14px 0 0;max-width:460px}
+.hello-list{width:100%;text-align:left}
+.hello-row{grid-template-columns:minmax(0,1fr) 16px}
+.hello-row .q{display:block;font-size:14px;font-weight:600;line-height:1.4}
+.hello-row .meta{display:block;font-size:12.5px;color:var(--dim);margin-top:2px}
+.hello-row .fname{display:block;font-size:11.5px;color:var(--faint);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hello-again{margin-top:18px;font-size:12.5px;color:var(--accent)}
+.hello-again:hover{text-decoration:underline}
 </style>
 
 <div id="bar">
@@ -1792,6 +1803,7 @@ function render() {
   renderUserBar();
   renderPageHead();
   renderPalette();
+  document.body.classList.toggle('nofile', !S.doc);
   if (!S.doc) { renderHello(); renderFlowBar(); return; }
   renderRailLeft();
   $('stage').innerHTML = '';
@@ -1890,23 +1902,48 @@ function renderBar() {
 function renderHello() {
   $('railL').innerHTML = ''; $('railR').innerHTML = '';
   const w = el('div', 'hello');
-  w.innerHTML = `<h1>priority guide</h1>
-    <p>What a screen needs, in order, before anything is laid out.<br>
-    Open a folder holding a guides markdown file.</p>`;
-  const b = el('button', 'btn primary', 'Open a folder');
-  b.onclick = pickFolder;
-  w.appendChild(b);
-  if (S.files.length) {
-    const list = el('div');
-    list.style.cssText = 'margin-top:26px;text-align:left';
-    list.appendChild(el('div', 'rail-h', 'Files in ' + S.dir.name));
-    for (const f of S.files.filter((x) => !x.isFields)) {
-      const i = el('button', 'g-item');
-      i.innerHTML = `<span class="n">${esc(fileLabel(f))}</span><span class="m">${f.title ? esc(f.name) + ' · ' : ''}${f.guides} guides · ${f.blocks} blocks</span>`;
-      i.onclick = () => openFile(f);
-      list.appendChild(i);
+  w.appendChild(el('h1', null, 'priority guide'));
+  w.appendChild(el('p', 'hello-p', 'What a screen needs, in order, before anything is laid out.'));
+
+  // A guides file is one with guides that hold blocks; a fields file, a decisions
+  // log or a list of notes reads fine but is not something to open here.
+  const guidesFiles = S.files.filter((f) => !f.isFields && f.guides > 0 && f.blocks > 0);
+  const others = S.files.filter((f) => !f.isFields && !guidesFiles.includes(f));
+
+  if (!guidesFiles.length) {
+    const b = el('button', 'btn primary hello-go', 'Open a folder');
+    b.onclick = pickFolder;
+    w.appendChild(b);
+    w.appendChild(el('p', 'hello-hint', S.dir
+      ? `${S.dir.name} has no guides file. Pick the folder that holds one.`
+      : 'Pick the folder that holds a guides markdown file.'));
+  } else {
+    const card = el('div', 'listcard hello-list');
+    const h = el('div', 'lc-h');
+    h.appendChild(el('span', 'lc-name static', `Guides in ${S.dir.name}`));
+    h.appendChild(el('span', 'lc-count', String(guidesFiles.length)));
+    card.appendChild(h);
+    for (const f of guidesFiles) {
+      const r = el('div', 'lc-row hello-row');
+      r.setAttribute('role', 'button');
+      r.tabIndex = 0;
+      const bd = el('span', 'bd');
+      bd.appendChild(el('span', 'q', fileLabel(f)));
+      bd.appendChild(el('span', 'meta', `${f.guides} guide${f.guides === 1 ? '' : 's'} · ${f.blocks} blocks`));
+      if (f.title) bd.appendChild(el('span', 'fname', f.name));
+      r.appendChild(bd);
+      r.appendChild(el('span', 'go', '›'));
+      r.onclick = () => openFile(f);
+      r.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFile(f); } };
+      card.appendChild(r);
     }
-    w.appendChild(list);
+    w.appendChild(card);
+    if (others.length) {
+      w.appendChild(el('p', 'hello-hint', `Also here, not guides files: ${others.map((f) => f.name).join(', ')}`));
+    }
+    const again = el('button', 'quiet hello-again', 'Open a different folder');
+    again.onclick = pickFolder;
+    w.appendChild(again);
   }
   $('stage').innerHTML = '';
   $('stage').appendChild(w);
