@@ -102,6 +102,7 @@ const UNKNOWN = '??';
 // ---------------------------------------------------------------- small helpers
 
 function norm(s) { return String(s == null ? '' : s).trim(); }
+function capFirst(s) { const t = norm(s); return t.charAt(0).toUpperCase() + t.slice(1); }
 function lower(s) { return norm(s).toLowerCase(); }
 
 /** Split a markdown table row into cells, honouring escaped pipes. */
@@ -729,14 +730,15 @@ export function openItems(doc) {
   for (const g of guides(doc)) {
     for (const key of GUIDE_FIELDS) {
       if (norm(g.fields[key]) === UNKNOWN) {
-        out.push({ kind: 'unknown', guide: g.name, where: FIELD_LABELS[key], text: `${FIELD_LABELS[key]} is not known`, field: key, target: g });
+        out.push({ kind: 'unknown', type: 'unknown', question: `${FIELD_LABELS[key]} is not known`, guide: g.name, where: FIELD_LABELS[key], text: `${FIELD_LABELS[key]} is not known`, field: key, target: g });
       }
     }
     for (const { row, section } of rowsOf(g)) {
       const label = renderContentCell(row.content) || '(unnamed)';
       for (const n of row.note) {
         if (!n.action) continue;
-        out.push({ kind: 'action', guide: g.name, where: `${section.title} · ${label}`, text: n.text, target: row });
+        const at = actionType(n.text);
+        out.push({ kind: 'action', type: at.type, question: at.question, guide: g.name, where: `${section.title} · ${label}`, text: n.text, target: row, note: n });
       }
       const un = [];
       if (norm(row.realData) === UNKNOWN) un.push('real data');
@@ -745,13 +747,13 @@ export function openItems(doc) {
       if (norm(row.values) === UNKNOWN) un.push('values');
       if (norm(row.definition) === UNKNOWN) un.push('definition');
       if (un.length) {
-        out.push({ kind: 'unknown', guide: g.name, where: `${section.title} · ${label}`, text: `${un.join(' and ')} not known`, target: row });
+        out.push({ kind: 'unknown', type: 'unknown', question: `${capFirst(un.join(' and '))} not known`, guide: g.name, where: `${section.title} · ${label}`, text: `${un.join(' and ')} not known`, target: row });
       }
       // Without the fields file here, a filter linked to a field is taken to get its options from it.
       const gaps = specGaps(row, rowFieldRefs(row).length > 0);
       if (gaps.length) {
-        out.push({ kind: 'unknown', guide: g.name, where: `${section.title} · ${label}`,
-          text: `${KIND_TAG[row.content.kind]}: ${gaps.map((x) => x.label.toLowerCase()).join(', ')} not answered`, target: row });
+        const t = `${KIND_TAG[row.content.kind]}: ${gaps.map((x) => x.label.toLowerCase()).join(', ')} not answered`;
+        out.push({ kind: 'unknown', type: 'unknown', question: t, guide: g.name, where: `${section.title} · ${label}`, text: t, target: row });
       }
     }
   }
@@ -2006,4 +2008,174 @@ export function specGaps(row, fieldHasValues) {
 /** The fields a block works on: one for most, several for a search. */
 export function rowFieldRefs(row) {
   return norm(row.field).split(/\s*,\s*/).map(norm).filter(Boolean);
+}
+
+// ---------------------------------------------------------------- action types
+
+/**
+ * An action is a follow-up to circle back on. Saying which kind it is puts the
+ * Open list in the order a room should take it: decisions first, because only
+ * the room can make them; then answers somebody has to go and find; then what is
+ * unclear on purpose and must not be built from. The kind is a prefix on the
+ * note, so the file stays plain text:
+ *
+ *   ACTION: NEEDS DECISION: Who gets a customer two teams both own?
+ *
+ * An action with no prefix is still an action — an open question of no kind yet.
+ */
+export const ACTION_TYPES = [
+  { key: 'decision', prefix: 'NEEDS DECISION', label: 'Needs decision', ask: 'A call for the team' },
+  { key: 'answer', prefix: 'NEEDS ANSWER', label: 'Needs answer', ask: 'A fact somebody has to find' },
+  { key: 'unclear', prefix: 'UNCLEAR, DO NOT BUILD FROM THIS', label: 'Unclear', ask: 'Left open on purpose. Do not build from it' }
+];
+const ACTION_TYPE_RE = /^(NEEDS DECISION|NEEDS ANSWER|UNCLEAR(?:\s*,\s*DO NOT BUILD FROM THIS)?)\s*:\s*/i;
+
+/** The kind of an action note and its question without the prefix. */
+export function actionType(text) {
+  const t = norm(text);
+  const m = ACTION_TYPE_RE.exec(t);
+  if (!m) return { type: 'open', question: t };
+  const p = m[1].toUpperCase();
+  const type = p.startsWith('NEEDS DECISION') ? 'decision' : p.startsWith('NEEDS ANSWER') ? 'answer' : 'unclear';
+  return { type, question: norm(t.slice(m[0].length)) };
+}
+
+/** Re-type an action, keeping its question. `open` drops the prefix. */
+export function setActionType(note, type) {
+  const { question } = actionType(note.text);
+  const def = ACTION_TYPES.find((x) => x.key === type);
+  note.text = def ? `${def.prefix}: ${question}` : question;
+  note.action = true;
+  return note;
+}
+
+/** Settle an action: it stays as an ordinary note, without its prefix. */
+export function resolveAction(note) {
+  note.text = actionType(note.text).question;
+  note.action = false;
+  return note;
+}
+
+// ---------------------------------------------------------------- the file's intro lines
+
+/**
+ * Two optional lines in the file's intro steer the Open and Users views:
+ *
+ *   **Open order:** First: [[App Chrome]], [[Customer]]; Later: [[Dashboard]]
+ *   **People:** Ryan Gaskill, Lindsey Goodman, Kim Byrd
+ *
+ * The order says which guides a room should work through first, in groups. It
+ * lives in the file so the order is shared, not one person's browser setting.
+ * Guides are written as [[links]] because guide names hold colons and commas.
+ * People are who a question can be waiting on.
+ */
+const ORDER_RE = /^\s*\*\*(?:open|workshop) order:?\*\*:?\s*(.*)$/i;
+const PEOPLE_RE = /^\s*\*\*people:?\*\*:?\s*(.*)$/i;
+
+function introLine(doc, re) {
+  const seg = doc.segments[0];
+  if (!seg || seg.kind !== 'raw') return { seg: null, i: -1 };
+  return { seg, i: seg.src.findIndex((l) => re.test(l)) };
+}
+
+/** Write or replace an intro line: before the intro's `---`, else at the end of the intro. */
+function setIntroLine(doc, re, line) {
+  let { seg, i } = introLine(doc, re);
+  if (!seg) {
+    seg = { kind: 'raw', src: [], dirty: true };
+    doc.segments.unshift(seg);
+  }
+  if (i > -1) { seg.src[i] = line; return; }
+  let at = seg.src.findIndex((l) => /^\s*---\s*$/.test(l));
+  if (at === -1) { at = seg.src.length; while (at > 0 && !norm(seg.src[at - 1])) at--; }
+  const pad = at > 0 && norm(seg.src[at - 1]) ? [''] : [];
+  seg.src.splice(at, 0, ...pad, line, '');
+  seg.dirty = true;
+}
+
+/**
+ * The guides in the order a room should take them: groups from the order line,
+ * then every guide it does not name, in file order, as one last unranked group.
+ * With no order line, that one group is every guide.
+ */
+export function openOrder(doc) {
+  const gs = guides(doc);
+  const used = new Set();
+  const tiers = [];
+  const { seg, i } = introLine(doc, ORDER_RE);
+  if (seg && i > -1) {
+    const body = seg.src[i].match(ORDER_RE)[1];
+    for (const part of body.split(';')) {
+      const name = norm(part.split('[[')[0]).replace(/:\s*$/, '');
+      const names = [...part.matchAll(/\[\[([^\]]+)\]\]/g)].map((m) => norm(m[1]));
+      const list = names.map((n) => gs.find((g) => !used.has(g) && lower(g.name) === lower(n))).filter(Boolean);
+      list.forEach((g) => used.add(g));
+      if (list.length || name) tiers.push({ name: name || 'Order', guides: list });
+    }
+  }
+  const rest = gs.filter((g) => !used.has(g));
+  if (rest.length || !tiers.length) tiers.push({ name: tiers.length ? 'Not ordered yet' : 'All guides', guides: rest, unranked: true });
+  return tiers;
+}
+
+export function setOpenOrder(doc, tiers) {
+  const ranked = tiers.filter((t) => !t.unranked && t.guides.length);
+  const line = '**Open order:** ' + ranked.map((t) => `${t.name}: ${t.guides.map((g) => `[[${g.name}]]`).join(', ')}`).join('; ');
+  setIntroLine(doc, ORDER_RE, line);
+}
+
+/**
+ * Move a guide one place. At the edge of its group it crosses into the next
+ * group. An unranked guide moved up joins the last ranked group, so ordering
+ * starts from the guides you touch; with no order line yet it starts one.
+ */
+export function moveInOrder(doc, guide, dir) {
+  const tiers = openOrder(doc);
+  let ti = tiers.findIndex((t) => t.guides.includes(guide));
+  if (ti < 0) return false;
+  if (tiers[ti].unranked) {
+    if (dir > 0) return false;
+    let target = tiers[ti - 1];
+    if (!target) { target = { name: 'First', guides: [] }; tiers.splice(ti, 0, target); ti++; }
+    tiers[ti].guides.splice(tiers[ti].guides.indexOf(guide), 1);
+    target.guides.push(guide);
+    setOpenOrder(doc, tiers);
+    return true;
+  }
+  const t = tiers[ti];
+  const gi = t.guides.indexOf(guide);
+  if (dir < 0) {
+    if (gi > 0) [t.guides[gi - 1], t.guides[gi]] = [t.guides[gi], t.guides[gi - 1]];
+    else if (ti > 0 && !tiers[ti - 1].unranked) { t.guides.splice(gi, 1); tiers[ti - 1].guides.push(guide); }
+    else return false;
+  } else {
+    if (gi < t.guides.length - 1) [t.guides[gi + 1], t.guides[gi]] = [t.guides[gi], t.guides[gi + 1]];
+    else if (ti < tiers.length - 1 && !tiers[ti + 1].unranked) { t.guides.splice(gi, 1); tiers[ti + 1].guides.unshift(guide); }
+    else { t.guides.splice(gi, 1); }   // past the last group: it goes back to unranked
+  }
+  setOpenOrder(doc, tiers);
+  return true;
+}
+
+export function peopleOf(doc) {
+  const { seg, i } = introLine(doc, PEOPLE_RE);
+  if (!seg || i < 0) return [];
+  return seg.src[i].match(PEOPLE_RE)[1].split(',').map(norm).filter(Boolean);
+}
+
+/**
+ * Who a question is waiting on: anyone from the People line named in it, by full
+ * or first name. "Ryan's requirements" names a source, not an owner, so a
+ * possessive does not count.
+ */
+export function ownersIn(doc, text) {
+  const out = [];
+  const t = String(text || '');
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const full of peopleOf(doc)) {
+    const first = full.split(/\s+/)[0];
+    const re = new RegExp(`\\b(?:${esc(full)}|${esc(first)})\\b(?!['’]s\\b)`);
+    if (re.test(t)) out.push(full);
+  }
+  return out;
 }

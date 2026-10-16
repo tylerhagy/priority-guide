@@ -47,6 +47,9 @@
      question: has this been answered? Two values, nothing else. ---- */
   --unanswered:#8a5a00; --unanswered-soft:#fdf6e8; --unanswered-line:#ebd9ae;
   --action:#a8271f;     --action-soft:#fdf1ef;    --action-line:#f0cdc7;
+  /* ---- what kind of open question: a decision, an answer to find, left unclear.
+     Only ever on an action's label, never in the guide body. ---- */
+  --t-dec:#8e1468; --t-dec-soft:#f8e9f3; --t-ans:#01579b; --t-ans-soft:#e6f3fa; --t-unc:#9a4a00; --t-unc-soft:#fdf0e6;
 
   /* ---- neutral interface feedback. No hue. ---- */
   --hover:#eef0f4; --tint:#f7f8fa; --press:#dfe3ea;
@@ -89,6 +92,7 @@
     --accent-ink:#c4d9ff; --on-accent:#0f1115;
     --unanswered:#e0b45f; --unanswered-soft:#2d2716; --unanswered-line:#4a3f22;
     --action:#f08d84;     --action-soft:#331d1b;    --action-line:#54302c;
+  --t-dec:#f3a6d8; --t-dec-soft:#3a1d31; --t-ans:#8fd0f5; --t-ans-soft:#13303f; --t-unc:#f6b77c; --t-unc-soft:#3a2614;
     --hover:#262b33; --tint:#1f232a; --press:#343a45;
     --ok:#5cc48a; --ok-soft:#16291f; --on-ok:#0f1115;
     --warn:#e0b45f; --warn-soft:#2d2716;
@@ -112,6 +116,7 @@
   --accent-ink:#c4d9ff; --on-accent:#0f1115;
   --unanswered:#e0b45f; --unanswered-soft:#2d2716; --unanswered-line:#4a3f22;
   --action:#f08d84;     --action-soft:#331d1b;    --action-line:#54302c;
+  --t-dec:#f3a6d8; --t-dec-soft:#3a1d31; --t-ans:#8fd0f5; --t-ans-soft:#13303f; --t-unc:#f6b77c; --t-unc-soft:#3a2614;
   --hover:#262b33; --tint:#1f232a; --press:#343a45;
   --ok:#5cc48a; --ok-soft:#16291f; --on-ok:#0f1115;
   --warn:#e0b45f; --warn-soft:#2d2716;
@@ -1020,6 +1025,79 @@ svg.has-sel .edge:not(.hot){opacity:.3}
 .oi .t{font-weight:500}
 .oi.act .t{color:var(--act)}
 .oi.unk .t{color:var(--flag)}
+/* ---- the list views — Open and Users — as cards: a band per guide or group, a row per item */
+.listwrap{max-width:920px}
+.listhead{margin-bottom:16px}
+.fbar .grow{flex:1}
+.fpill b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;margin-left:2px}
+.fpill.on b{color:var(--accent-ink)}
+.segctl{display:inline-flex;background:var(--hover);padding:3px;border-radius:9px;gap:2px}
+.segctl button{padding:5px 12px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--dim)}
+.segctl button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow-1)}
+.listsec{margin:0 0 30px}
+.listsec-h{display:flex;align-items:baseline;gap:8px;margin:0 0 8px}
+.listsec-h h2{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.listsec-h .n{font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.listsec-h .hint{font-size:12.5px;color:var(--dim)}
+.listcard{background:var(--panel);border-radius:12px;box-shadow:0 0 0 1px var(--line),var(--shadow-card);overflow:hidden}
+.lc-h{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 8px 0 16px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.listcard .lc-h:not(:first-child){border-top:1px solid var(--line)}
+.lc-h .rk{width:24px;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.lc-name{font-size:14px;font-weight:600;color:var(--ink);text-align:left}
+button.lc-name:hover{color:var(--accent)}
+.lc-count{font-size:12.5px;color:var(--faint);flex:1}
+.lc-h .btn{margin-left:auto}
+.lc-mv{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--faint)}
+.lc-mv:hover{background:var(--hover);color:var(--ink)}
+.lc-row{display:grid;column-gap:16px;align-items:start;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer;color:var(--ink)}
+.lc-h + .lc-row{border-top:0}
+.lc-row:hover{background:var(--hover)}
+.lc-row:hover .go{color:var(--ink)}
+.lc-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.lc-row .rk{font-size:12.5px;line-height:24px;color:var(--faint);font-variant-numeric:tabular-nums}
+.lc-row .bd{min-width:0}
+.lc-row .go{line-height:24px;color:var(--faint);font-size:16px}
+.open-row{grid-template-columns:32px 124px minmax(0,1fr) 16px}
+.open-row .tp{justify-self:start}
+.open-row .q{display:block;font-size:14px;line-height:1.5;font-weight:500}
+.open-row .mt{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:4px;font-size:12.5px;color:var(--dim)}
+.open-row .who{display:inline-flex;align-items:center;gap:5px;color:var(--ink)}
+.open-row .who::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--line-2)}
+.open-row .src,.open-row .src a,.open-row .src .pathlink{color:var(--faint);font:inherit;padding:0}
+.user-row{grid-template-columns:32px minmax(0,1fr) auto 16px}
+.user-row .q{display:flex;align-items:center;gap:8px;font-size:14px;line-height:24px;font-weight:600}
+.user-row .goal{display:block;margin-top:2px;font-size:13px;line-height:1.5;color:var(--dim)}
+.user-row .side{display:flex;align-items:center;gap:8px;height:24px}
+.user-row .side .bl{font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.mainchip{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);font-size:11px;font-weight:600}
+/* ---- an action's kind */
+.tp{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 10px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;border:0;font-family:inherit}
+button.tp{cursor:pointer}
+button.tp:hover{box-shadow:inset 0 0 0 1px currentColor}
+.tp-dec{background:var(--t-dec-soft);color:var(--t-dec)}
+.tp-ans{background:var(--t-ans-soft);color:var(--t-ans)}
+.tp-unc{background:var(--t-unc-soft);color:var(--t-unc)}
+.tp-act{background:var(--action-soft);color:var(--act)}
+.tp-unk{background:var(--unanswered-soft);color:var(--unanswered)}
+.note .tp{height:20px;padding:0 8px;font-size:10.5px;margin:0 0 4px}
+/* ---- lanes hidden: what a block is holding, and how to open it */
+.pgctl{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pgctl .zoom{margin-left:0}
+.pgctl .segctl button{padding:3px 10px;font-size:12px}
+.pgctl-l{font-size:12px;color:var(--faint)}
+.lanemarks{display:flex;gap:4px;margin-top:5px}
+.lanemarks .lanemark{margin-left:0}
+.lanemark{flex:none;align-self:center;display:inline-flex;align-items:center;gap:4px;height:20px;border-radius:999px;background:var(--hover);color:var(--dim);font-size:11px;font-weight:600;white-space:nowrap;margin-left:4px}
+.lanemark.notes{padding:0 8px}
+.lanemark.notes:hover{color:var(--ink);background:var(--press)}
+.lanemark.act{background:var(--action-soft);color:var(--act)}
+.lanemark.on{background:var(--accent-soft);color:var(--accent-ink)}
+.lanemark .d{width:6px;height:6px;border-radius:50%;background:currentColor}
+/* ---- landing from the Open list */
+@keyframes pgLand{0%{box-shadow:0 0 0 0 var(--accent-line)}15%{box-shadow:0 0 0 4px var(--accent-line)}70%{box-shadow:0 0 0 4px var(--accent-line)}100%{box-shadow:0 0 0 0 transparent}}
+.landed{animation:pgLand 1.8s ease-out 1}
+@media (prefers-reduced-motion:reduce){.landed{animation:none}}
+
 /* ---- fields: the chip on a block, the picker, the Fields view */
 .kbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;letter-spacing:.04em;
   text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);border-radius:5px;padding:1px 6px 1px 4px;margin-bottom:3px}
@@ -1167,7 +1245,8 @@ import {
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
   isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
   fieldUsage, setRowField, addFieldTo, addObject, blankFieldsFile, FIELD_KINDS,
-  CONTROL_KINDS, isControl, SPECS, getSpec, setSpec, specQuestions, specGaps, rowFieldRefs
+  CONTROL_KINDS, isControl, SPECS, getSpec, setSpec, specQuestions, specGaps, rowFieldRefs,
+  ACTION_TYPES, actionType, setActionType, resolveAction, openOrder, moveInOrder, ownersIn
 } from './parser.js';
 
 const $ = (id) => document.getElementById(id);
@@ -1198,7 +1277,11 @@ const S = {
   // The folder's fields file, read beside the guides file: objects and the fields they hold.
   ffile: null, fdoc: null, fOriginal: '', fDirty: false, fReadOnly: false, fieldFilter: 'all',
   guide: null, sel: null, editing: null,
-  view: 'guide', present: false, capture: false, captured: 0, addProse: null,
+  view: 'guide', present: false,
+  // Notes beside every block, or only beside the blocks you open.
+  notesHidden: false, openNotes: new Set(),
+  // The Open view: ranked or in file order, one type or all.
+  openMode: 'ranked', openType: 'all', capture: false, captured: 0, addProse: null,
   theme: 'system',
   userFilter: null, shownField: null,
   zoom: 1, besideSplit: null,
@@ -1220,6 +1303,7 @@ try {
   const w = parseFloat(localStorage.getItem('pg-railr-w'));
   if (w >= 260 && w <= 520) S.railRWidth = w;
 } catch { /* private window, or site data blocked */ }
+try { S.notesHidden = localStorage.getItem('pg-notes') === 'hidden'; } catch { /* private window */ }
 try {
   S.railRCollapsed = localStorage.getItem('pg-railr-collapsed') === '1';
   const th = localStorage.getItem('pg-theme');
@@ -2320,7 +2404,105 @@ function renderPageHead() {
   const open = guideOpenCount(g);
   if (open) add(`${open} open`, 'open');
   h.appendChild(sub);
-  if (!S.present && !S.beside) sub.appendChild(zoomControl());
+  const ctl = el('div', 'pgctl');
+  if (!S.present) {
+    ctl.appendChild(el('span', 'pgctl-l', 'Notes'));
+    ctl.appendChild(segmented([[false, 'Shown'], [true, 'Hidden']], S.notesHidden, (v) => setNotesHidden(v),
+      { false: 'Every note beside its block', true: 'Only for the blocks you open. Click a block’s note count to open it' }));
+  }
+  if (!S.present && !S.beside) ctl.appendChild(zoomControl());
+  sub.appendChild(ctl);
+}
+
+/** Two or three choices, one on. The same control everywhere it appears. */
+function segmented(options, current, pick, titles = {}) {
+  const seg = el('div', 'segctl');
+  for (const [v, label] of options) {
+    const b = el('button', v === current ? 'on' : '', label);
+    if (titles[v]) b.title = titles[v];
+    b.onclick = () => { if (v !== current) pick(v); };
+    seg.appendChild(b);
+  }
+  return seg;
+}
+
+// ---------------------------------------------------------------- notes, hidden
+/**
+ * Notes can step aside. A guide read for its content wants the stack first and
+ * the commentary on request, and on a narrow screen the notes lane is the first
+ * thing to get squeezed. Hidden, a block says how many notes it holds and how
+ * many are open, and a click opens just that block's. The selected block always
+ * shows its own. Functionality never hides: what a block does is part of what
+ * it is.
+ *
+ * Which way it is set is a reading preference, not content, so it lives in this
+ * browser and never in the file.
+ */
+function notesShownFor(rw) {
+  return !S.notesHidden || S.present || S.openNotes.has(rw) || S.sel === rw;
+}
+
+function setNotesHidden(v) {
+  try { localStorage.setItem('pg-notes', v ? 'hidden' : 'shown'); } catch { /* private window */ }
+  withLaneMotion(() => { S.notesHidden = v; S.openNotes.clear(); });
+}
+
+function toggleNotes(rw) {
+  withLaneMotion(() => {
+    if (S.openNotes.has(rw)) { S.openNotes.delete(rw); if (S.sel === rw) S.sel = null; }
+    else S.openNotes.add(rw);
+  }, rw);
+}
+
+const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+
+/**
+ * Re-render with everything sliding to where it now sits rather than jumping —
+ * the rows below an opened block move down by exactly the room it took — and
+ * the notes that just appeared grow out of their block. Measured before, measured
+ * after, played as the difference. The grid keeps the same children in the same
+ * order either way, which is what makes the two measurements line up.
+ */
+function withLaneMotion(change, opened) {
+  const kids = () => [...document.querySelectorAll('#stage .guide > *')];
+  const calm = reducedMotion();
+  const before = calm ? null : kids().map((n) => n.getBoundingClientRect());
+  const st = $('stage'), y = st ? st.scrollTop : 0;
+  change();
+  render();
+  if ($('stage')) $('stage').scrollTop = y;
+  if (!before) return;
+  const now = kids();
+  if (now.length !== before.length) return;
+  const z = S.zoom || 1;
+  const timing = { duration: 220, easing: 'cubic-bezier(.2,.7,.2,1)' };
+  now.forEach((n, i) => {
+    const a = before[i], b = n.getBoundingClientRect();
+    const dy = (a.top - b.top) / z;
+    const sy = n.classList.contains('paper') && b.height ? a.height / b.height : 1;
+    if (Math.abs(dy) < 0.5 && Math.abs(sy - 1) < 0.002) return;
+    n.style.transformOrigin = 'top';
+    n.animate([{ transform: `translateY(${dy}px) scaleY(${sy})` }, { transform: 'none' }], timing);
+  });
+  if (!opened) return;
+  const item = [...document.querySelectorAll('#stage .guide .item')].find((n) => n._rw === opened);
+  const cell = item && item.closest('.cell');
+  if (!cell) return;
+  const lane = cell.previousElementSibling;
+  if (!lane) return;
+  lane.querySelectorAll('.note, .slot, .lanemore').forEach((n, k) => {
+    n.animate([{ opacity: 0, transform: 'translateX(16px)' }, { opacity: 1, transform: 'none' }],
+      { ...timing, delay: 60 + k * 30, fill: 'backwards' });
+  });
+}
+
+/** A short ring on what you landed on, so the eye finds it after a jump. */
+function pulse(...nodes) {
+  for (const n of nodes) {
+    if (!n) continue;
+    n.classList.remove('landed'); void n.offsetWidth; n.classList.add('landed');
+    setTimeout(() => n.classList.remove('landed'), 1900);
+  }
 }
 
 const ZOOMS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5];
@@ -3485,6 +3667,22 @@ function paintRow(row, g, sec, table, rw) {
     const ch = icon('chev', 13); ch.classList.add('chev'); box.appendChild(ch);
   }
   if (S.comments) { const bb = commentBubble(ctx); if (bb) box.appendChild(bb); }
+  const notesShown = notesShownFor(rw);
+  if (S.notesHidden && !S.present && rw.note.length) {
+    const opened = notesShown;
+    // On a line of their own under the block, so they never squeeze its name.
+    const marks = el('div', 'lanemarks');
+    {
+      const acts = rw.note.filter((n) => n.action).length;
+      const nc = el('button', 'lanemark notes' + (acts ? ' act' : '') + (opened ? ' on' : ''));
+      if (acts) nc.appendChild(el('span', 'd'));
+      nc.appendChild(document.createTextNode(`${rw.note.length} note${rw.note.length === 1 ? '' : 's'}${acts ? ` · ${acts} open` : ''}`));
+      nc.title = opened ? 'Hide this block’s notes' : 'Show this block’s notes';
+      nc.onclick = (e) => { e.stopPropagation(); toggleNotes(rw); };
+      marks.appendChild(nc);
+    }
+    inner.appendChild(marks);
+  }
   item.appendChild(box);
 
   const openExample = () => {
@@ -3544,12 +3742,15 @@ function paintRow(row, g, sec, table, rw) {
       notes.appendChild(slot('note', 'Note', addNote));
     }
   }
-  row.l.appendChild(notes);
-  // The lane always ends with a leader, transparent when there is nothing to
-  // lead to, so the gap before the stack matches the one after it.
-  const lLead = el('div', 'lead');
-  if (!rw.note.length) lLead.style.borderColor = 'transparent';
-  row.l.appendChild(lLead);
+  // Notes hidden: the lane stays empty except beside a block someone opened.
+  if (notesShown) {
+    row.l.appendChild(notes);
+    // The lane always ends with a leader, transparent when there is nothing to
+    // lead to, so the gap before the stack matches the one after it.
+    const lLead = el('div', 'lead');
+    if (!rw.note.length) lLead.style.borderColor = 'transparent';
+    row.l.appendChild(lLead);
+  }
 
   // ---- right: functionality only
   const hasFn = !!(rw.link.type || rw.form.type || rw.capabilities.length);
@@ -4101,7 +4302,10 @@ function noteCard(ctx, n, i) {
   card.appendChild(gl);
 
   const body = el('div', 'nbody');
-  if (n.action) body.appendChild(el('div', 'k', 'ACTION'));
+  // An action shows its kind as a label and its question as plain text. The
+  // prefix only comes back while you edit, so reading never changes the file.
+  const at = n.action ? actionType(n.text) : null;
+  if (at) body.appendChild(actionLabel(at.type, ctx, n));
   // A note belongs to its row, so pressing one selects that row rather than
   // reading as a press on dead space.
   card.onmousedown = () => {
@@ -4114,7 +4318,8 @@ function noteCard(ctx, n, i) {
   };
 
   const t = el('div', 't');
-  setLinked(t, n.text, g);
+  const shown = at ? capFirst(at.question) : n.text;
+  setLinked(t, shown, g);
   if (!n.text) blankable(t, '', 'A rule, a link, or something said in the session');
   editable(t, n.text, (v) => {
     S.newRowNote = null;
@@ -4122,6 +4327,16 @@ function noteCard(ctx, n, i) {
     else n.text = v;
     touchRow(rw, table, sec);
   }, { multiline: true });
+  if (at && !S.readOnly) {
+    // Edit the note as written, prefix and [handles] included, so nothing is
+    // lost by editing what was shown in short.
+    const onFocus = t.onfocus, onBlur = t.onblur;
+    t.onfocus = () => { t.textContent = n.text; if (onFocus) onFocus(); focusSoon(t); };
+    t.onblur = () => {
+      if (t.textContent.trim() === n.text.trim()) { setLinked(t, shown, g); return; }
+      onBlur();
+    };
+  }
   body.appendChild(t);
   card.appendChild(body);
 
@@ -4142,6 +4357,39 @@ function noteCard(ctx, n, i) {
     card.appendChild(tools);
   }
   return card;
+}
+
+const capFirst = (x) => { const t = String(x || '').trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
+const ACTION_LOOK = {
+  decision: { label: 'Needs decision', cls: 'tp-dec' },
+  answer: { label: 'Needs answer', cls: 'tp-ans' },
+  unclear: { label: 'Unclear', cls: 'tp-unc' },
+  open: { label: 'Open question', cls: 'tp-act' },
+  unknown: { label: 'Not asked yet', cls: 'tp-unk' }
+};
+/** The order a room takes them in: decisions, answers, the unclear, the untyped, then the never asked. */
+const ACTION_ORDER = ['decision', 'answer', 'unclear', 'open', 'unknown'];
+
+/** An action's kind, and — on a note you can edit — the menu to change it or settle it. */
+function actionLabel(type, ctx, n) {
+  const look = ACTION_LOOK[type];
+  const editableNote = ctx && n && !S.readOnly && !S.present;
+  const chip = el(editableNote ? 'button' : 'span', 'tp ' + look.cls, look.label);
+  if (!editableNote) return chip;
+  const { sec, table, rw } = ctx;
+  chip.appendChild(icon('down', 9));
+  chip.title = 'What kind of question this is, or settle it';
+  chip.onclick = (e) => {
+    e.stopPropagation();
+    const set = (fn) => { fn(); touchRow(rw, table, sec); mark(); render(); };
+    openMenu(chip, [
+      ...ACTION_TYPES.map((x) => ({ glyph: 'circle', label: x.label, hint: x.ask, disabled: type === x.key, fn: () => set(() => setActionType(n, x.key)) })),
+      { glyph: 'circle', label: 'Open question', hint: 'No kind yet', disabled: type === 'open', fn: () => set(() => setActionType(n, 'open')) },
+      { sep: true },
+      { glyph: 'tick', label: 'Settled', hint: 'Keeps the text as an ordinary note', fn: () => set(() => resolveAction(n)) }
+    ]);
+  };
+  return chip;
 }
 
 const LINK_SAYS = {
@@ -5277,7 +5525,7 @@ function shortUrl(u) {
  */
 function renderUsersView() {
   const stage = $('stage');
-  const w = el('div', 'wrap');
+  const w = el('div', 'wrap listwrap');
   const types = userTypes(S.doc);
 
   if (!types.length) {
@@ -5288,19 +5536,24 @@ function renderUsersView() {
     return;
   }
 
-  const head = el('div');
-  head.style.cssText = 'margin-bottom:22px';
+  const head = el('div', 'listhead');
   head.appendChild(el('h1', 'g-title', types.length + ' user type' + (types.length === 1 ? '' : 's')));
   head.appendChild(el('div', 'blurb',
     'What each group actually needs to look at. Pick one to walk a session through only their screens.'));
   w.appendChild(head);
 
+  // A guide's number is its place in the Open order, so the two views agree on what comes first.
+  const rank = new Map();
+  let r = 0;
+  for (const t of openOrder(S.doc)) for (const g of t.guides) rank.set(g, t.unranked ? null : ++r);
+
   for (const t of types) {
-    const box = el('div', 'usr');
-    const h = el('div', 'usr-h');
-    h.appendChild(el('span', 'n', t.name));
+    const sec = el('section', 'listsec');
+    const card = el('div', 'listcard');
+    const h = el('div', 'lc-h');
+    h.appendChild(el('span', 'lc-name static', t.name));
     const n = t.guides.length;
-    h.appendChild(el('span', 'm', n + ' guide' + (n === 1 ? '' : 's')));
+    h.appendChild(el('span', 'lc-count', n + ' guide' + (n === 1 ? '' : 's')));
     const pres = el('button', 'btn', 'Show only these');
     pres.title = 'Narrow the whole app to this group’s screens. Present from there if you want to.';
     pres.onclick = () => {
@@ -5310,28 +5563,35 @@ function renderUsersView() {
       render();
     };
     h.appendChild(pres);
-    box.appendChild(h);
+    card.appendChild(h);
 
     for (const { guide, primary } of t.guides) {
-      const b = el('button', 'oi');
-      const tt = el('div', 't', guide.name);
-      if (primary) {
-        const chip = el('span', 'pill');
-        chip.textContent = 'their main screen';
-        chip.style.marginLeft = '8px';
-        tt.appendChild(chip);
-      }
-      b.appendChild(tt);
-      const open = guideOpenCount(guide);
+      const b = el('div', 'lc-row user-row');
+      b.setAttribute('role', 'button');
+      b.tabIndex = 0;
+      const k = rank.get(guide);
+      b.appendChild(el('span', 'rk', k ? String(k).padStart(2, '0') : ''));
+      const bd = el('span', 'bd');
+      const nm = el('span', 'q');
+      nm.appendChild(document.createTextNode(guide.name));
+      if (primary) nm.appendChild(el('span', 'mainchip', 'Main screen'));
+      bd.appendChild(nm);
       const goal = (guide.fields.userGoal || '').trim();
-      const shownGoal = goal && goal !== '??' ? '  ·  ' + goal.slice(0, 90) : '';
-      b.appendChild(el('div', 'w', rowsOf(guide).length + ' blocks'
-        + (open ? '  ·  ' + open + ' open' : '')
-        + shownGoal));
-      b.onclick = () => { S.guide = guide; S.view = 'guide'; S.sel = null; render(); };
-      box.appendChild(b);
+      if (goal && !isUnknown(goal)) bd.appendChild(el('span', 'goal', goal));
+      b.appendChild(bd);
+      const side = el('span', 'side');
+      side.appendChild(el('span', 'bl', rowsOf(guide).length + ' blocks'));
+      const open = guideOpenCount(guide);
+      if (open) side.appendChild(el('span', 'tp tp-act', open + ' open'));
+      b.appendChild(side);
+      b.appendChild(el('span', 'go', '›'));
+      const go = () => { S.guide = guide; S.view = 'guide'; S.sel = null; render(); };
+      b.onclick = go;
+      b.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
+      card.appendChild(b);
     }
-    w.appendChild(box);
+    sec.appendChild(card);
+    w.appendChild(sec);
   }
   stage.appendChild(w);
 }
@@ -5524,66 +5784,175 @@ function renderFlowBar() {
  * circle back on; a `??` is a question nobody has been asked yet. Both are open,
  * and both say where they came from so they can actually be chased.
  */
+/**
+ * Everything open, in the order a room should take it.
+ *
+ * Ranked: guides in the file's Open order (set with the arrows here, saved as a
+ * line in the file's intro so everyone sees the same order), and inside each
+ * guide decisions first, then answers to find, then what is unclear, then the
+ * rest. By guide: the same, in file order. Every item is numbered once, from the
+ * full list, so a filter never renumbers anything you have already talked about.
+ */
+function openList() {
+  const tiers = S.openMode === 'ranked' ? openOrder(S.doc) : [{ name: '', guides: guides(S.doc), plain: true }];
+  const items = openItems(S.doc).map((it, k) => ({ ...it, k }));
+  const out = [];
+  let n = 0;
+  for (const tier of tiers) {
+    const groups = tier.guides.map((g) => {
+      const list = items.filter((it) => it.guide === g.name)
+        .sort((a, b) => ACTION_ORDER.indexOf(a.type) - ACTION_ORDER.indexOf(b.type) || a.k - b.k);
+      list.forEach((it) => { it.n = ++n; it.key = openKey(it); });
+      return { guide: g, list };
+    });
+    out.push({ tier, groups });
+  }
+  return out;
+}
+const openKey = (it) => `${it.guide}␟${it.where}␟${it.text}`;
+const shownInFilter = (it) => S.openType === 'all' || it.type === S.openType;
+
+/** Split a question from the sources it cites, so the question reads on its own and the sources sit with the details. */
+function questionParts(text) {
+  const handles = refsIn(text);
+  // Sources move to the details; a ^block-id (a task's anchor in the vault) is noise here.
+  let q = String(text || '').replace(/(?<!\[)\[([^\[\]]+)\](?![\](:])/g, '').replace(/\s*\^[a-z0-9-]+\b/gi, '');
+  q = q.replace(/\s*[—–-]\s*(?=[.,;]|$)/g, '').replace(/(\s*,)+\s*(?=[.;]|$)/g, '').replace(/\s+([.,;:?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+  return { q: capFirst(q), handles };
+}
+
 function renderOpen() {
   const stage = $('stage');
-  const w = el('div', 'wrap');
-  const items = openItems(S.doc);
-  if (!items.length) {
+  const w = el('div', 'wrap listwrap');
+  const all = openItems(S.doc);
+  if (!all.length) {
     const d = el('div', 'done');
     d.innerHTML = 'Nothing open.<span>Every action is closed and every question is answered.</span>';
     w.appendChild(d);
     stage.appendChild(w);
     return;
   }
-  const byGuide = new Map();
-  for (const i of items) {
-    if (!byGuide.has(i.guide)) byGuide.set(i.guide, []);
-    byGuide.get(i.guide).push(i);
-  }
-  const head = el('div');
-  head.style.cssText = 'margin-bottom:22px';
-  const n = items.filter((i) => i.kind === 'action').length;
-  const u = items.length - n;
-  head.appendChild(el('h1', 'g-title', items.length + ' open'));
-  head.appendChild(el('div', 'blurb',
-    n + ' action' + (n === 1 ? '' : 's') + ' to circle back on, '
-    + u + ' still unanswered.'));
+
+  const head = el('div', 'listhead');
+  head.appendChild(el('h1', 'g-title', all.length + ' open'));
+  head.appendChild(el('div', 'blurb', S.openMode === 'ranked'
+    ? 'In the order to work through them: the guides at the top first, and inside each guide, decisions first.'
+    : 'Every open question, in the order the guides appear in the file.'));
   w.appendChild(head);
 
-  for (const [name, list] of byGuide) {
-    const sec = el('div', 'sec');
-    const h = el('div', 'sec-head');
-    h.appendChild(el('h2', 'sec-title', name));
-    sec.appendChild(h);
-    for (const i of list) {
-      const b = el('button', 'oi ' + (i.kind === 'action' ? 'act' : 'unk'));
-      const t = el('div', 't');
-      t.appendChild(linkify(i.text, findGuide(S.doc, i.guide)));
-      b.appendChild(t);
-      const w = el('div', 'w');
-      w.textContent = (i.kind === 'action' ? 'Action' : 'Unanswered') + '  ·  ' + i.where;
-      b.appendChild(w);
-      b.onclick = () => {
-        S.guide = findGuide(S.doc, i.guide);
-        S.view = 'guide';
-        if (i.target && i.target.kind === 'row') { S.sel = i.target; S.editing = S.readOnly ? null : i.target; }
-        else { S.sel = null; S.shownField = i.field || null; }
-        render();
-        if (!S.readOnly && i.target && i.target.kind === 'row') { focusEditor(); return; }
-        if (i.field) {
-          const dd = document.querySelector(`.g-fields dd[data-key="${i.field}"]`);
-          if (dd) { dd.scrollIntoView({ block: 'center' }); if (!S.readOnly) dd.focus(); }
-          return;
-        }
-        const on = document.querySelector('.blk.on');
-        if (on) on.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      };
-      sec.appendChild(b);
+  const counts = {};
+  for (const it of all) counts[it.type] = (counts[it.type] || 0) + 1;
+  const bar = el('div', 'fbar');
+  bar.appendChild(segmented([['ranked', 'Ranked'], ['guide', 'By guide']], S.openMode, (v) => { S.openMode = v; render(); }));
+  bar.appendChild(el('span', 'grow'));
+  for (const k of ['all', ...ACTION_ORDER]) {
+    const c = k === 'all' ? all.length : counts[k];
+    if (!c) continue;
+    const b = el('button', 'fpill' + (S.openType === k ? ' on' : ''));
+    b.appendChild(document.createTextNode(k === 'all' ? 'All ' : ACTION_LOOK[k].label + ' '));
+    b.appendChild(el('b', null, String(c)));
+    b.onclick = () => { S.openType = S.openType === k ? 'all' : k; render(); };
+    bar.appendChild(b);
+  }
+  w.appendChild(bar);
+
+  let gn = 0;
+  for (const { tier, groups } of openList()) {
+    const shown = groups.map((x) => ({ ...x, list: x.list.filter(shownInFilter) }));
+    const total = shown.reduce((a, x) => a + x.list.length, 0);
+    if (!total && S.openType !== 'all') { gn += groups.length; continue; }
+    const sec = el('section', 'listsec');
+    if (!tier.plain) {
+      const th = el('div', 'listsec-h');
+      th.appendChild(el('h2', null, tier.name));
+      th.appendChild(el('span', 'n', `${total} question${total === 1 ? '' : 's'}`));
+      if (tier.unranked && S.openMode === 'ranked') th.appendChild(el('span', 'hint', 'Use the arrows to put a guide in the order'));
+      sec.appendChild(th);
     }
+    const card = el('div', 'listcard');
+    for (const { guide, list } of shown) {
+      gn++;
+      if (!list.length && S.openType !== 'all') continue;
+      const gh = el('div', 'lc-h');
+      gh.appendChild(el('span', 'rk', String(gn)));
+      const name = el('button', 'lc-name', guide.name);
+      name.title = 'Open this guide';
+      name.onclick = () => { S.guide = guide; S.view = 'guide'; S.sel = null; render(); };
+      gh.appendChild(name);
+      gh.appendChild(el('span', 'lc-count', list.length ? `${list.length} open` : 'Nothing open'));
+      if (S.openMode === 'ranked' && !S.readOnly) {
+        for (const [dir, glyph, tip] of [[-1, '↑', 'Earlier in the order'], [1, '↓', 'Later in the order']]) {
+          const b = el('button', 'lc-mv', glyph);
+          b.title = tip;
+          b.setAttribute('aria-label', `${tip}: ${guide.name}`);
+          b.onclick = () => { if (moveInOrder(S.doc, guide, dir)) { mark(); render(); } };
+          gh.appendChild(b);
+        }
+      }
+      card.appendChild(gh);
+      for (const it of list) card.appendChild(openRow(it, guide));
+    }
+    sec.appendChild(card);
     w.appendChild(sec);
   }
   stage.appendChild(w);
 }
+
+/** One open question: its number, its kind, the question, then where it lives, who it waits on and what it cites. */
+function openRow(it, guide) {
+  const b = el('div', 'lc-row open-row');
+  b.setAttribute('role', 'button');
+  b.tabIndex = 0;
+  b.dataset.key = it.key;
+  b.appendChild(el('span', 'rk', String(it.n).padStart(2, '0')));
+  b.appendChild(actionLabel(it.type));
+  const { q, handles } = questionParts(it.question);
+  const bd = el('span', 'bd');
+  const qq = el('span', 'q');
+  qq.appendChild(linkify(q, guide));
+  bd.appendChild(qq);
+  const mt = el('span', 'mt');
+  mt.appendChild(el('span', 'wh', it.where.replace(' · ', ' › ')));
+  for (const who of ownersIn(S.doc, it.question)) mt.appendChild(el('span', 'who', who));
+  if (handles.length) {
+    const src = el('span', 'src');
+    handles.forEach((h, k) => {
+      if (k) src.appendChild(document.createTextNode(', '));
+      const def = resolveSource(S.doc, guide, h);
+      src.appendChild(def ? outLink(def.url, h, def.title) : document.createTextNode(h));
+    });
+    mt.appendChild(src);
+  }
+  bd.appendChild(mt);
+  b.appendChild(bd);
+  b.appendChild(el('span', 'go', '›'));
+  b.onclick = (e) => { if (!e.target.closest('a,.pathlink')) landOn(it); };
+  b.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); landOn(it); } };
+  return b;
+}
+
+/** From an open question to where it lives: the guide, the block selected with its lanes open, the note itself ringed. */
+function landOn(it) {
+  S.guide = findGuide(S.doc, it.guide);
+  S.view = 'guide';
+  const row = it.target && it.target.kind === 'row' ? it.target : null;
+  if (row) { S.sel = row; S.editing = null; S.openNotes.add(row); S.shownField = null; }
+  else { S.sel = null; S.shownField = it.field || null; }
+  render();
+  if (row) {
+    const item = [...document.querySelectorAll('#stage .guide .item')].find((n) => n._rw === row);
+    if (!item) return;
+    item.scrollIntoView({ block: 'center' });
+    const cell = item.closest('.cell');
+    const notes = cell && cell.previousElementSibling ? cell.previousElementSibling.querySelectorAll('.note') : [];
+    const k = it.note ? row.note.indexOf(it.note) : -1;
+    pulse(item.querySelector('.box'), k > -1 ? notes[k] : null);
+  } else if (it.field) {
+    const dd = document.querySelector(`.g-fields dd[data-key="${it.field}"]`);
+    if (dd) { dd.scrollIntoView({ block: 'center' }); pulse(dd); }
+  }
+}
+
 
 // ---------------------------------------------------------------- fields view
 /** Jump to a block in the guide view, selected and in sight. */

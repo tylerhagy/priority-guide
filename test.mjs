@@ -772,6 +772,70 @@ t('a search over several fields is used by each, with no value check', () => {
   eq(u.used.get('opportunity.status')[0].mismatch, []);
 });
 
+// ---------------------------------------------------------------- action types, order, people
+t('an action prefix sets its type, and the question reads without it', () => {
+  eq(P.actionType('NEEDS DECISION: Who owns it?'), { type: 'decision', question: 'Who owns it?' });
+  eq(P.actionType('needs answer: where is it stored'), { type: 'answer', question: 'where is it stored' });
+  eq(P.actionType('UNCLEAR, DO NOT BUILD FROM THIS: consent'), { type: 'unclear', question: 'consent' });
+  eq(P.actionType('Ask Ryan'), { type: 'open', question: 'Ask Ryan' });
+});
+
+t('re-typing keeps the question; resolving leaves a plain note', () => {
+  const n = { action: true, text: 'NEEDS ANSWER: Where is it stored?' };
+  P.setActionType(n, 'decision');
+  eq(n.text, 'NEEDS DECISION: Where is it stored?');
+  P.setActionType(n, 'open');
+  eq(n.text, 'Where is it stored?');
+  P.resolveAction(P.setActionType(n, 'unclear'));
+  eq([n.text, n.action], ['Where is it stored?', false]);
+});
+
+t('a typed action round-trips and its open item carries the type', () => {
+  const text = '# A\n\n## G\n\n### S\n\n| Content | Note |\n| --- | --- |\n| a | ACTION: NEEDS DECISION: Who? |\n';
+  ok(P.verifyRoundTrip(text).ok);
+  const it = P.openItems(P.parseDocument(text))[0];
+  eq([it.type, it.question], ['decision', 'Who?']);
+});
+
+const ORD = ['# Guides', '', 'Intro line.', '', '---', '', '## FORM: Record interaction', '', '### S', '',
+  '| Content |', '| --- |', '| a |', '', '## Dashboard', '', '### S', '', '| Content |', '| --- |', '| b |', '',
+  '## Customer', '', '### S', '', '| Content |', '| --- |', '| c |', ''].join('\n');
+
+t('with no order line, every guide is one unranked group', () => {
+  const tiers = P.openOrder(P.parseDocument(ORD));
+  eq(tiers.length, 1);
+  ok(tiers[0].unranked);
+  eq(tiers[0].guides.map((g) => g.name), ['FORM: Record interaction', 'Dashboard', 'Customer']);
+});
+
+t('moving a guide up starts an order line in the intro, and the file still round-trips', () => {
+  const doc = P.parseDocument(ORD);
+  P.moveInOrder(doc, P.findGuide(doc, 'Customer'), -1);
+  const out = P.serializeDocument(doc);
+  ok(P.verifyRoundTrip(out).ok);
+  ok(out.includes('**Open order:** First: [[Customer]]\n\n---'), out.split('\n').slice(0, 8).join(' / '));
+  const tiers = P.openOrder(P.parseDocument(out));
+  eq(tiers.map((t) => [t.name, t.guides.map((g) => g.name)]),
+    [['First', ['Customer']], ['Not ordered yet', ['FORM: Record interaction', 'Dashboard']]]);
+});
+
+t('an order line with colons in guide names reads back, groups and all', () => {
+  const text = ORD.replace('Intro line.', 'Intro line.\n\n**Open order:** Must cover: [[FORM: Record interaction]], [[Customer]]; Later: [[Dashboard]]');
+  const tiers = P.openOrder(P.parseDocument(text));
+  eq(tiers.map((t) => [t.name, t.guides.map((g) => g.name)]),
+    [['Must cover', ['FORM: Record interaction', 'Customer']], ['Later', ['Dashboard']]]);
+  const doc = P.parseDocument(text);
+  P.moveInOrder(doc, P.findGuide(doc, 'Customer'), 1);
+  eq(P.openOrder(doc).map((t) => t.guides.map((g) => g.name)), [['FORM: Record interaction'], ['Customer', 'Dashboard']]);
+});
+
+t('owners come from the People line, by full or first name, never a possessive', () => {
+  const doc = P.parseDocument('# G\n\n**People:** Ryan Gaskill, Kim Byrd\n\n## X\n');
+  eq(P.peopleOf(doc), ['Ryan Gaskill', 'Kim Byrd']);
+  eq(P.ownersIn(doc, 'Ask Ryan and Kim Byrd'), ['Ryan Gaskill', 'Kim Byrd']);
+  eq(P.ownersIn(doc, "Check Ryan's requirements"), []);
+});
+
 // ---------------------------------------------------------------- report
 
 console.log(`\n  ${pass} passed${fails.length ? `, ${fails.length} FAILED` : ''}\n`);

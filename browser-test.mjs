@@ -1772,18 +1772,18 @@ eq('and one can be removed on its own', await count('#railR .gnote'), notesBefor
 
 // ---------------------------------------------------------------- users
 await page.click('#tabs button:nth-child(3)');
-await page.waitForSelector('.usr');
-eq('every user type in the file is listed', await count('.usr'), 3);
-ok('each names its guides', (await count('.usr .oi')) >= guidesNow);
+await page.waitForSelector('.user-row');
+eq('every user type in the file is listed', await count('#stage .listsec'), 3);
+ok('each names its guides', (await count('.user-row')) >= guidesNow);
 ok('the group that uses the most screens comes first',
   await page.evaluate(() => {
-    const counts = [...document.querySelectorAll('.usr')].map((u) => u.querySelectorAll('.oi').length);
+    const counts = [...document.querySelectorAll('#stage .listsec')].map((u) => u.querySelectorAll('.user-row').length);
     return counts.every((n, i) => i === 0 || n <= counts[i - 1]);
   }));
-const topUser = await text('.usr .n');
+const topUser = await text('#stage .listsec .lc-name');
 ok('a guide says whether it is their main screen',
-  await page.evaluate(() => [...document.querySelectorAll('.usr .oi')].some((n) => n.textContent.includes('their main screen'))));
-await page.click('.usr .btn');
+  await page.evaluate(() => [...document.querySelectorAll('.user-row')].some((n) => n.textContent.includes('Main screen'))));
+await page.click('#stage .listsec .lc-h .btn');
 await page.waitForTimeout(300);
 ok('picking a group is a filter, not a presentation', await page.$('#userbar') !== null);
 ok('it lands you in the guide view, still able to move about',
@@ -1812,17 +1812,17 @@ eq('clearing the filter brings every guide back', await count('#railL .g-item'),
 
 // ---------------------------------------------------------------- open items
 await page.click('#tabs button:nth-child(4)');
-await page.waitForSelector('.oi');
-const openN = await count('.oi');
+await page.waitForSelector('.open-row');
+const openN = await count('.open-row');
 eq('the list is exactly what the header counts as open',
   openN, Number((await text('#open')).match(/\d+/)[0]));
 ok('and there is something in it', openN > 0);
-ok('each says where it came from', await page.$$eval('.oi .w', (ns) => ns.every((n) => n.textContent.trim())));
+ok('each says where it came from', await page.$$eval('.open-row .wh', (ns) => ns.every((n) => n.textContent.trim())));
 eq('an action note counts once per note, not once per row',
-  await count('.oi.act'),
+  await count('.open-row .tp:not(.tp-unk)'),
   (await current()).split('\n').filter((l) => l.startsWith('|'))
     .reduce((n, l) => n + (l.match(/ACTION:/g) || []).length, 0));
-await page.evaluate(() => document.querySelector('.oi.act').click());
+await page.evaluate(() => [...document.querySelectorAll('.open-row')].find((n) => !n.querySelector('.tp-unk')).click());
 await page.waitForTimeout(300);
 ok('clicking an action item goes to the block it came from', (await gcount('.rowsel')) >= 1);
 
@@ -2316,12 +2316,12 @@ await page.waitForTimeout(400);
 ok('every open item reads as itself, not as an object',
   !(await text('#stage')).includes('[object'));
 ok('and the line you read first is the note, not the location',
-  await page.$$eval('#stage .oi', (ns) => ns.length > 0 && ns.every((n) => {
-    const t = n.querySelector('.t');
+  await page.$$eval('#stage .open-row', (ns) => ns.length > 0 && ns.every((n) => {
+    const t = n.querySelector('.q');
     return t && t.textContent.trim().length > 0;
   })));
-ok('with the kind and the place underneath',
-  await page.$$eval('#stage .oi .w', (ns) => ns.some((n) => /^(Action|Unanswered)\s+·/.test(n.textContent.trim()))));
+ok('with the kind beside it and the place underneath',
+  await page.$$eval('#stage .open-row', (ns) => ns.every((n) => n.querySelector('.tp') && n.querySelector('.mt .wh'))));
 
 // ---------------------------------------------------------------- who it is for
 await page.evaluate(() => { const t = [...document.querySelectorAll('#tabs button')]
@@ -2329,7 +2329,7 @@ await page.evaluate(() => { const t = [...document.querySelectorAll('#tabs butto
 await page.waitForTimeout(400);
 // A bare ?? on the end of a line tells you nothing about which field is unknown.
 ok('a guide with no user goal says nothing rather than ??',
-  await page.$$eval('#stage .usr .oi .w', (ns) => ns.every((n) => !/·\s*\?\?\s*$/.test(n.textContent))));
+  await page.$$eval('#stage .user-row .goal', (ns) => ns.every((n) => n.textContent.trim() !== '??')));
 
 // ---------------------------------------------------------------- the four capabilities
 await page.evaluate(() => { const t = [...document.querySelectorAll('#tabs button')]
@@ -2791,6 +2791,93 @@ if (process.env.SHOTS) {
 
   ok('fields: no errors on the way', errs3.length === 0, errs3.slice(0, 3).join(' | '));
   await p3.close();
+}
+
+// ------------------------------------------------------- lanes, typed actions, the ranked Open view
+{
+  const G = ['# Priority Guides — Lanes', '', 'Intro.', '', '**People:** Ryan Gaskill, Kim Byrd', '', '---', '',
+    '## List', '', '**User goal:** pick who to call', '**Primary users:** Agent (primary)', '', '### Card', '',
+    '| Content | Real data | Do | Link | Form | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Name | John Smith | sort |  |  | ACTION: NEEDS DECISION: Who owns it? Ask Ryan<br>A plain note |',
+    '| Status | Open, Closed |  |  |  |  |',
+    '', '## FORM: Record interaction', '', '**User goal:** record it', '**Primary users:** Agent', '', '### Fields', '',
+    '| Content | Real data | Do | Link | Form | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Method | Call | edit |  | single select | ACTION: NEEDS ANSWER: Is Knock in? |', '', '## Sources', '', ''].join('\n');
+  const p4 = await browser.newPage({ viewport: { width: 1500, height: 950 } });
+  const errs4 = [];
+  p4.on('pageerror', (e) => errs4.push(e.message));
+  await p4.addInitScript((g) => {
+    try { localStorage.removeItem('pg-notes'); } catch (e) {}
+    const store = { 'Priority Guides — Lanes.md': g };
+    const fh = (name) => ({ kind: 'file', name, getFile: async () => ({ text: async () => store[name] }),
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      createWritable: async () => ({ write: async (t) => { store[name] = t; }, close: async () => {} }) });
+    window.showDirectoryPicker = async () => ({ kind: 'directory', name: 'Lanes',
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      entries: async function* () { for (const n of Object.keys(store)) yield [n, fh(n)]; } });
+    window.__store = store;
+  }, G);
+  await p4.goto(`http://localhost:${PORT}/`);
+  await p4.click('.hello .btn.primary');
+  await p4.waitForSelector('#stage .item');
+  await p4.waitForTimeout(200);
+  const file4 = () => p4.evaluate(() => window.__store['Priority Guides — Lanes.md']);
+  const save4 = async () => { await p4.keyboard.down('Meta'); await p4.keyboard.press('s'); await p4.keyboard.up('Meta'); await p4.waitForTimeout(400); };
+
+  ok('lanes: notes show beside their block by default', (await p4.$$eval('#stage .lane-l .note', (n) => n.length)) === 2);
+  ok('actions: an action reads as its kind and its question',
+    (await p4.$eval('#stage .note .tp', (n) => n.textContent)).startsWith('Needs decision')
+    && (await p4.$eval('#stage .note.act .t', (n) => n.textContent)) === 'Who owns it? Ask Ryan');
+  await p4.click('#pagehead .segctl button:has-text("Hidden")');
+  await p4.waitForTimeout(350);
+  ok('lanes: hidden, no note shows', (await p4.$$eval('#stage .lane-l .note', (n) => n.length)) === 0);
+  ok('lanes: functionality never hides', (await p4.$$eval('#stage .lane-r .fn', (n) => n.length)) >= 2);
+  ok('lanes: a block says how many notes it holds and how many are open',
+    (await p4.$eval('#stage .lanemark.notes', (n) => n.textContent)) === '2 notes · 1 open');
+  await p4.click('#stage .lanemark.notes');
+  await p4.waitForTimeout(350);
+  ok('lanes: opening one block shows just its notes', (await p4.$$eval('#stage .lane-l .note', (n) => n.length)) === 2);
+  ok('lanes: the choice is kept in the browser, not the file',
+    (await p4.evaluate(() => localStorage.getItem('pg-notes'))) === 'hidden' && !(await file4()).includes('Hidden'));
+
+  // Re-type the action from its label.
+  await p4.click('#stage .note button.tp');
+  await p4.waitForSelector('.pop.menu');
+  await p4.click('.pop.menu button:has-text("Needs answer")');
+  await p4.waitForTimeout(250);
+  await save4();
+  ok('actions: re-typing rewrites only the prefix', (await file4()).includes('ACTION: NEEDS ANSWER: Who owns it? Ask Ryan<br>A plain note'));
+
+  // The Open view.
+  await p4.click('#tabs button:has-text("Open")');
+  await p4.waitForSelector('.open-row');
+  eq('open: every question is listed', await p4.$$eval('.open-row', (n) => n.length), 2);
+  ok('open: the person it waits on is named', (await p4.$$eval('.open-row .who', (n) => n.map((x) => x.textContent))).includes('Ryan Gaskill'));
+  await p4.click('.fbar .fpill:has-text("Needs answer")');
+  await p4.waitForTimeout(150);
+  eq('open: a type filter keeps only that type', await p4.$$eval('.open-row', (n) => n.length), 2);
+  await p4.click('.fbar .fpill:has-text("All")');
+  await p4.waitForTimeout(150);
+  const second = (await p4.$$eval('.lc-h .lc-name', (n) => n.map((x) => x.textContent)))[1];
+  await p4.click(`.lc-h:has(.lc-name:text-is("${second}")) .lc-mv[title="Earlier in the order"]`);
+  await p4.waitForTimeout(200);
+  ok('open: moving a guide up puts it first', (await p4.$$eval('.lc-h .lc-name', (n) => n.map((x) => x.textContent)))[0] === second);
+  await save4();
+  ok('open: and writes the order into the file', (await file4()).includes(`**Open order:** First: [[${second}]]`));
+
+  // Land on a question, then step through.
+  await p4.click('.open-row');
+  await p4.waitForTimeout(350);
+  ok('open: a question lands on its block, selected', (await p4.$$eval('#stage .rowsel', (n) => n.length)) >= 1);
+
+  // Users, as cards numbered by the same order.
+  await p4.click('#tabs button:has-text("Users")');
+  await p4.waitForSelector('.user-row');
+  ok('users: a guide is numbered by the open order', (await p4.$$eval('.user-row .rk', (n) => n.map((x) => x.textContent))).includes('01'));
+  ok('users: the main screen is marked', (await p4.$$eval('.user-row .mainchip', (n) => n.length)) === 1);
+  ok('lanes and open: no errors on the way', errs4.length === 0, errs4.slice(0, 3).join(' | '));
+  await p4.evaluate(() => { try { localStorage.removeItem('pg-notes'); } catch (e) {} });
+  await p4.close();
 }
 
 // ------------------------------------------------------- the single-file build
