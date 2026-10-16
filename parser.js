@@ -733,6 +733,15 @@ export function openItems(doc) {
         out.push({ kind: 'unknown', type: 'unknown', question: `${FIELD_LABELS[key]} is not known`, guide: g.name, where: FIELD_LABELS[key], text: `${FIELD_LABELS[key]} is not known`, field: key, target: g });
       }
     }
+    for (const gr of groupsOf(g)) {
+      for (const n of gr.notes) {
+        if (!n.action) continue;
+        const at = actionType(n.text);
+        const where = gr.sub ? `${gr.sec.title} · ${gr.sub.title}` : gr.sec.title;
+        out.push({ kind: 'action', type: at.type, question: at.question, guide: g.name, where, text: n.text,
+          target: null, heading: { sec: gr.sec, sub: gr.sub }, note: n });
+      }
+    }
     for (const { row, section } of rowsOf(g)) {
       const label = renderContentCell(row.content) || '(unnamed)';
       for (const n of row.note) {
@@ -1310,18 +1319,22 @@ export function setProse(chunk, section, text) {
  * subsection; a subsection's cover its own. Nothing is inherited: a group says
  * what it is, or it says nothing.
  */
-const GROUP_META_RE = /^\s*\*\*(object|repeats):?\*\*:?\s*(.*)$/i;
+const GROUP_META_RE = /^\s*\*\*(object|repeats|note):?\*\*:?\s*(.*)$/i;
+const META_ORDER = ['object', 'repeats', 'note'];
+const META_LABEL = { object: 'Object', repeats: 'Repeats', note: 'Note' };
 
 export function isGroupMetaLine(line) { return GROUP_META_RE.test(line || ''); }
 
 /** `{ object, repeats }` from a group's chunk. `repeats` is null when the group does not repeat. */
 export function metaOf(chunk) {
-  const out = { object: '', repeats: null };
+  const out = { object: '', repeats: null, notes: [] };
   for (const l of (chunk && chunk.src) || []) {
     const m = GROUP_META_RE.exec(l);
     if (!m) continue;
-    if (lower(m[1]) === 'object') out.object = norm(m[2]);
-    else out.repeats = norm(m[2]);
+    const k = lower(m[1]);
+    if (k === 'object') out.object = norm(m[2]);
+    else if (k === 'repeats') out.repeats = norm(m[2]);
+    else out.notes = parseNoteCell(m[2]);
   }
   return out;
 }
@@ -1358,23 +1371,29 @@ export function ensureGroupChunk(sec, sub) {
  * before Repeats, so the order reads the same in every file.
  */
 export function setGroupMeta(sec, sub, key, value) {
-  const k = lower(key) === 'object' ? 'Object' : 'Repeats';
+  const kk = META_ORDER.includes(lower(key)) ? lower(key) : 'repeats';
+  const k = META_LABEL[kk];
   const chunk = value === null ? groupChunk(sec, sub) : ensureGroupChunk(sec, sub);
   if (!chunk) return null;
   const src = chunk.src;
   const at = src.findIndex((l) => { const m = GROUP_META_RE.exec(l); return m && lower(m[1]) === lower(k); });
   const line = value === null ? null : `**${k}:** ${norm(value)}`.replace(/\s+$/, '');
   if (at > -1) {
-    if (line === null) src.splice(at, 1); else src[at] = line;
+    if (line === null) {
+      src.splice(at, 1);
+      // Take back the blank line that was added to set it apart.
+      if (at > 0 && norm(src[at - 1]) === '' && (at >= src.length || norm(src[at]) === '')) src.splice(at - 1, 1);
+    } else src[at] = line;
   } else if (line !== null) {
     let end = src.length;
     while (end > 0 && norm(src[end - 1]) === '') end--;
-    // Object before Repeats; both after the line of clarity.
+    // Object, then Repeats, then Note; all after the line of clarity.
     let pos = end;
-    if (k === 'Object') {
-      const rep = src.findIndex((l) => { const m = GROUP_META_RE.exec(l); return m && lower(m[1]) === 'repeats'; });
-      if (rep > -1) pos = rep;
-    }
+    const later = src.findIndex((l) => {
+      const m = GROUP_META_RE.exec(l);
+      return m && META_ORDER.indexOf(lower(m[1])) > META_ORDER.indexOf(kk);
+    });
+    if (later > -1) pos = later;
     const before = pos > 0 ? src[pos - 1] : '';
     const pad = pos > 0 && norm(before) && !isGroupMetaLine(before) ? [''] : [];
     src.splice(pos, 0, ...pad, line);
@@ -1392,6 +1411,12 @@ export function setGroupMeta(sec, sub, key, value) {
   chunk.dirty = true;
   sec.dirty = true;
   return chunk;
+}
+
+/** A heading's notes, written as one `**Note:**` line the way a Note cell is: `<br>` between, `ACTION:` for a question. */
+export function setGroupNotes(sec, sub, list) {
+  const text = renderNoteCell(list);
+  return setGroupMeta(sec, sub, 'note', text ? text : null);
 }
 
 /**

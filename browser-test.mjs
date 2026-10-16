@@ -3081,6 +3081,23 @@ if (process.env.SHOTS) {
       subsBefore === 3 && /\| Dropped in \|/.test(tail), `subs ${subsBefore}; ` + JSON.stringify(f.slice(f.indexOf('#### Plain'))).slice(0, 700));
   }
 
+  // A heading takes notes on the left, and nothing on the right.
+  await p6.evaluate(() => {
+    const cell = [...document.querySelectorAll('#stage .cell')].find((c) => c.querySelector('.sub-t') && c.querySelector('.sub-t').textContent === 'Contacts');
+    cell.previousElementSibling.querySelector('.slot').click();
+  });
+  await p6.waitForTimeout(300);
+  await p6.keyboard.type('Ask Ryan about authorized users');
+  await p6.click('#stage', { position: { x: 5, y: 400 } });
+  await p6.waitForTimeout(300);
+  await save6();
+  ok('a subsection heading takes a note, written under it',
+    (await file6('Priority Guides — Groups.md')).includes('**Repeats:** account holder first\n**Note:** Ask Ryan about authorized users\n'));
+  ok('and shows it on the left, with no functionality on the right', await p6.evaluate(() => {
+    const cell = [...document.querySelectorAll('#stage .cell')].find((c) => c.querySelector('.sub-t') && c.querySelector('.sub-t').textContent === 'Contacts');
+    return cell.previousElementSibling.querySelectorAll('.note').length === 1 && cell.nextElementSibling.children.length === 0;
+  }));
+
   // Clicking into a note that shows a citation, and out again, keeps the citation.
   await p6.click('#tabs button:has-text("Guide")');
   await p6.waitForSelector('#stage .note .t');

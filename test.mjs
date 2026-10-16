@@ -928,6 +928,26 @@ t('groups: findings — a foreign field, a group that may repeat, an unknown obj
   eq(r.foreign.length, 2, 'Plain now names Person, so its Contact field is foreign too');
 });
 
+t('heading notes: one Note line under the heading, after Object and Repeats, with actions counted as open', () => {
+  const doc = P.parseDocument(GROUPED);
+  const sec = P.guides(doc)[0].sections[0];
+  const contacts = sec.chunks.find((c) => c.kind === 'sub' && c.title === 'Contacts');
+  P.setGroupNotes(sec, contacts, [{ text: 'Authorized users too [kick]', action: false }, { text: 'NEEDS ANSWER: Own phone and email?', action: true }]);
+  P.setGroupNotes(sec, null, [{ text: 'Stays put', action: false }]);
+  const out = P.serializeDocument(doc);
+  ok(out.includes('**Object:** Contact\n**Repeats:** account holder first, 1 to ??\n**Note:** Authorized users too [kick]<br>ACTION: NEEDS ANSWER: Own phone and email?\n'), out);
+  ok(out.includes('*Stays put*\n\n**Note:** Stays put\n\n| Content'), out);
+  const back = P.parseDocument(out);
+  const gs = P.groupsOf(P.guides(back)[0]);
+  eq(gs[1].notes.map((n) => n.action), [false, true]);
+  eq(P.proseOf(P.groupChunk(P.guides(back)[0].sections[0], null)), 'Stays put', 'the note is not part of the line of clarity');
+  const open = P.openItems(back).filter((i) => i.heading);
+  eq(open.map((i) => [i.where, i.question]), [['Who to reach · Contacts', 'Own phone and email?']]);
+  P.setGroupNotes(P.guides(back)[0].sections[0], P.guides(back)[0].sections[0].chunks.find((c) => c.title === 'Contacts'), []);
+  P.setGroupNotes(P.guides(back)[0].sections[0], null, []);
+  eq(P.serializeDocument(back), GROUPED, 'clearing them leaves the file as it was');
+});
+
 // ---------------------------------------------------------------- renaming a guide keeps its links
 
 t('renaming a guide carries every link to it along, and touches nothing else', () => {

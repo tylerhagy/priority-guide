@@ -1301,7 +1301,7 @@ import {
   designLinks, figmaEmbed, isFigma, setSourceTitle,
   commentsFor, commentList, openComments, addComment, setComment, resolveComment,
   removeComment, commentTarget, ensureRid, commentsInGuide, openCommentCount, orphanComments,
-  proseOf, setProse, renameGuide, groupChunk, ensureGroupChunk, metaOf, setGroupMeta, groupFindings,
+  proseOf, setProse, renameGuide, groupChunk, ensureGroupChunk, metaOf, setGroupMeta, setGroupNotes, groupFindings,
   belongsTo, setBelongsTo, objectRelations,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
   isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
@@ -3138,6 +3138,8 @@ function renderGuide(host) {
     mine.push(title.band);
     title.host.appendChild(sectionTitle(g, sec));
     title.c.classList.add('sechead');
+    title.c._head = sec;
+    paintHeadNotes(title, g, sec, null);
     if (!S.readOnly && !S.present) dropZone(title.c, { g, sec, atTop: true });
     if (!S.readOnly && !S.present) {
       const more = menuButton('secmore', 'Add to this section, move it, or delete it');
@@ -3260,6 +3262,8 @@ function renderGuide(host) {
           dropZone(row.c, { g, sec, sub: chunk, endOnly: true });
         }
         row.host.appendChild(w);
+        row.c._head = chunk;
+        paintHeadNotes(row, g, sec, chunk);
         // A subsection owns the text right under it: its line of clarity, and
         // its Object and Repeats lines.
         owned = groupChunk(sec, chunk);
@@ -3471,6 +3475,76 @@ function sectionMenu(anchor, g, sec) {
       undoable(`“${sec.title}”`, () => { g.sections.splice(back, 0, sec); g.dirty = true; });
     } }
   ]));
+}
+
+/**
+ * A heading's notes: the same cards a block has, in the same left lane, kept
+ * in one **Note:** line under the heading. A heading has no functionality, so
+ * its right lane stays empty.
+ *
+ * The cards are written for a row, so a heading lends them one: a stand-in
+ * that holds the notes and writes them back to the heading whenever a card
+ * marks it changed. It is kept per heading, so a note being written survives
+ * the redraw that opens it.
+ */
+const HEADS = new WeakMap();
+function headAdapter(sec, sub) {
+  const key = sub || sec;
+  let a = HEADS.get(key);
+  if (!a) {
+    a = { kind: 'head', content: { text: key.title, kind: 'text' }, realData: '', note: [], rid: null };
+    Object.defineProperty(a, 'dirty', {
+      get: () => false,
+      set: (v) => { if (v) setGroupNotes(sec, sub, a.note.filter((n) => n.text && n.text.trim())); }
+    });
+    HEADS.set(key, a);
+  }
+  if (S.newRowNote !== a) a.note = metaOf(groupChunk(sec, sub)).notes;
+  a.content.text = key.title;
+  return a;
+}
+
+function paintHeadNotes(row, g, sec, sub) {
+  const a = headAdapter(sec, sub);
+  if (S.present && !a.note.length) return;
+  const ctx = { g, sec, table: null, rw: a };
+  const shown = notesShownFor(a);
+  if (!shown) {
+    if (!a.note.length) return;
+    const acts = a.note.filter((n) => n.action).length;
+    const m = el('button', 'lanemark notes' + (acts ? ' act' : ''));
+    m.appendChild(icon('note', 12));
+    m.appendChild(el('span', null, String(a.note.length)));
+    m.title = `${a.note.length} note${a.note.length === 1 ? '' : 's'}${acts ? `, ${acts} open` : ''}. Show them`;
+    m.onclick = (e) => { e.stopPropagation(); toggleNotes(a); };
+    row.l.appendChild(m);
+    row.l.appendChild(el('div', 'lead'));
+    return;
+  }
+  const notes = el('div', 'notes');
+  a.note.forEach((n, i) => {
+    const c = noteCard(ctx, n, i);
+    c.onmousedown = null;            // a heading is not a block to select
+    notes.appendChild(c);
+  });
+  if (!S.readOnly && !S.present) {
+    const add = () => {
+      a.note.push({ text: '', action: false });
+      S.newRowNote = a; render();
+      focusSoon('#stage .note.fresh .t');
+    };
+    if (a.note.length) {
+      const more = el('button', 'lanemore');
+      more.appendChild(icon('plus', 11));
+      more.title = 'Another note on this heading';
+      more.onclick = (e) => { e.stopPropagation(); add(); };
+      notes.appendChild(more);
+    } else notes.appendChild(slot('note', 'Note', add));
+  }
+  row.l.appendChild(notes);
+  const lead = el('div', 'lead');
+  if (!a.note.length) lead.style.borderColor = 'transparent';
+  row.l.appendChild(lead);
 }
 
 /**
@@ -6281,8 +6355,19 @@ function landOn(it) {
   const row = it.target && it.target.kind === 'row' ? it.target : null;
   if (row) { S.sel = row; S.editing = null; S.openNotes.add(row); S.shownField = null; }
   else { S.sel = null; S.shownField = it.field || null; }
+  if (it.heading) S.openNotes.add(headAdapter(it.heading.sec, it.heading.sub));
   render();
-  if (row) {
+  if (it.heading) {
+    const key = it.heading.sub || it.heading.sec;
+    const cell = [...document.querySelectorAll('#stage .guide .cell')].find((c) => c._head === key);
+    if (!cell) return;
+    cell.scrollIntoView({ block: 'center' });
+    const lane = notesLaneOf(cell);
+    const notes = lane ? lane.querySelectorAll('.note') : [];
+    const a = headAdapter(it.heading.sec, it.heading.sub);
+    const k = it.note ? a.note.findIndex((n) => n.text === it.note.text) : -1;
+    pulse(cell, k > -1 ? notes[k] : null);
+  } else if (row) {
     const item = [...document.querySelectorAll('#stage .guide .item')].find((n) => n._rw === row);
     if (!item) return;
     item.scrollIntoView({ block: 'center' });
