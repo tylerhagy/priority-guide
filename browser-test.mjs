@@ -1608,7 +1608,8 @@ ok('but it does give way when the stage is genuinely too narrow',
   await page.evaluate(() => {
     const st = document.getElementById('stage');
     const shown = getComputedStyle(document.getElementById('minimap')).display !== 'none';
-    return st.clientWidth >= 600 ? shown : !shown;
+    const withMap = st.clientWidth - (shown ? 0 : 124);
+    return withMap >= 600 ? shown : !shown;
   }));
 await page.setViewportSize({ width: 1600, height: 1000 });
 await page.waitForTimeout(450);
@@ -2751,11 +2752,9 @@ if (process.env.SHOTS) {
   await p3.waitForTimeout(250);
   ok('controls: the block now reads as a search', (await p3.$$eval('#stage .kbadge.search', (n) => n.length)) === 1);
   const sitem = await p3.$('#stage .item:has(.kbadge.search)');
-  ok('controls: an unanswered search says how much is left',
-    /\d+ to answer/.test(await sitem.$eval('.specline', (n) => n.textContent)));
   await sitem.click();
   await p3.waitForSelector('#stage .specform');
-  ok('controls: a selected control asks its questions', (await p3.$$eval('#stage .specform .spec-q', (n) => n.length)) > 5);
+  eq('controls: a search asks six questions before its mode is set', await p3.$$eval('#stage .specform .spec-q', (n) => n.length), 6);
   ok('controls: no live-search question before the mode is set',
     !(await p3.$$eval('#stage .specform .spec-q .k', (n) => n.map((x) => x.textContent))).includes('Starts after'));
   await p3.selectOption('#stage .specform .spec-q:has(.k:text-is("Mode")) select', 'live');
@@ -2787,7 +2786,8 @@ if (process.env.SHOTS) {
   ok('controls: the kind is saved as a marker', line4.length > 0, g4.split('\n').filter((l) => l.includes('Customer name')).join(' / '));
   ok('controls: the fields are saved together', line4.includes('Customer.Customer name, Opportunity.Start date, Opportunity.Status'), line4);
   ok('controls: the answers are saved in the Spec column', line4.includes('placeholder: Find a customer; mode: live'), line4);
-  ok('controls: an unanswered search is open', (await p3.$eval('#open', (n) => n.textContent)).match(/\d+/) !== null);
+  ok('controls: a search with questions left blank adds nothing to Open',
+    !(await p3.$$eval('#stage .item:has(.kbadge.search) .specline', (n) => n.map((x) => x.textContent).join(''))).includes('to answer'));
 
   ok('fields: no errors on the way', errs3.length === 0, errs3.slice(0, 3).join(' | '));
   await p3.close();

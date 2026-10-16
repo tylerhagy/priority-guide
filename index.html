@@ -354,7 +354,7 @@ body.present .sec-title{font-size:15.5px}
    columns added up to more than the stage could hold and the functionality lane
    ran off the edge. fr divides the room the guide actually has. */
 .guide{display:grid;
-  grid-template-columns:minmax(118px,1.05fr) minmax(264px,1.5fr) minmax(126px,1.15fr);
+  grid-template-columns:minmax(200px,1.05fr) minmax(264px,1.5fr) minmax(200px,1.15fr);
   margin:0 auto;width:100%;max-width:1140px}
 body.present .guide{grid-template-columns:minmax(150px,1.05fr) minmax(320px,1.5fr) minmax(160px,1.15fr);
   max-width:1360px}
@@ -404,6 +404,18 @@ body.present .gzoom{max-width:1360px}
 .band > *{margin-bottom:7px}
 .band.close > *:last-child{margin-bottom:0}
 .lane{display:flex;align-items:flex-start;min-height:1px;position:relative}
+/* Stacked, when three readable columns do not fit: one column, and each block's
+   notes and functionality sit under it inside the card. Empty slots only show on
+   the selected block, or every block would carry two placeholders. */
+.guide.stacked{grid-template-columns:minmax(0,1fr);max-width:620px}
+.guide.stacked .cell,.guide.stacked .paper{grid-column:1}
+.guide.stacked .lanehead{display:none}
+.guide.stacked .cell > .lane{flex-direction:column;align-items:stretch;gap:4px;padding:0 13px;margin:-3px 0 9px}
+.guide.stacked .cell > .lane .lead{display:none}
+.guide.stacked .cell > .lane-l .notes{align-items:stretch}
+.guide.stacked .cell > .lane .note,.guide.stacked .cell > .lane .fn{max-width:none;width:100%}
+.guide.stacked .cell > .lane:not(.rowsel) .slot,.guide.stacked .cell > .lane:not(.rowsel) .fn.asslot{display:none}
+.guide.stacked .cell > .lane:empty{display:none}
 .lane-l{grid-column:1;justify-content:flex-end}
 .lane-r{grid-column:3}
 /* A solid hairline, not a dotted one: a leader is a tie, and a row of dots is
@@ -976,7 +988,8 @@ body.present .gzoom{max-width:1360px}
    the design is drawn tighter. It is the same guide, read at arm's length. */
 /* No cap here: on a window too narrow for the lanes the pane scrolls rather
    than cutting the functionality off the right-hand edge. */
-.bscroll .guide{--lane-l:150px; --stack:232px; --lane-r:158px;font-size:12px;max-width:none}
+.bscroll .guide{--lane-l:150px; --stack:232px; --lane-r:158px;font-size:12px;max-width:none;
+  grid-template-columns:minmax(118px,1.05fr) minmax(232px,1.5fr) minmax(126px,1.15fr)}
 .bscroll .lbl{font-size:11.5px}
 .bscroll .eg,.bscroll .note,.bscroll .fn{font-size:10.5px}
 .bscroll .sec-title{font-size:11.5px}
@@ -1099,20 +1112,18 @@ button.tp:hover{box-shadow:inset 0 0 0 1px currentColor}
 @media (prefers-reduced-motion:reduce){.landed{animation:none}}
 
 /* ---- fields: the chip on a block, the picker, the Fields view */
-.kbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;letter-spacing:.04em;
-  text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);border-radius:5px;padding:1px 6px 1px 4px;margin-bottom:3px}
+.kbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:2px}
 .fchips{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px}
 .fchips .fchip{margin-top:0}
 .fchips-l{font-size:10.5px;color:var(--faint)}
 .specline{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-top:4px;font-size:11px;line-height:1.4}
 .specline .said{color:var(--dim)}
-.specline .gaps{color:var(--unanswered);background:var(--unanswered-soft);border:1px solid var(--unanswered-line);border-radius:5px;padding:0 6px}
 .specform{flex-basis:100%;margin-top:6px;padding:8px 6px 4px;border-top:1px dashed var(--line);display:grid;grid-template-columns:1fr;gap:5px}
 .spec-h{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
 .spec-h button{margin-left:auto;font-size:11px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--accent-ink)}
 .spec-q{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center;font-size:11.5px}
 .spec-q .k{color:var(--dim)}
-.spec-q.req .k::after{content:" *";color:var(--unanswered)}
 .spec-q input,.spec-q select{font:inherit;font-size:11.5px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);min-width:0;width:100%}
 .spec-q input:focus,.spec-q select:focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 2px var(--accent-soft)}
 .fchip{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:1px 7px 1px 5px;border-radius:6px;
@@ -1256,7 +1267,7 @@ import {
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
   isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
   fieldUsage, setRowField, addFieldTo, addObject, blankFieldsFile, FIELD_KINDS,
-  CONTROL_KINDS, isControl, SPECS, getSpec, setSpec, specQuestions, specGaps, rowFieldRefs,
+  CONTROL_KINDS, isControl, SPECS, getSpec, setSpec, specQuestions, rowFieldRefs,
   ACTION_TYPES, actionType, setActionType, resolveAction, openOrder, moveInOrder, ownersIn
 } from './parser.js';
 
@@ -1324,7 +1335,17 @@ function setRailRWidth(w) {
   S.railRWidth = Math.max(260, Math.min(520, w));
   try { localStorage.setItem('pg-railr-w', String(S.railRWidth)); } catch { /* private window */ }
 }
+/**
+ * The panel is 340px, the largest single cost on a laptop screen, so below
+ * 1280px it starts folded. Opening it there keeps it open for this session;
+ * folding it is remembered as always.
+ */
+function railRFolded() {
+  return S.railRCollapsed || (innerWidth < 1280 && !S.railRNarrowOpen);
+}
 function setRailRCollapsed(v) {
+  if (!v && innerWidth < 1280) S.railRNarrowOpen = true;
+  if (v) S.railRNarrowOpen = false;
   S.railRCollapsed = v;
   try {
     if (v) localStorage.setItem('pg-railr-collapsed', '1');
@@ -1806,6 +1827,7 @@ function render() {
   document.body.classList.toggle('nofile', !S.doc);
   if (!S.doc) { renderHello(); renderFlowBar(); return; }
   renderRailLeft();
+  renderRailRight();   // first, so the stage is measured at the width it will have
   $('stage').innerHTML = '';
   if (S.view === 'guide' && S.beside) renderBeside();
   else if (S.view === 'guide') renderGuide();
@@ -1814,7 +1836,6 @@ function render() {
   else if (S.view === 'open') renderOpen();
   else if (S.view === 'fields') renderFields();
   else renderSource();
-  renderRailRight();
   renderMinimap();
   renderFlowBar();
   $('cap').hidden = !S.capture;
@@ -2525,12 +2546,17 @@ function withLaneMotion(change, opened) {
   const item = [...document.querySelectorAll('#stage .guide .item')].find((n) => n._rw === opened);
   const cell = item && item.closest('.cell');
   if (!cell) return;
-  const lane = cell.previousElementSibling;
+  const lane = notesLaneOf(cell);
   if (!lane) return;
   lane.querySelectorAll('.note, .slot, .lanemore').forEach((n, k) => {
     n.animate([{ opacity: 0, transform: 'translateX(16px)' }, { opacity: 1, transform: 'none' }],
       { ...timing, delay: 60 + k * 30, fill: 'backwards' });
   });
+}
+
+/** A block's notes lane: beside its cell in three columns, inside it when stacked. */
+function notesLaneOf(cell) {
+  return cell.querySelector(':scope > .lane-l') || (cell.previousElementSibling && cell.previousElementSibling.classList.contains('lane-l') ? cell.previousElementSibling : null);
 }
 
 /** A short ring on what you landed on, so the eye finds it after a jump. */
@@ -2553,6 +2579,21 @@ const ZOOMS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5];
  * the scaled guide actually occupies — otherwise the page scrolls to the wrong
  * depth and the minimap's arithmetic goes with it.
  */
+/**
+ * Three columns only while all three can be read. Below the narrowest width at
+ * which a note still fits a few words to a line, the guide stacks: one column,
+ * each block followed by its notes and functionality. Measured against the
+ * stage at the current zoom, so zooming out can bring the columns back.
+ */
+const THREE_COLUMNS = 200 + 264 + 200 + 40;
+function guideStacked() {
+  const st = $('stage');
+  if (!st || !st.clientWidth) return false;
+  const cs = getComputedStyle(st);
+  const w = (st.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / (S.zoom || 1);
+  return w < THREE_COLUMNS;
+}
+
 function sizeZoomFrame(frame, grid) {
   const f = frame || document.querySelector('.gzoom');
   const g = grid || (f && f.querySelector('.guide'));
@@ -2571,12 +2612,20 @@ document.documentElement.style.setProperty('--zoom', String(S.zoom || 1));
 let resizeSoon = null;
 window.addEventListener('resize', () => {
   clearTimeout(resizeSoon);
-  resizeSoon = setTimeout(() => { sizeZoomFrame(); renderMinimap(); }, 90);
+  resizeSoon = setTimeout(() => {
+    // Crossing a width that changes the layout redraws; anything else only remeasures.
+    const g = document.querySelector('#stage .guide');
+    const folded = railRFolded();
+    if ((g && g.classList.contains('stacked') !== guideStacked()) || folded !== S.railRWasFolded) { render(); return; }
+    sizeZoomFrame(); renderMinimap();
+  }, 90);
 });
 function setZoom(z) {
   S.zoom = Math.min(ZOOMS[ZOOMS.length - 1], Math.max(ZOOMS[0], z));
   document.documentElement.style.setProperty('--zoom', String(S.zoom));
   try { localStorage.setItem('pg-zoom', String(S.zoom)); } catch { /* private window */ }
+  const g = document.querySelector('#stage .guide');
+  if (g && g.classList.contains('stacked') !== guideStacked()) { render(); return; }
   sizeZoomFrame();
   renderMinimap();
 }
@@ -2659,7 +2708,9 @@ function renderMinimap() {
   // furniture"), but that read as the map going missing at random, so every
   // real guide gets one now, short or tall.
   if (!guide) { m.style.display = ''; m.style.visibility = 'hidden'; return; }
-  if (stage.clientWidth < 600) { m.style.display = 'none'; m.style.visibility = ''; return; }
+  // Measured as if the map were there, so hiding it can never make room that brings it straight back.
+  const withMap = stage.clientWidth - (getComputedStyle(m).display === 'none' ? 124 : 0);
+  if (withMap < 600) { m.style.display = 'none'; m.style.visibility = ''; return; }
   m.style.display = ''; m.style.visibility = '';
 
   // The picture is the guide itself, cloned and shrunk. Drawing a second,
@@ -2957,8 +3008,10 @@ function renderGuide(host) {
   // Clicking the page around the guide lets go of whatever was selected.
   if (!S.guide) { stage.appendChild(el('div', 'rail-empty', 'No guide selected.')); return; }
   const g = S.guide;
-  const grid = el('div', 'guide');
+  const stacked = !host && guideStacked();
+  const grid = el('div', 'guide' + (stacked ? ' stacked' : ''));
   const cells = [];
+  const laneRows = [];
 
   let rowNo = 0;
   const gridRow = (bandCls) => {
@@ -2966,7 +3019,9 @@ function renderGuide(host) {
     const c = el('div', 'cell');
     const r = el('div', 'lane lane-r');
     l.style.gridRow = c.style.gridRow = r.style.gridRow = String(++rowNo);
-    grid.append(l, c, r);
+    // Stacked, the lanes join their cell once the row is filled (see below).
+    if (stacked) { grid.append(c); laneRows.push({ l, c, r }); }
+    else grid.append(l, c, r);
     cells.push(c);
     if (bandCls === undefined) return { l, c, r, host: c };
     const band = el('div', 'band' + (bandCls ? ' ' + bandCls : ''));
@@ -3152,6 +3207,12 @@ function renderGuide(host) {
   // The zoom frame. The guide lays out at 1/zoom of the frame's width and is
   // then scaled back onto it, so zooming out really does fit more on screen
   // rather than just drawing the same columns smaller.
+  if (stacked) {
+    for (const { l, c, r } of laneRows) {
+      if (l.childNodes.length) c.appendChild(l);
+      if (r.childNodes.length) c.appendChild(r);
+    }
+  }
   const frame = el('div', 'gzoom');
   if (S.present) frame.appendChild(readingContext(g));
   frame.appendChild(grid);
@@ -4087,7 +4148,7 @@ function openRefPicker(anchor, g, sec, chunk) {
 }
 
 // ---------------------------------------------------------------- controls
-/** One line under a control: what is answered, then how much is not. */
+/** One line under a control: what has been answered. */
 function specLine(rw, fhit) {
   const line = el('div', 'specline');
   const kind = rw.content.kind;
@@ -4104,19 +4165,12 @@ function specLine(rw, fhit) {
   }
   if (kind === 'filter' && !getSpec(rw, 'options') && hasValues) said.push('options from the field');
   if (said.length) line.appendChild(el('span', 'said', said.join(' · ')));
-  const gaps = specGaps(rw, hasValues);
-  if (gaps.length) {
-    const g = el('span', 'gaps', `${gaps.length} to answer`);
-    g.title = gaps.map((q) => q.label).join(', ');
-    line.appendChild(g);
-  }
-  if (!said.length && !gaps.length) line.appendChild(el('span', 'said', 'All answered'));
   return line;
 }
 
 /**
- * The questions a control has to answer, asked under it while it is selected.
- * A blank answer is unanswered; `??` says someone has to find out. Changes are
+ * The questions a control can answer, asked under it while it is selected.
+ * A blank answer is fine; `??` says someone has to find out. Changes are
  * written as you go and the guide only redraws when an answer changes which
  * questions apply, so tabbing through the form never loses your place.
  */
@@ -4152,7 +4206,7 @@ function specForm(ctx) {
   wrap.appendChild(head);
 
   for (const q of specQuestions(rw)) {
-    const rowEl = el('label', 'spec-q' + (q.req ? ' req' : ''));
+    const rowEl = el('label', 'spec-q');
     rowEl.appendChild(el('span', 'k', q.label));
     const cur = getSpec(rw, q.key);
     let input;
@@ -4811,7 +4865,8 @@ function renderRailRight() {
   // Collapsed reclaims the width for the guide. A single chevron said only that
   // something was hidden; a stacked icon per tab says what, and a badge says
   // whether it holds anything — so the rail keeps its affordance while closed.
-  if (S.railRCollapsed) {
+  S.railRWasFolded = railRFolded();
+  if (S.railRWasFolded) {
     r.classList.add('collapsed');
     r.style.width = '40px';
     const expand = el('button', 'rexpand');
@@ -5981,7 +6036,8 @@ function landOn(it) {
     if (!item) return;
     item.scrollIntoView({ block: 'center' });
     const cell = item.closest('.cell');
-    const notes = cell && cell.previousElementSibling ? cell.previousElementSibling.querySelectorAll('.note') : [];
+    const lane = cell && notesLaneOf(cell);
+    const notes = lane ? lane.querySelectorAll('.note') : [];
     const k = it.note ? row.note.indexOf(it.note) : -1;
     pulse(item.querySelector('.box'), k > -1 ? notes[k] : null);
   } else if (it.field) {

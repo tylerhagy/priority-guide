@@ -716,10 +716,8 @@ t('control kinds round-trip as markers', () => {
   eq(rows[0].row.content.text, 'Find a customer');
 });
 
-t('a control with nothing answered is open, once per block', () => {
-  const open = P.openItems(P.parseDocument(CTRL)).filter((i) => /not answered/.test(i.text));
-  eq(open.length, 2);
-  ok(open[0].text.startsWith('Search: placeholder, mode, scope, match, results, no results'), open[0].text);
+t('a control never adds to Open: its questions are prompts', () => {
+  eq(P.openItems(P.parseDocument(CTRL)).length, 0);
 });
 
 t('answering a spec adds the column once and writes in schema order', () => {
@@ -742,25 +740,13 @@ t('a conditional question appears only when it applies', () => {
   ok(!P.specQuestions(row).some((q) => q.key === 'min chars'), 'no mode yet');
   P.setSpec(row, table, section, 'mode', 'live');
   ok(P.specQuestions(row).some((q) => q.key === 'min chars'), 'live asks when it starts');
-  ok(!P.specQuestions(row).some((q) => q.key === 'submit'), 'live never asks what submits');
 });
 
-t('?? still counts as not answered, and a semicolon cannot split an answer', () => {
+t('a semicolon cannot split an answer', () => {
   const doc = P.parseDocument(CTRL);
   const { row, table, section } = P.rowsOf(P.findGuide(doc, 'Bar'))[0];
-  P.setSpec(row, table, section, 'mode', '??');
-  ok(P.specGaps(row).some((q) => q.key === 'mode'));
-  P.setSpec(row, table, section, 'empty', 'No match; try a phone number');
-  eq(P.parseSpecCell(P.renderSpecCell(row.spec, 'search')).find((e) => e.key === 'empty').value, 'No match, try a phone number');
-});
-
-t('a filter with a field takes its options from it', () => {
-  const doc = P.parseDocument(CTRL);
-  const { row } = P.rowsOf(P.findGuide(doc, 'Bar'))[1];
-  ok(!P.specGaps(row, false).some((q) => q.key === 'options'), 'its example lists an option');
-  row.realData = '';
-  ok(P.specGaps(row, false).some((q) => q.key === 'options'));
-  ok(!P.specGaps(row, true).some((q) => q.key === 'options'));
+  P.setSpec(row, table, section, 'order', 'Newest first; then name');
+  eq(P.parseSpecCell(P.renderSpecCell(row.spec, 'search')).find((e) => e.key === 'order').value, 'Newest first, then name');
 });
 
 t('a search over several fields is used by each, with no value check', () => {

@@ -749,12 +749,6 @@ export function openItems(doc) {
       if (un.length) {
         out.push({ kind: 'unknown', type: 'unknown', question: `${capFirst(un.join(' and '))} not known`, guide: g.name, where: `${section.title} · ${label}`, text: `${un.join(' and ')} not known`, target: row });
       }
-      // Without the fields file here, a filter linked to a field is taken to get its options from it.
-      const gaps = specGaps(row, rowFieldRefs(row).length > 0);
-      if (gaps.length) {
-        const t = `${KIND_TAG[row.content.kind]}: ${gaps.map((x) => x.label.toLowerCase()).join(', ')} not answered`;
-        out.push({ kind: 'unknown', type: 'unknown', question: t, guide: g.name, where: `${section.title} · ${label}`, text: t, target: row });
-      }
     }
   }
   return out;
@@ -1899,50 +1893,42 @@ export function blankFieldsFile(title) {
 // ---------------------------------------------------------------- controls
 
 /**
- * What each control has to answer. `req` questions count as open until answered;
- * `when` shows a question only once another answer makes it relevant. The fields
+ * What each control can answer. Prompts, not a checklist: nothing is required,
+ * so a control is as finished as you want it to be. `when` shows a question only
+ * once another answer makes it relevant. The fields
  * a control works on (what a search searches, what a filter filters) live in the
  * Field column, never here, so there is one place for them.
  */
 export const SPECS = {
   search: [
-    { key: 'placeholder', label: 'Placeholder', type: 'text', ask: 'What the empty box says', req: true },
-    { key: 'label', label: 'Label', type: 'text', ask: 'Its name for screen readers, when the placeholder is not enough' },
-    { key: 'mode', label: 'Mode', type: 'choice', choices: ['live', 'applied'], ask: 'Results as you type, or when you submit', req: true },
-    { key: 'min chars', label: 'Starts after', type: 'number', ask: 'Characters before a live search runs', req: true, when: ['mode', 'live'] },
-    { key: 'submit', label: 'Submitted by', type: 'choice', choices: ['enter', 'button', 'enter or button'], ask: 'What runs an applied search', req: true, when: ['mode', 'applied'] },
-    { key: 'scope', label: 'Scope', type: 'text', ask: 'What pool it searches, e.g. my assigned opportunities', req: true },
-    { key: 'match', label: 'Match', type: 'choice', choices: ['exact', 'starts with', 'contains', 'fuzzy'], ask: 'How a term matches', req: true },
-    { key: 'normalize', label: 'Clean-up', type: 'text', ask: 'e.g. a phone matches with or without dashes' },
-    { key: 'results', label: 'Results', type: 'choice', choices: ['inline suggestions', 'results page', 'results modal', 'narrows the list'], ask: 'Where results appear', req: true },
+    { key: 'placeholder', label: 'Placeholder', type: 'text', ask: 'What the empty box says' },
+    { key: 'mode', label: 'Mode', type: 'choice', choices: ['live', 'applied'], ask: 'Results as you type, or when you submit' },
+    { key: 'min chars', label: 'Starts after', type: 'number', ask: 'Characters before a live search runs', when: ['mode', 'live'] },
+    { key: 'match', label: 'Match', type: 'choice', choices: ['exact', 'starts with', 'contains', 'fuzzy'], ask: 'How a term matches' },
+    { key: 'results', label: 'Results', type: 'choice', choices: ['inline suggestions', 'results page', 'results modal', 'narrows the list'], ask: 'Where results appear' },
     { key: 'limit', label: 'Limit', type: 'number', ask: 'Most results shown' },
-    { key: 'order', label: 'Order', type: 'text', ask: 'How results are ranked' },
-    { key: 'empty', label: 'No results', type: 'text', ask: 'What shows when nothing matches', req: true },
-    { key: 'too many', label: 'Too many', type: 'text', ask: 'What shows past the limit' },
-    { key: 'clear', label: 'Clear control', type: 'choice', choices: ['yes', 'no'], ask: 'A way to empty it in one press' },
-    { key: 'persists', label: 'Remembered', type: 'choice', choices: ['yes', 'no'], ask: 'Still filled after leaving the screen' },
-    { key: 'shortcut', label: 'Shortcut', type: 'text', ask: 'A key that jumps into it' }
+    { key: 'order', label: 'Order', type: 'text', ask: 'How results are ranked' }
   ],
   filter: [
-    { key: 'select', label: 'Pick', type: 'choice', choices: ['one', 'several'], ask: 'One option at a time, or several', req: true },
-    { key: 'options', label: 'Options', type: 'text', ask: 'From the field values, or list them', req: true, fromField: true },
+    { key: 'select', label: 'Pick', type: 'choice', choices: ['one', 'several'], ask: 'One option at a time, or several' },
+    { key: 'options', label: 'Options', type: 'text', ask: 'From the field values, or list them', fromField: true },
     { key: 'default', label: 'Default', type: 'text', ask: 'What is selected before anyone touches it' },
     { key: 'any', label: 'Unfiltered option', type: 'text', ask: 'e.g. All, Any' },
-    { key: 'narrows', label: 'Narrows', type: 'text', ask: 'What it filters, e.g. my list', req: true },
-    { key: 'applies', label: 'Applies', type: 'choice', choices: ['immediately', 'on apply'], ask: 'At once, or with an Apply button', req: true },
+    { key: 'narrows', label: 'Narrows', type: 'text', ask: 'What it filters, e.g. my list' },
+    { key: 'applies', label: 'Applies', type: 'choice', choices: ['immediately', 'on apply'], ask: 'At once, or with an Apply button' },
     { key: 'counts', label: 'Counts', type: 'choice', choices: ['yes', 'no'], ask: 'How many match each option' },
     { key: 'persists', label: 'Remembered', type: 'choice', choices: ['yes', 'no'], ask: 'Kept after leaving the screen' }
   ],
   sort: [
-    { key: 'direction', label: 'Direction', type: 'choice', choices: ['ascending', 'descending'], ask: 'The way it sorts first', req: true },
-    { key: 'default', label: 'Default sort', type: 'choice', choices: ['yes', 'no'], ask: 'Is this how the list starts', req: true },
+    { key: 'direction', label: 'Direction', type: 'choice', choices: ['ascending', 'descending'], ask: 'The way it sorts first' },
+    { key: 'default', label: 'Default sort', type: 'choice', choices: ['yes', 'no'], ask: 'Is this how the list starts' },
     { key: 'then by', label: 'Then by', type: 'text', ask: 'The tie-breaker' },
     { key: 'reversible', label: 'Reversible', type: 'choice', choices: ['yes', 'no'], ask: 'Can someone flip it' },
     { key: 'blanks', label: 'Blanks', type: 'choice', choices: ['first', 'last'], ask: 'Where empty values go' }
   ],
   action: [
-    { key: 'does', label: 'Does', type: 'text', ask: 'What happens when pressed', req: true },
-    { key: 'confirm', label: 'Confirm', type: 'choice', choices: ['none', 'ask first', 'undo after'], ask: 'Any check before or after', req: true },
+    { key: 'does', label: 'Does', type: 'text', ask: 'What happens when pressed' },
+    { key: 'confirm', label: 'Confirm', type: 'choice', choices: ['none', 'ask first', 'undo after'], ask: 'Any check before or after' },
     { key: 'disabled when', label: 'Disabled when', type: 'text', ask: 'When it cannot be pressed' },
     { key: 'success', label: 'Afterwards', type: 'text', ask: 'What the person sees when it worked' },
     { key: 'failure', label: 'If it fails', type: 'text', ask: 'What the person sees when it did not' },
@@ -1990,19 +1976,6 @@ export function setSpec(row, table, section, key, value) {
 /** The questions this control shows now: conditional ones only once they apply. */
 export function specQuestions(row) {
   return (SPECS[row.content.kind] || []).filter((q) => !q.when || lower(getSpec(row, q.when[0])) === q.when[1]);
-}
-
-/** Required questions not answered, or answered `??`. A filter's options count as answered by a field with values. */
-export function specGaps(row, fieldHasValues) {
-  if (!isControl(row.content.kind)) return [];
-  return specQuestions(row).filter((q) => {
-    if (!q.req) return false;
-    const v = norm(getSpec(row, q.key));
-    if (v && v !== UNKNOWN) return false;
-    // A filter's options can come from its field's values, or be the ones its example lists.
-    if (q.fromField && !v && (fieldHasValues || (norm(row.realData) && norm(row.realData) !== UNKNOWN))) return false;
-    return true;
-  });
 }
 
 /** The fields a block works on: one for most, several for a search. */
