@@ -254,6 +254,16 @@ t('a route reads its type and its target', () => {
   eq(P.renderLinkCell({ type: 'trigger', target: '' }), 'trigger');
 });
 
+t('a trigger says what happens, and is never a route', () => {
+  const l = P.parseLinkCell('trigger → Marks the follow-up done');
+  eq([l.type, l.target, l.wiki], ['trigger', 'Marks the follow-up done', false]);
+  eq(P.renderLinkCell(l), 'trigger → Marks the follow-up done');
+  const doc = P.parseDocument(['# Priority Guides — T', '', '## A', '', '### S', '',
+    '| Content | Real data | Do | Link | Form | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Mark Done |  |  | trigger → Marks the follow-up done |  |  |', ''].join('\n'));
+  eq(P.links(doc).routes.length, 0);
+});
+
 t('a form reads its type and whether it is required', () => {
   eq(P.parseFormCell('single select, required').type, 'single select');
   eq(P.parseFormCell('single select, required').required, true);

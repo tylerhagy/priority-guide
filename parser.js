@@ -766,6 +766,8 @@ export function links(doc) {
   for (const g of guides(doc)) {
     for (const { row, section } of rowsOf(g)) {
       if (!row.link.target) continue;
+      // A trigger's target says what happens, in words. It goes nowhere.
+      if (row.link.type === 'trigger') continue;
       const to = names.get(lower(row.link.target));
       routes.push({
         from: g.name, to: to || row.link.target, resolved: !!to,

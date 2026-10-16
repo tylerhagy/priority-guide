@@ -1101,7 +1101,9 @@ button.tp:hover{box-shadow:inset 0 0 0 1px currentColor}
 .lanemarks{display:flex;gap:4px;margin-top:5px}
 .lanemarks .lanemark{margin-left:0}
 .lanemark{flex:none;align-self:center;display:inline-flex;align-items:center;gap:4px;height:20px;border-radius:999px;background:var(--hover);color:var(--dim);font-size:11px;font-weight:600;white-space:nowrap;margin-left:4px}
-.lanemark.notes{padding:0 8px}
+.lanemark.notes{padding:0 8px;cursor:pointer;border:0;margin:5px 0 0}
+.lanemark.notes svg{flex:none}
+.notes > .lanemark.notes{align-self:flex-end}
 .lanemark.notes:hover{color:var(--ink);background:var(--press)}
 .lanemark.act{background:var(--action-soft);color:var(--act)}
 .lanemark.on{background:var(--accent-soft);color:var(--accent-ink)}
@@ -3772,20 +3774,17 @@ function paintRow(row, g, sec, table, rw) {
   }
   if (S.comments) { const bb = commentBubble(ctx); if (bb) box.appendChild(bb); }
   const notesShown = notesShownFor(rw);
+  // Notes hidden: a block with notes keeps a small count in the notes lane, an
+  // icon and a number, and a block without them shows nothing there at all.
+  let noteMark = null;
   if (S.notesHidden && !S.present && rw.note.length) {
-    const opened = notesShown;
-    // On a line of their own under the block, so they never squeeze its name.
-    const marks = el('div', 'lanemarks');
-    {
-      const acts = rw.note.filter((n) => n.action).length;
-      const nc = el('button', 'lanemark notes' + (acts ? ' act' : '') + (opened ? ' on' : ''));
-      if (acts) nc.appendChild(el('span', 'd'));
-      nc.appendChild(document.createTextNode(`${rw.note.length} note${rw.note.length === 1 ? '' : 's'}${acts ? ` · ${acts} open` : ''}`));
-      nc.title = opened ? 'Hide this block’s notes' : 'Show this block’s notes';
-      nc.onclick = (e) => { e.stopPropagation(); toggleNotes(rw); };
-      marks.appendChild(nc);
-    }
-    inner.appendChild(marks);
+    const acts = rw.note.filter((n) => n.action).length;
+    noteMark = el('button', 'lanemark notes' + (acts ? ' act' : '') + (notesShown ? ' on' : ''));
+    noteMark.appendChild(icon('note', 12));
+    noteMark.appendChild(el('span', null, String(rw.note.length)));
+    noteMark.title = `${rw.note.length} note${rw.note.length === 1 ? '' : 's'}${acts ? `, ${acts} open` : ''}. `
+      + (notesShown ? 'Hide them' : 'Show them');
+    noteMark.onclick = (e) => { e.stopPropagation(); toggleNotes(rw); };
   }
   item.appendChild(box);
 
@@ -3847,7 +3846,12 @@ function paintRow(row, g, sec, table, rw) {
     }
   }
   // Notes hidden: the lane stays empty except beside a block someone opened.
+  if (!notesShown && noteMark) {
+    row.l.appendChild(noteMark);
+    row.l.appendChild(el('div', 'lead'));
+  }
   if (notesShown) {
+    if (noteMark && S.openNotes.has(rw)) notes.prepend(noteMark);
     row.l.appendChild(notes);
     // The lane always ends with a leader, transparent when there is nothing to
     // lead to, so the gap before the stack matches the one after it.
@@ -4496,7 +4500,8 @@ const LINK_SAYS = {
   download: () => ['Downloads a file'],
   upload: () => ['Uploads a file'],
   mailto: () => ['Starts an email'],
-  trigger: () => ['Triggers an action in place'],
+  // A trigger's target is not a place: it is what happens, in plain words.
+  trigger: (t) => t ? [t] : ['Triggers an action · ', null],
   other: (t) => t ? ['Goes to ', t] : ['Does something else']
 };
 
@@ -4522,7 +4527,10 @@ function fnCard(ctx) {
       const say = (LINK_SAYS[rw.link.type] || (() => [rw.link.type]))(rw.link.target);
       const b = el('div');
       say.forEach((part, i) => {
-        if (i === 1 && rw.link.target) {
+        if (part === null) {
+          b.appendChild(el('span', 'unk', 'what happens?'));
+          b.title = 'Say what happens when it is pressed: open Functionality and type it after the trigger.';
+        } else if (i === 1 && rw.link.target) {
           const known = !!findGuide(S.doc, rw.link.target);
           const t = el(known ? 'a' : 'span', 'tgt' + (known ? '' : ' dead'), rw.link.target);
           if (known) { t.href = '#'; t.dataset.goto = rw.link.target; t.title = 'Go to this guide'; }
@@ -4613,10 +4621,17 @@ function openFnPopover(anchor, ctx) {
   lTar.type = 'text'; lTar.value = rw.link.target || '';
   lTar.placeholder = 'Which guide or page?';
   lTar.setAttribute('list', 'guidenames');
-  const syncL = () => { lTar.style.display = lSel.value ? '' : 'none'; };
+  const syncL = () => {
+    lTar.style.display = lSel.value ? '' : 'none';
+    const trig = lSel.value === 'trigger';
+    lTar.placeholder = trig ? 'What happens? e.g. Marks the follow-up done' : 'Which guide or page?';
+    if (trig) lTar.removeAttribute('list'); else lTar.setAttribute('list', 'guidenames');
+    lHint.textContent = trig ? 'Say what happens when it is pressed.' : 'A target naming another guide becomes a route.';
+  };
   const setLink = () => {
     const target = lTar.value.trim();
-    rw.link = { type: lSel.value, target, wiki: !!(target && findGuide(S.doc, target)), raw: '' };
+    const trig = lSel.value === 'trigger';
+    rw.link = { type: lSel.value, target, wiki: !trig && !!(target && findGuide(S.doc, target)), raw: '' };
     // Goes to and Takes are one choice, not two. Picking a destination drops
     // whatever input this block claimed to take.
     if (lSel.value && rw.form.type) rw.form = { type: '', required: false, raw: '' };
@@ -4627,10 +4642,12 @@ function openFnPopover(anchor, ctx) {
   };
   lSel.onchange = setLink;
   lTar.onchange = setLink;
-  lTar.oninput = () => { rw.link.target = lTar.value.trim(); rw.link.wiki = !!findGuide(S.doc, lTar.value.trim()); apply(); };
+  lTar.oninput = () => { rw.link.target = lTar.value.trim(); rw.link.wiki = rw.link.type !== 'trigger' && !!findGuide(S.doc, lTar.value.trim()); apply(); };
+  const lHint = el('div', 'hint');
   syncL();
   lRow.append(lSel, lTar);
-  field('Goes to', lRow, 'A target naming another guide becomes a route.');
+  field('Goes to', lRow);
+  pop.appendChild(lHint);
 
   const fRow = el('div', 'row');
   const fSel = el('select');

@@ -2832,8 +2832,13 @@ if (process.env.SHOTS) {
   await p4.waitForTimeout(350);
   ok('lanes: hidden, no note shows', (await p4.$$eval('#stage .lane-l .note', (n) => n.length)) === 0);
   ok('lanes: functionality never hides', (await p4.$$eval('#stage .lane-r .fn', (n) => n.length)) >= 2);
-  ok('lanes: a block says how many notes it holds and how many are open',
-    (await p4.$eval('#stage .lanemark.notes', (n) => n.textContent)) === '2 notes · 1 open');
+  ok('lanes: hidden, a block with notes shows an icon and a count in the notes lane',
+    (await p4.$eval('#stage .lane-l .lanemark.notes', (n) => n.textContent)) === '2'
+    && (await p4.$$eval('#stage .lane-l .lanemark.notes svg', (n) => n.length)) === 1);
+  ok('lanes: and says how many are open on hover',
+    (await p4.$eval('#stage .lane-l .lanemark.notes', (n) => n.title)).startsWith('2 notes, 1 open'));
+  ok('lanes: a block without notes shows nothing', (await p4.$$eval('#stage .lane-l .lanemark.notes', (n) => n.length)) === 1);
+  ok('lanes: nothing sits under the block any more', (await p4.$$eval('#stage .item .lanemarks', (n) => n.length)) === 0);
   await p4.click('#stage .lanemark.notes');
   await p4.waitForTimeout(350);
   ok('lanes: opening one block shows just its notes', (await p4.$$eval('#stage .lane-l .note', (n) => n.length)) === 2);
