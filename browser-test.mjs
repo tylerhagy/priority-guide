@@ -2964,7 +2964,11 @@ if (process.env.SHOTS) {
   ok('groups: the subsection keeps its line of clarity, not shown as stray text',
     (await p6.$$eval('#stage .sec-note.sub-note', (n) => n.map((x) => x.textContent))).includes('One per person')
     && (await p6.$$eval('#stage .rawblock', (n) => n.length)) === 0);
-  eq('groups: the repeating blocks are tied together', await p6.$$eval('#stage .band.rep', (n) => n.length), 2);
+  eq('groups: a subsection is one panel holding its heading and its blocks', await p6.$$eval('#stage .band.insub', (n) => n.length), 5);
+  eq('groups: a repeating panel is marked as one of several', await p6.$$eval('#stage .band.subrep', (n) => n.length), 3);
+  ok('groups: clarity and the group line sit in the heading, not as blocks',
+    (await p6.$$eval('#stage .cell.sechead .sec-note', (n) => n.length)) === 1
+    && (await p6.$$eval('#stage .band.subtop .grp', (n) => n.length)) === 2);
   ok('groups: a field from another object is flagged',
     (await p6.$$eval('#stage .flag', (n) => n.map((x) => x.textContent).join(' '))).includes('belongs to Customer; this group is about Contact'));
   ok('groups: a group of a many-per object is offered repeating',

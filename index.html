@@ -758,6 +758,24 @@ body.present .gzoom{max-width:1360px}
 .grp-hint:hover{color:var(--ink);background:var(--hover)}
 /* Blocks that repeat as one: a hairline down their left edge ties them together. */
 .band.rep{box-shadow:inset 2px 0 0 var(--line-2)}
+/* A subsection's panel: one soft fill across the rows it holds, drawn behind
+   them so nothing inside moves. Sides on every row; the top and bottom rows
+   round it off. */
+.band.insub{position:relative;isolation:isolate;padding-left:19px;padding-right:19px}
+.band.insub::before{content:'';position:absolute;inset:0 6px;z-index:-1;background:var(--tint);
+  box-shadow:inset 1px 0 0 var(--line), inset -1px 0 0 var(--line)}
+.band.subtop{padding-top:18px}
+.band.subtop::before{top:6px;border-radius:9px 9px 0 0;box-shadow:inset 1px 0 0 var(--line), inset -1px 0 0 var(--line), inset 0 1px 0 var(--line)}
+.band.subbot{padding-bottom:18px}
+.band.subbot::before{bottom:6px;border-radius:0 0 9px 9px;box-shadow:inset 1px 0 0 var(--line), inset -1px 0 0 var(--line), inset 0 -1px 0 var(--line)}
+.band.subtop.subbot::before{top:6px;bottom:6px;border-radius:9px;box-shadow:inset 0 0 0 1px var(--line)}
+/* A panel that repeats shows a second card edge behind it: it is one of several. */
+.band.subbot.subrep::after{content:'';position:absolute;left:12px;right:12px;bottom:2px;height:6px;z-index:-2;
+  border:1px solid var(--line);border-top:0;border-radius:0 0 9px 9px;background:var(--tint)}
+.band.insub .sub{border-top:0;margin-top:0;padding-top:0}
+.band.insub .sec-note.sub-note{margin-top:-3px}
+.cell.sechead .grp{margin-top:6px}
+.cell.sechead .sec-note{margin-top:4px}
 .fscope{display:block;border:0;background:none;font:inherit;font-size:11px;color:var(--dim);cursor:pointer;
   padding:2px 0 6px;text-align:left}
 .fscope:hover{color:var(--ink)}
@@ -3112,17 +3130,31 @@ function renderGuide(host) {
     // The line of prose under a heading is part of the guide and editable like
     // everything else — but it is optional, so an empty one is not a permanent
     // placeholder on every section. Add it from the section menu.
+    // They live in the heading, with what the section is about and whether it
+    // repeats: they describe the group, they are not content in it.
     const prose = groupChunk(sec, null);
     const hasProse = !!(prose && proseOf(prose));
-    if (hasProse || S.addProse === sec) {
-      const pRow = gridRow(contentCls()); mine.push(pRow.band);
-      pRow.host.appendChild(sectionProse(g, sec, prose));
-    }
-    // What the heading's blocks are about, and whether they repeat — one line, or nothing.
+    if (hasProse || S.addProse === sec) title.host.appendChild(sectionProse(g, sec, prose));
     let grp = { sub: null, ...metaOf(prose) };
     let owned = prose;
     const secLine = groupLine(sec, null, grp, gfind);
-    if (secLine) { const r = gridRow(contentCls()); mine.push(r.band); r.host.appendChild(secLine); }
+    if (secLine) title.host.appendChild(secLine);
+
+    // A subsection is a panel: a soft fill holding its heading, its line of
+    // clarity, its Object and Repeats, and every block under it, up to the next
+    // subsection or the end of the section.
+    let panel = null;
+    const put = (band) => {
+      mine.push(band);
+      if (!panel) return;
+      band.classList.add('insub');
+      if (panel.rep) band.classList.add('subrep');
+      panel.bands.push(band);
+    };
+    const endPanel = () => {
+      if (panel && panel.bands.length) panel.bands[panel.bands.length - 1].classList.add('subbot');
+      panel = null;
+    };
 
 
     for (const chunk of sec.chunks) {
@@ -3130,7 +3162,7 @@ function renderGuide(host) {
         if (chunk === prose || chunk === owned) continue;
         const text = chunk.src.join('\n').trim();
         if (!text) continue;
-        const row = gridRow(contentCls()); mine.push(row.band);
+        const row = gridRow(contentCls()); put(row.band);
         // Nothing added to a guide is allowed to be stuck here — unreadable
         // by the parser as a block, and, before this, also uneditable and
         // undeletable from the UI. Text that lands here (an odd paste, a
@@ -3177,7 +3209,11 @@ function renderGuide(host) {
         }
         row.host.appendChild(w);
       } else if (chunk.kind === 'sub') {
-        const row = gridRow(contentCls()); mine.push(row.band);
+        endPanel();
+        const row = gridRow(contentCls());
+        panel = { bands: [], rep: false };
+        put(row.band);
+        row.band.classList.add('subtop');
         const w = el('div', 'sub');
         if (!S.readOnly && !S.present) {
           const grip = el('span', 'grip');
@@ -3200,14 +3236,12 @@ function renderGuide(host) {
         // its Object and Repeats lines.
         owned = groupChunk(sec, chunk);
         grp = { sub: chunk, ...metaOf(owned) };
-        if ((owned && proseOf(owned)) || S.addProse === chunk) {
-          const pr = gridRow(contentCls()); mine.push(pr.band);
-          pr.host.appendChild(sectionProse(g, sec, owned, chunk));
-        }
+        if ((owned && proseOf(owned)) || S.addProse === chunk) row.host.appendChild(sectionProse(g, sec, owned, chunk));
         const subLine = groupLine(sec, chunk, grp, gfind);
-        if (subLine) { const r = gridRow(contentCls()); mine.push(r.band); r.host.appendChild(subLine); }
+        if (subLine) row.host.appendChild(subLine);
+        if (grp.repeats !== null) { panel.rep = true; row.band.classList.add('subrep'); }
       } else if (chunk.kind === 'ref') {
-        const row = gridRow(contentCls()); mine.push(row.band);
+        const row = gridRow(contentCls()); put(row.band);
         const p = el('div', 'ref' + (chunk.target ? '' : ' unset'));
         if (chunk.target) setLinked(p, chunk.text, g);
         else p.textContent = S.readOnly ? 'Reference — nothing chosen' : 'Choose what this references';
@@ -3228,13 +3262,14 @@ function renderGuide(host) {
         row.host.appendChild(p);
       } else if (chunk.kind === 'table') {
         for (const rw of chunk.rows) {
-          const row = gridRow(contentCls()); mine.push(row.band);
+          const row = gridRow(contentCls()); put(row.band);
           paintRow(row, g, sec, chunk, rw, grp);
-          if (grp.repeats !== null) row.band.classList.add('rep');
+          if (grp.repeats !== null && !grp.sub) row.band.classList.add('rep');
           if (!S.readOnly && !S.present) dropZone(row.c, { g, sec, table: chunk, row: rw });
         }
       }
     }
+    endPanel();
     if (mine.length) mine[mine.length - 1].classList.add('close');
     if (!S.readOnly && !S.present) {
       const tail = gridRow('');
