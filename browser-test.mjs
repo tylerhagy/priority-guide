@@ -3084,6 +3084,28 @@ if (process.env.SHOTS) {
       subsBefore === 3 && /\| Dropped in \|/.test(tail), `subs ${subsBefore}; ` + JSON.stringify(f.slice(f.indexOf('#### Plain'))).slice(0, 700));
   }
 
+  // The upper half of a subsection's heading drops just above it.
+  await p6.evaluate(() => {
+    const tool = [...document.querySelectorAll('.ptool')].find((t) => t.textContent.includes('Content'));
+    const cell = [...document.querySelectorAll('#stage .cell')].find((c) => c.querySelector('.sub-t') && c.querySelector('.sub-t').textContent === 'Plain');
+    const dt = new DataTransfer();
+    tool.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    const r = cell.getBoundingClientRect();
+    cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.top + 3 }));
+    cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.top + 3 }));
+    tool.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+  });
+  await p6.waitForTimeout(300);
+  await p6.keyboard.type('Above plain');
+  await p6.keyboard.press('Enter');
+  await p6.waitForTimeout(250);
+  await save6();
+  {
+    const f = await file6('Priority Guides — Groups.md');
+    ok('the upper half of a subsection heading drops the block just above it',
+      /\| Above plain \|[^\n]*\n\n#### Plain/.test(f), f.slice(f.indexOf('Mailing address'), f.indexOf('#### Plain') + 12));
+  }
+
   // A heading takes notes on the left, and nothing on the right.
   await p6.evaluate(() => {
     const cell = [...document.querySelectorAll('#stage .cell')].find((c) => c.querySelector('.sub-t') && c.querySelector('.sub-t').textContent === 'Contacts');
