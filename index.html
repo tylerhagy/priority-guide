@@ -6893,7 +6893,10 @@ document.addEventListener('mousedown', (e) => {
   if (!S.doc) return;
   const t = e.target;
   if (t.closest('.pop,.scrim,.toast')) return;
-  if (t.closest('.rowsel')) return;
+  // Only the block itself and what belongs to it keep hold: its card, its notes
+  // and functionality, the strip and form under it. The empty lane either side
+  // and the padding around it are outside, like anywhere else.
+  if (t.closest('.rowsel') && t.closest('.item,.note,.fn,.lanemore,.slot,.lanemark,.rowstrip,.specform,button,input,select,textarea,[contenteditable]')) return;
 
   const active = document.activeElement;
   if (active && active.isContentEditable && active !== t && !active.contains(t)) active.blur();

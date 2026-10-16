@@ -3151,6 +3151,18 @@ if (process.env.SHOTS) {
     return cell.previousElementSibling.querySelectorAll('.note').length === 1 && cell.nextElementSibling.children.length === 0;
   }));
 
+  // Pressing the empty lane beside a selected block lets go of it.
+  {
+    const it = p6.locator('#stage .item', { hasText: 'Customer name' }).first();
+    await it.click({ position: { x: 20, y: 8 } });
+    await p6.waitForTimeout(150);
+    const held = await p6.$$eval('#stage .rowsel', (n) => n.length);
+    const spot = await p6.evaluate(() => { const l = document.querySelector('#stage .lane-r.rowsel').getBoundingClientRect(); return [l.right - 6, l.top + l.height / 2]; });
+    await p6.mouse.click(spot[0], spot[1]);
+    await p6.waitForTimeout(150);
+    ok('pressing the empty space beside a selected block deselects it', held > 0 && (await p6.$$eval('#stage .rowsel', (n) => n.length)) === 0);
+  }
+
   // Clicking into a note that shows a citation, and out again, keeps the citation.
   await p6.click('#tabs button:has-text("Guide")');
   await p6.waitForSelector('#stage .note .t');
