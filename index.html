@@ -1056,11 +1056,16 @@ body.is-paired #stage{padding:16px 20px;overflow:hidden}
 .node text{font-size:12.5px;font-weight:500;fill:var(--ink)}
 .node text.m{font-size:11px;fill:var(--faint);font-weight:400}
 .node text.o{font-size:11px;fill:var(--flag);font-weight:600}
+/* Somewhere a route goes that is not a guide: outlined, never filled, not pressable. */
+.node.ext rect{fill:transparent;stroke:var(--line-2);stroke-dasharray:4 3}
+.node.ext:hover rect{fill:transparent}
+.node.ext text{fill:var(--dim);font-weight:400}
 .edge{fill:none;stroke:var(--line-2);stroke-width:1.5;transition:opacity .12s var(--ease)}
 /* Picking a card recedes everything it is not connected to, so the lines that
    matter do not have to fight a page full of equally grey ones for attention. */
 svg.has-sel .edge:not(.hot){opacity:.3}
 .edge.ref{stroke-dasharray:5 4;stroke:var(--line-2)}
+.edge.out{stroke:var(--line-2)}
 /* After .ref, not before it — a reference edge that is also the selected
    one has to win the tie on stroke colour, or "hot" silently means "route
    only" and a reference never visibly highlights at all. */
@@ -6102,12 +6107,31 @@ function renderFlow() {
   let maxD = 0;
   for (const g of gs) { if (!depth.has(g.name)) depth.set(g.name, 0); maxD = Math.max(maxD, depth.get(g.name)); }
 
+  // A route to something that is not a guide — a page outside the app, or one
+  // not written yet — is still somewhere the user can go, so it is on the map:
+  // an outlined card, one step past the furthest guide that leads to it, that
+  // goes nowhere when pressed.
+  const ext = new Map();
+  for (const r of routes) {
+    if (r.resolved) continue;
+    const k = r.to.toLowerCase();
+    const was = ext.get(k);
+    const d = (depth.get(r.from) || 0) + 1;
+    if (!was) ext.set(k, { name: r.to, depth: d, outside: r.type === 'offsite page' });
+    else { was.depth = Math.max(was.depth, d); if (r.type === 'offsite page') was.outside = true; }
+  }
+  for (const x of ext.values()) maxD = Math.max(maxD, x.depth);
+  const extKey = (name) => '\u241f' + name.toLowerCase();
+
   const W = 196, H = 54, GX = 96, GY = 26, PAD = 30;
   const cols = [];
-  for (let d = 0; d <= maxD; d++) cols[d] = gs.filter((g) => depth.get(g.name) === d);
+  for (let d = 0; d <= maxD; d++) {
+    cols[d] = [...gs.filter((g) => depth.get(g.name) === d).map((g) => g.name),
+      ...[...ext.values()].filter((x) => x.depth === d).map((x) => extKey(x.name))];
+  }
   const pos = new Map();
   cols.forEach((col, d) => {
-    col.forEach((g, i) => pos.set(g.name, { x: PAD + d * (W + GX), y: PAD + i * (H + GY) }));
+    col.forEach((key, i) => pos.set(key, { x: PAD + d * (W + GX), y: PAD + i * (H + GY) }));
   });
   const width = PAD * 2 + (maxD + 1) * W + maxD * GX;
   const height = PAD * 2 + Math.max(1, ...cols.map((c) => c.length)) * (H + GY);
@@ -6145,6 +6169,7 @@ function renderFlow() {
     svg.appendChild(p);
   };
   for (const r of resolved) if (r.from !== r.to) drawEdge(r.from, r.to, '');
+  for (const r of routes) if (!r.resolved) drawEdge(r.from, extKey(r.to), 'out');
   for (const r of references) if (r.resolved && r.from !== r.to) drawEdge(r.from, r.to, 'ref');
 
   for (const g of gs) {
@@ -6182,6 +6207,31 @@ function renderFlow() {
       S.flowSel = S.flowSel === g ? null : g;
       render();
     };
+    svg.appendChild(grp);
+  }
+
+  for (const x of ext.values()) {
+    const p = pos.get(extKey(x.name));
+    const grp = document.createElementNS(NS, 'g');
+    grp.setAttribute('class', 'node ext');
+    grp.setAttribute('transform', `translate(${p.x},${p.y})`);
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('width', W); rect.setAttribute('height', H);
+    rect.setAttribute('rx', 10);
+    grp.appendChild(rect);
+    const t1 = document.createElementNS(NS, 'text');
+    t1.setAttribute('x', 13); t1.setAttribute('y', 22);
+    t1.textContent = x.name.length > 24 ? x.name.slice(0, 23) + '…' : x.name;
+    grp.appendChild(t1);
+    const t2 = document.createElementNS(NS, 'text');
+    t2.setAttribute('class', 'm');
+    t2.setAttribute('x', 13); t2.setAttribute('y', 40);
+    t2.textContent = x.outside ? 'Outside the app' : 'Not a guide in this file';
+    grp.appendChild(t2);
+    const tip = document.createElementNS(NS, 'title');
+    tip.textContent = `${x.name}: ${x.outside ? 'a page outside the app' : 'no guide in this file has this name'}`;
+    grp.appendChild(tip);
+    grp.onclick = (e) => e.stopPropagation();
     svg.appendChild(grp);
   }
 

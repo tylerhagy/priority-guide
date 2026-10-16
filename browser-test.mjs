@@ -1851,7 +1851,9 @@ ok('clicking an action item goes to the block it came from', (await gcount('.row
 const guideBeforeFlow = await text('#pagehead h1');
 await page.click('#tabs button:nth-child(2)');
 await page.waitForSelector('#flow svg');
-eq('every guide is a node', await count('#flow .node'), guidesNow);
+eq('every guide is a node', await count('#flow .node:not(.ext)'), guidesNow);
+ok('a route to something that is not a guide is on the map too, outlined',
+  (await page.$$eval('#flow .node.ext text', (n) => n.map((x) => x.textContent))).some((t) => /Outside the app|Not a guide/.test(t)));
 ok('routes are drawn', (await count('#flow .edge:not(.ref)')) >= 5);
 eq('references are drawn differently from routes, when they resolve',
   await count('#flow .edge.ref'),
