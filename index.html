@@ -2974,6 +2974,14 @@ function resolveSpot(spot, after) {
     const at = spot.table.rows.indexOf(spot.row) + (after ? 1 : 0);
     return { g, sec, table: spot.table, at };
   }
+  // A subsection's heading: the start of its first table, made if it has none.
+  if (spot.sub) {
+    let i = sec.chunks.indexOf(spot.sub) + 1;
+    while (i < sec.chunks.length && sec.chunks[i].kind === 'raw' && !/^\s*\|/m.test(sec.chunks[i].src.join('\n'))) i++;
+    let t = sec.chunks[i] && sec.chunks[i].kind === 'table' ? sec.chunks[i] : null;
+    if (!t) { t = blankTable(); sec.chunks.splice(i, 0, t); sec.dirty = true; }
+    return { g, sec, table: t, at: 0 };
+  }
   // A section header, or the space after everything in a section.
   const tables = sec.chunks.filter((c) => c.kind === 'table');
   if (spot.atTop) {
@@ -3002,6 +3010,17 @@ const NEW_CONTENT = { content: '', visual: '[Visual] ', chart: '[Chart] ', divid
  * chosen by hand instead of by one step.
  */
 function moveChunkTo(chunk, fromSec, spot, after) {
+  // A heading dropped on another subsection's heading goes just before it.
+  if (spot.sub) {
+    const from = fromSec.chunks.indexOf(chunk);
+    if (spot.sub === chunk || from === -1) return;
+    fromSec.chunks.splice(from, 1);
+    fromSec.dirty = true;
+    spot.sec.chunks.splice(spot.sec.chunks.indexOf(spot.sub), 0, chunk);
+    spot.sec.dirty = true;
+    mark(); render();
+    return;
+  }
   const { g, sec, table, at, guideLevel } = resolveSpot(spot, after);
   if (guideLevel) {
     toast(chunk.kind === 'sub' ? 'A subsection has to live in a section' : 'A reference has to live in a section');
@@ -3236,6 +3255,9 @@ function renderGuide(host) {
           more.onclick = (e) => { e.stopPropagation(); markerMenu(more, sec, chunk, 'subsection'); };
           w.appendChild(more);
           dragMarker(w, row, sec, chunk);
+          // Dropping on a subsection's heading puts the block into it, first —
+          // the only way in when it is still empty.
+          dropZone(row.c, { g, sec, sub: chunk, endOnly: true });
         }
         row.host.appendChild(w);
         // A subsection owns the text right under it: its line of clarity, and

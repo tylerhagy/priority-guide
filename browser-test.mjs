@@ -3048,6 +3048,39 @@ if (process.env.SHOTS) {
   await save6();
   ok('fields: Belongs to is written into the object\'s header',
     (await file6('Fields — Groups.md')).includes('## Customer\n\n**Belongs to:** Contact (one)\n\n### Fields'));
+  // An empty subsection takes a drop on its heading.
+  await p6.click('#tabs button:has-text("Guide")');
+  await p6.waitForSelector('#stage .item');
+  const dropOn6 = (what, pick) => p6.evaluate(({ w, pick }) => {
+    const tool = [...document.querySelectorAll('.ptool')].find((t) => t.textContent.includes(w));
+    const cells = pick === 'phone'
+      ? [[...document.querySelectorAll('#stage .item')].find((x) => x.textContent.includes('Phone')).closest('.cell')]
+      : [...document.querySelectorAll('#stage .sub')].map((x) => x.closest('.cell'));
+    const cell = cells[cells.length - 1];
+    const dt = new DataTransfer();
+    tool.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    const r = cell.getBoundingClientRect();
+    cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+    cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+    tool.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+  }, { w: what, pick });
+  await dropOn6('Subsection', 'phone');
+  await p6.waitForTimeout(300);
+  await p6.keyboard.press('Escape');
+  const subsBefore = await p6.$$eval('#stage .sub', (n) => n.length);
+  await dropOn6('Content', 'lastsub');
+  await p6.waitForTimeout(300);
+  await p6.keyboard.type('Dropped in');
+  await p6.keyboard.press('Enter');
+  await p6.waitForTimeout(250);
+  await save6();
+  {
+    const f = await file6('Priority Guides — Groups.md');
+    const tail = f.slice(f.lastIndexOf('\n#### '));
+    ok('an empty subsection takes a drop on its heading, and the block lands inside it',
+      subsBefore === 3 && /\| Dropped in \|/.test(tail), `subs ${subsBefore}; ` + JSON.stringify(f.slice(f.indexOf('#### Plain'))).slice(0, 700));
+  }
+
   // Clicking into a note that shows a citation, and out again, keeps the citation.
   await p6.click('#tabs button:has-text("Guide")');
   await p6.waitForSelector('#stage .note .t');
