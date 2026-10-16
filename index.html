@@ -1226,6 +1226,10 @@ button.tp:hover{box-shadow:inset 0 0 0 1px currentColor}
   background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:18px 20px;
   overflow-x:auto;color:var(--ink)}
 
+/* ---------- an exported file: read-only, nothing to save or open ---------- */
+body.exported #save,body.exported #discard,body.exported #export,body.exported #palette{display:none}
+body.exported #file{pointer-events:none}
+
 /* ---------- empty state ---------- */
 /* the landing page: one centred column, nothing either side until a file is open */
 body.nofile #railL,body.nofile #railR,body.nofile #minimap{display:none}
@@ -1252,6 +1256,7 @@ body.nofile #railL,body.nofile #railR,body.nofile #minimap{display:none}
   <span class="count" id="open"></span>
   <button class="btn icon" id="theme" title="Theme"></button>
   <button class="btn" id="present" title="Read (P)">Read</button>
+  <button class="btn" id="export" title="Save this guide as one HTML file anyone can open">Export</button>
   <button class="btn" id="discard" disabled>Discard</button>
   <button class="btn primary" id="save" disabled>Save</button>
 </div>
@@ -1295,6 +1300,9 @@ body.nofile #railL,body.nofile #railR,body.nofile #minimap{display:none}
 })();
 </script>
 <script type="module">
+// The page exactly as it arrived, before anything draws into it: what an
+// exported guide is built from, in the single-file build.
+const PRISTINE = '<!doctype html>\n' + document.documentElement.outerHTML;
 import {
   parseDocument, serializeDocument, verifyRoundTrip,
   guides, findGuide, tablesOf, rowsOf, allRows, countRows,
@@ -1926,7 +1934,7 @@ function renderBar() {
   const label = S.file ? fileLabel(S.file) : (S.dir ? S.dir.name : '');
   f.appendChild(el('span', S.file ? 'ft' : null, label + (S.file && S.dirty ? ' ·' : '')));
   if (S.dir) f.appendChild(icon('chev', 12));
-  f.title = S.file ? `${(S.doc && S.doc.title) || S.file.name}\n${S.file.name} in ${S.dir.name}\n\nSwitch file or folder` : 'Open a different folder';
+  f.title = S.file ? `${(S.doc && S.doc.title) || S.file.name}\n${S.file.name}${S.dir ? ` in ${S.dir.name}` : ''}\n\nSwitch file or folder` : 'Open a different folder';
   document.title = S.file ? `${label} · priority guide` : 'priority guide';
   $('file').style.display = S.dir ? '' : 'none';
   const sv = $('save');
@@ -6949,8 +6957,84 @@ function syncNames() {
 const baseRender = render;
 render = function () { baseRender(); syncNames(); };
 
+// ---------------------------------------------------------------- export
+/**
+ * One HTML file anyone can open: the whole app, with a guide written into it,
+ * opening read-only in Read view. No folder, no install, no server — double-
+ * click it, mail it, put it on SharePoint. It is built from this page's own
+ * source, so it looks exactly like the tool.
+ */
+async function appSource() {
+  const mod = [...document.scripts].find((x) => x.type === 'module');
+  // Served from the folder, the app imports parser.js; the built file next to
+  // it has everything inline, so that is what an export is made of.
+  if (mod && !mod.textContent.includes('inlined by build' + '.mjs')) {
+    const r = await fetch('priority-guide.html', { cache: 'no-store' });
+    if (!r.ok) throw new Error('Run node build.mjs first: the single-file build is what an export is made of.');
+    return r.text();
+  }
+  return PRISTINE;
+}
+
+function guideOnly(doc, g) {
+  const keep = doc.segments.filter((x) => x === g || x.kind === 'raw' || x.kind === 'sources');
+  return serializeDocument({ ...doc, segments: keep });
+}
+
+async function exportGuide(which) {
+  try {
+    const one = which === 'guide' && S.guide;
+    const text = one ? guideOnly(S.doc, S.guide) : serializeDocument(S.doc);
+    const payload = {
+      name: S.file ? S.file.name : 'guides.md',
+      text,
+      fields: S.fdoc ? serializeDocument(S.fdoc) : null,
+      fieldsName: S.ffile ? S.ffile.name : null,
+      guide: S.guide ? S.guide.name : null,
+      exported: new Date().toISOString().slice(0, 10)
+    };
+    let html = await appSource();
+    const data = JSON.stringify(payload).replace(/</g, '\\u003c');
+    html = html.replace(/<html[^>]*>/i, '<html>')
+      .replace(/<title>[\s\S]*?<\/title>/i, () => `<title>${esc(one ? S.guide.name : fileLabel(S.file))} — priority guide</title>`)
+      .replace('<script type="module">', () => `<script>window.__PG_EXPORT = ${data};<\/script>\n<script type="module">`);
+    const base = (one ? S.guide.name : fileLabel(S.file)).replace(/[\\/:*?"<>|]+/g, '-').trim();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = `${base} — priority guide.html`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast(`Exported ${one ? `“${S.guide.name}”` : 'every guide'} as one HTML file`);
+  } catch (e) {
+    banner('err', `<b>Could not export.</b> ${esc(e.message || String(e))}`);
+  }
+}
+
+$('export').onclick = () => {
+  if (!S.doc) return;
+  openMenu($('export'), [
+    { glyph: 'note', label: S.guide ? `This guide — ${S.guide.name}` : 'This guide', hint: 'Just this one, with its sources', disabled: !S.guide, fn: () => exportGuide('guide') },
+    { glyph: 'copy', label: 'Every guide in this file', hint: 'With the flow between them', fn: () => exportGuide('all') }
+  ]);
+};
+
+/** An exported file opens itself: the guide it carries, read-only, in Read view. */
+async function openExport(x) {
+  const mem = (text) => ({ kind: 'file', getFile: async () => ({ text: async () => text }) });
+  S.dir = null;
+  S.files = [{ name: x.name, handle: mem(x.text), isFields: false, guides: 1, blocks: 1 }];
+  if (x.fields) S.files.push({ name: x.fieldsName || 'Fields.md', handle: mem(x.fields), isFields: true, guides: 0, blocks: 0 });
+  S.exported = x;
+  document.body.classList.add('exported');
+  await openFile(S.files[0]);
+  S.readOnly = true; S.fReadOnly = true; S.present = true;
+  S.guide = (x.guide && findGuide(S.doc, x.guide)) || guides(S.doc)[0] || null;
+  render();
+}
+
 // ---------------------------------------------------------------- boot
 (async function boot() {
+  if (window.__PG_EXPORT) { await openExport(window.__PG_EXPORT); return; }
   if (typeof window.showDirectoryPicker !== 'function') {
     banner('err', '<b>This browser cannot open local folders.</b> Use Chrome, Edge, Arc or Brave.');
     return;

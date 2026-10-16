@@ -3231,6 +3231,28 @@ if (process.env.SHOTS) {
     await page2.evaluate(() => typeof window.__written === 'string'
       && window.__written.startsWith('# Priority Guides')));
   ok('with no errors on the way', errs2.length === 0, errs2.slice(0, 3).join(' | '));
+
+  // Export one guide as a standalone file, then open it with nothing else: no folder, no picker.
+  const [dl] = await Promise.all([page2.waitForEvent('download'), (async () => {
+    await page2.click('#export');
+    await page2.click('.pop.menu button:has-text("This guide")');
+  })()]);
+  const { mkdtempSync } = await import('node:fs');
+  const os = await import('node:os');
+  const outFile = path.join(mkdtempSync(path.join(os.tmpdir(), 'pg-export-')), 'export.html');
+  await dl.saveAs(outFile);
+  const exported = readFileSync(outFile, 'utf8');
+  ok('export writes one HTML file with the guide inside it', exported.includes('window.__PG_EXPORT') && exported.length > 100000);
+  const page3 = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const errs3 = [];
+  page3.on('pageerror', (e) => errs3.push(e.message));
+  await page3.goto('file://' + outFile);
+  await page3.waitForSelector('#stage .item', { timeout: 9000 });
+  ok('the exported file opens on its own, in Read view, with just that guide',
+    (await page3.$$eval('#railL .g-item', (n) => n.length)) === 1 && (await page3.$eval('body', (n) => n.classList.contains('present'))));
+  ok('and nothing in it can be saved', await page3.$eval('#save', (n) => getComputedStyle(n).display === 'none'));
+  ok('and it opens with no errors', errs3.length === 0, errs3.slice(0, 3).join(' | '));
+  await page3.close();
   await page2.close();
 }
 
