@@ -3084,6 +3084,32 @@ if (process.env.SHOTS) {
       subsBefore === 3 && /\| Dropped in \|/.test(tail), `subs ${subsBefore}; ` + JSON.stringify(f.slice(f.indexOf('#### Plain'))).slice(0, 700));
   }
 
+  // Below the last subsection is the section's again: an end marker closes the subsection.
+  await p6.evaluate(() => {
+    const tool = [...document.querySelectorAll('.ptool')].find((t) => t.textContent.includes('Content'));
+    const cell = document.querySelector('#stage .cell.tail');
+    const dt = new DataTransfer();
+    tool.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    const r = cell.getBoundingClientRect();
+    cell.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+    cell.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+    tool.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+  });
+  await p6.waitForTimeout(300);
+  await p6.keyboard.type('Back in the section');
+  await p6.keyboard.press('Enter');
+  await p6.waitForTimeout(250);
+  await save6();
+  {
+    const f = await file6('Priority Guides — Groups.md');
+    ok('dropping below the last subsection ends it and starts the section again',
+      /<!-- end [^>]*-->\n\n\| Content[^\n]*\n\| ---[^\n]*\n\| Back in the section \|/.test(f), f.slice(f.lastIndexOf('####')).slice(0, 400));
+    ok('and that block sits outside the panel', await p6.evaluate(() => {
+      const it = [...document.querySelectorAll('#stage .item')].find((x) => x.textContent.includes('Back in the section'));
+      return it && !it.closest('.band').classList.contains('insub');
+    }));
+  }
+
   // The upper half of a subsection's heading drops just above it.
   await p6.evaluate(() => {
     const tool = [...document.querySelectorAll('.ptool')].find((t) => t.textContent.includes('Content'));

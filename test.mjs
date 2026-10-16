@@ -948,6 +948,22 @@ t('heading notes: one Note line under the heading, after Object and Repeats, wit
   eq(P.serializeDocument(back), GROUPED, 'clearing them leaves the file as it was');
 });
 
+t('end marker: a subsection stops where it says, and the section carries on after it', () => {
+  const src = GROUPED.replace('| Phone | (614) 555-0134 |  |  |  |  | Contact.Phone |\n',
+    '| Phone | (614) 555-0134 |  |  |  |  | Contact.Phone |\n\n<!-- end Plain -->\n\n| Content | Real data | Do | Link | Form | Note | Field |\n| --- | --- | --- | --- | --- | --- | --- |\n| Back in the section |  |  |  |  |  |  |\n');
+  ok(P.verifyRoundTrip(src).ok);
+  const doc = P.parseDocument(src);
+  const gs = P.groupsOf(P.guides(doc)[0]);
+  eq(gs.map((x) => [x.title, !!x.sub, !!x.cont, x.tables.length]),
+    [['Who to reach', false, false, 1], ['Contacts', true, false, 1], ['Plain', true, false, 1], ['Who to reach', false, true, 1]]);
+  eq(P.proseOf(P.groupChunk(P.guides(doc)[0].sections[0], null)), 'Stays put');
+  // Emptied, the marker has nothing to end and goes with its empty table.
+  const sec = P.guides(doc)[0].sections[0];
+  sec.chunks.filter((c) => c.kind === 'table').pop().rows.length = 0;
+  ok(P.tidyEndMarkers(sec));
+  ok(!P.serializeDocument(doc).includes('<!-- end'), P.serializeDocument(doc));
+});
+
 // ---------------------------------------------------------------- renaming a guide keeps its links
 
 t('renaming a guide carries every link to it along, and touches nothing else', () => {

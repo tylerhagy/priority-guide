@@ -1305,7 +1305,7 @@ import {
   designLinks, figmaEmbed, isFigma, setSourceTitle,
   commentsFor, commentList, openComments, addComment, setComment, resolveComment,
   removeComment, commentTarget, ensureRid, commentsInGuide, openCommentCount, orphanComments,
-  proseOf, setProse, renameGuide, groupChunk, ensureGroupChunk, metaOf, setGroupMeta, setGroupNotes, groupFindings,
+  proseOf, setProse, renameGuide, isEndChunk, endLastSubsection, tidyEndMarkers, groupChunk, ensureGroupChunk, metaOf, setGroupMeta, setGroupNotes, groupFindings,
   belongsTo, setBelongsTo, objectRelations,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
   isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
@@ -1843,7 +1843,11 @@ async function discard() {
   });
 }
 
-function mark() { S.dirty = true; }
+function mark() {
+  S.dirty = true;
+  // An end marker with nothing after it goes, so the file never keeps a stray one.
+  if (S.guide) for (const sec of S.guide.sections) if (sec.kind === 'section') tidyEndMarkers(sec);
+}
 
 // ---------------------------------------------------------------- helpers
 /** Where a row lives, so an edit can mark exactly the right pieces dirty. */
@@ -3006,8 +3010,16 @@ function resolveSpot(spot, after) {
     if (!t) { t = blankTable(); sec.chunks.unshift(t); sec.dirty = true; }
     return { g, sec, table: t, at: 0 };
   }
+  // After everything is the section's, not its last subsection's: if one is
+  // still open, it is ended first, and the block starts the section again.
+  if (endLastSubsection(sec)) {
+    const t = blankTable();
+    sec.chunks.push(t, { kind: 'raw', src: [''], dirty: true });
+    return { g, sec, table: t, at: 0 };
+  }
+  const lastEnd = sec.chunks.reduce((k, c, i) => (isEndChunk(c) ? i : k), -1);
   let t = tables[tables.length - 1];
-  if (!t) { t = blankTable(); sec.chunks.push(t); sec.dirty = true; }
+  if (!t || sec.chunks.indexOf(t) < lastEnd) { t = blankTable(); sec.chunks.push(t, { kind: 'raw', src: [''], dirty: true }); sec.dirty = true; }
   return { g, sec, table: t, at: t.rows.length };
 }
 
@@ -3203,6 +3215,13 @@ function renderGuide(host) {
 
     for (const chunk of sec.chunks) {
       if (chunk.kind === 'raw') {
+        // Where a subsection ends: its panel closes and the section carries on.
+        if (isEndChunk(chunk)) {
+          endPanel();
+          grp = { sub: null, cont: true, ...metaOf(prose) };
+          owned = null;
+          continue;
+        }
         if (chunk === prose || chunk === owned) continue;
         const text = chunk.src.join('\n').trim();
         if (!text) continue;

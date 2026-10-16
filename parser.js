@@ -1323,7 +1323,51 @@ const GROUP_META_RE = /^\s*\*\*(object|repeats|note):?\*\*:?\s*(.*)$/i;
 const META_ORDER = ['object', 'repeats', 'note'];
 const META_LABEL = { object: 'Object', repeats: 'Repeats', note: 'Note' };
 
-export function isGroupMetaLine(line) { return GROUP_META_RE.test(line || ''); }
+export function isGroupMetaLine(line) { return GROUP_META_RE.test(line || '') || isEndMarker(line); }
+
+/**
+ * Where a subsection stops. A `####` runs to the next heading, so without this
+ * nothing could come back to the section after one. It is an HTML comment —
+ * `<!-- end Contacts -->` — so Obsidian and GitHub show nothing, and the guide
+ * reads exactly as before.
+ */
+const END_RE = /^\s*<!--\s*end\b.*-->\s*$/i;
+export function isEndMarker(line) { return END_RE.test(line || ''); }
+export function isEndChunk(c) { return !!(c && c.kind === 'raw' && c.src.some(isEndMarker)); }
+
+/** Close the last subsection so what follows is the section's again. Returns the marker chunk. */
+export function endLastSubsection(sec) {
+  const last = [...sec.chunks].reverse().find((c) => c.kind === 'sub' || isEndChunk(c));
+  if (!last || last.kind !== 'sub') return null;
+  const c = { kind: 'raw', src: ['', `<!-- end ${last.title} -->`, ''], dirty: true };
+  sec.chunks.push(c);
+  sec.dirty = true;
+  return c;
+}
+
+/** An end marker with nothing of the section's after it has nothing to end: it goes. */
+export function tidyEndMarkers(sec) {
+  let changed = false;
+  for (let i = sec.chunks.length - 1; i >= 0; i--) {
+    const c = sec.chunks[i];
+    if (!isEndChunk(c)) continue;
+    let j = i + 1;
+    let used = false;
+    while (j < sec.chunks.length && sec.chunks[j].kind !== 'sub') {
+      const d = sec.chunks[j];
+      if ((d.kind === 'table' && d.rows.length) || d.kind === 'ref' || (d.kind === 'raw' && d.src.some((l) => norm(l)))) { used = true; break; }
+      j++;
+    }
+    if (used) continue;
+    // Drop the empty tables that were waiting after it, then the marker itself.
+    for (let k = j - 1; k > i; k--) if (sec.chunks[k].kind === 'table') sec.chunks.splice(k, 1);
+    const rest = c.src.filter((l) => !isEndMarker(l));
+    if (rest.some((l) => norm(l))) c.src = rest; else sec.chunks.splice(i, 1);
+    changed = true;
+  }
+  if (changed) sec.dirty = true;
+  return changed;
+}
 
 /** `{ object, repeats }` from a group's chunk. `repeats` is null when the group does not repeat. */
 export function metaOf(chunk) {
@@ -1394,6 +1438,8 @@ export function setGroupMeta(sec, sub, key, value) {
       return m && META_ORDER.indexOf(lower(m[1])) > META_ORDER.indexOf(kk);
     });
     if (later > -1) pos = later;
+    const endAt = src.findIndex(isEndMarker);
+    if (endAt > -1 && endAt < pos) pos = endAt;
     const before = pos > 0 ? src[pos - 1] : '';
     const pad = pos > 0 && norm(before) && !isGroupMetaLine(before) ? [''] : [];
     src.splice(pos, 0, ...pad, line);
@@ -1432,6 +1478,10 @@ export function groupsOf(guide) {
     for (const c of sec.chunks) {
       if (c.kind === 'sub') {
         cur = { sec, sub: c, title: c.title, tables: [], ...metaOf(groupChunk(sec, c)) };
+        out.push(cur);
+      } else if (isEndChunk(c)) {
+        // Back to the section: its object still applies; its notes were counted once already.
+        cur = { sec, sub: null, cont: true, title: sec.title, tables: [], ...metaOf(groupChunk(sec, null)), notes: [] };
         out.push(cur);
       } else if (c.kind === 'table') cur.tables.push(c);
     }
@@ -1524,7 +1574,7 @@ export function groupFindings(doc, fdoc) {
     const ranked = [...count.entries()].sort((a, b) => b[1] - a[1]);
     const subject = ranked.length && (ranked.length === 1 || ranked[0][1] > ranked[1][1]) ? ranked[0][0] : '';
     for (const gr of groupsOf(g)) {
-      if (gr.object && fdoc && !objects.has(lower(gr.object))) unknownObject.push({ guide: g, group: gr });
+      if (gr.object && fdoc && !gr.cont && !objects.has(lower(gr.object))) unknownObject.push({ guide: g, group: gr });
       const seen = new Set();
       for (const table of gr.tables) {
         for (const row of table.rows) {
@@ -1540,7 +1590,7 @@ export function groupFindings(doc, fdoc) {
       const r = only && rel.get(only);
       // Only a group that has not said what it is: naming the object means the
       // question was already considered (an opportunity's one Account is not a list).
-      if (gr.repeats === null && !gr.object && r && r.many && only !== subject) {
+      if (!gr.cont && gr.repeats === null && !gr.object && r && r.many && only !== subject) {
         mayRepeat.push({ guide: g, group: gr, object: r.object, parent: r.parent });
       }
     }
