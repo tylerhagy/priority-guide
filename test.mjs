@@ -832,6 +832,102 @@ t('owners come from the People line, by full or first name, never a possessive',
   eq(P.ownersIn(doc, "Check Ryan's requirements"), []);
 });
 
+// ---------------------------------------------------------------- groups: Object, Repeats, Belongs to
+
+const GROUPED = ['# Priority Guides — G', '', '## Opp', '', '**User goal:** call', '',
+  '### Who to reach', '', '*Stays put*', '',
+  '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
+  '| Customer name | e.g John Smith |  |  |  |  | Customer.Customer name |', '',
+  '#### Contacts', '', '*One per person*', '', '**Object:** Contact', '**Repeats:** account holder first, 1 to ??', '',
+  '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
+  '| Name | e.g John Smith |  |  |  |  | Contact.Name |',
+  '| Mailing address |  |  |  |  |  | Customer.Mailing address |', '',
+  '#### Plain', '',
+  '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
+  '| Phone | (614) 555-0134 |  |  |  |  | Contact.Phone |', ''].join('\n');
+
+const GFIELDS = ['# Fields — G', '', '## Customer', '', '### Fields', '',
+  '| Label | Backend | Kind | Values | Definition | Note |', '| --- | --- | --- | --- | --- | --- |',
+  '| Customer name | ?? | stored |  |  |  |', '| Mailing address | ?? | stored |  |  |  |', '',
+  '## Contact', '', '**Notes:** A person we can reach', '**Belongs to:** Customer (many)', '', '### Fields', '',
+  '| Label | Backend | Kind | Values | Definition | Note |', '| --- | --- | --- | --- | --- | --- |',
+  '| Name | ?? | stored |  |  |  |', '| Phone | ?? | stored |  |  |  |', ''].join('\n');
+
+t('groups: a file with Object and Repeats lines round-trips', () => {
+  eq(P.serializeDocument(P.parseDocument(GROUPED)), GROUPED);
+  ok(P.verifyRoundTrip(GROUPED).ok);
+});
+
+t('groups: a heading says its object and whether it repeats; nothing is inherited', () => {
+  const g = P.guides(P.parseDocument(GROUPED))[0];
+  const gs = P.groupsOf(g);
+  eq(gs.map((x) => [x.title, x.object, x.repeats]),
+    [['Who to reach', '', null], ['Contacts', 'Contact', 'account holder first, 1 to ??'], ['Plain', '', null]]);
+  eq(gs.map((x) => x.tables.length), [1, 1, 1]);
+});
+
+t('groups: the meta lines are not part of the line of clarity', () => {
+  const doc = P.parseDocument(GROUPED);
+  const sec = P.guides(doc)[0].sections[0];
+  const sub = sec.chunks.find((c) => c.kind === 'sub' && c.title === 'Contacts');
+  eq(P.proseOf(P.groupChunk(sec, sub)), 'One per person');
+  P.setProse(P.groupChunk(sec, sub), sec, 'One per contact');
+  const out = P.serializeDocument(doc);
+  ok(out.includes('*One per contact*\n\n**Object:** Contact\n**Repeats:** account holder first, 1 to ??'), out);
+});
+
+t('groups: setting and removing the lines changes only those lines', () => {
+  const doc = P.parseDocument(GROUPED);
+  const sec = P.guides(doc)[0].sections[0];
+  const plain = sec.chunks.find((c) => c.kind === 'sub' && c.title === 'Plain');
+  P.setGroupMeta(sec, plain, 'repeats', '');
+  P.setGroupMeta(sec, plain, 'object', 'Contact');
+  let out = P.serializeDocument(doc);
+  ok(out.includes('#### Plain\n\n**Object:** Contact\n**Repeats:**\n\n| Content'), out);
+  eq(P.groupsOf(P.guides(P.parseDocument(out))[0])[2].repeats, '');
+  P.setGroupMeta(sec, plain, 'repeats', null);
+  P.setGroupMeta(sec, plain, 'object', null);
+  out = P.serializeDocument(doc);
+  eq(out, GROUPED, 'removing both leaves the file as it was');
+});
+
+t('groups: a section-level line covers the section up to its first subsection', () => {
+  const doc = P.parseDocument(GROUPED);
+  const sec = P.guides(doc)[0].sections[0];
+  P.setGroupMeta(sec, null, 'object', 'Customer');
+  const out = P.serializeDocument(doc);
+  ok(out.includes('*Stays put*\n\n**Object:** Customer\n\n| Content'), out);
+  eq(P.proseOf(P.groupChunk(sec, null)), 'Stays put');
+});
+
+t('belongs to: read, written and cleared on an object in the fields file', () => {
+  const f = P.parseDocument(GFIELDS);
+  const [cust, contact] = P.guides(f);
+  eq(P.belongsTo(contact), { parent: 'Customer', many: true, text: 'Customer (many)' });
+  eq(P.belongsTo(cust), null);
+  P.setBelongsTo(cust, 'Account (one)');
+  let out = P.serializeDocument(f);
+  ok(out.includes('## Customer\n\n**Belongs to:** Account (one)\n\n### Fields'), out);
+  P.setBelongsTo(cust, '');
+  P.setBelongsTo(contact, 'Customer (one)');
+  out = P.serializeDocument(f);
+  eq(out, GFIELDS.replace('Customer (many)', 'Customer (one)'));
+});
+
+t('groups: findings — a foreign field, a group that may repeat, an unknown object', () => {
+  const doc = P.parseDocument(GROUPED);
+  const f = P.parseDocument(GFIELDS);
+  let r = P.groupFindings(doc, f);
+  eq(r.foreign.map((x) => [x.group.title, x.ref]), [['Contacts', 'Customer.Mailing address']]);
+  eq(r.mayRepeat.map((x) => [x.group.title, x.object, x.parent]), [['Plain', 'Contact', 'Customer']]);
+  eq(r.unknownObject.length, 0);
+  const sec = P.guides(doc)[0].sections[0];
+  P.setGroupMeta(sec, sec.chunks.find((c) => c.kind === 'sub' && c.title === 'Plain'), 'object', 'Person');
+  r = P.groupFindings(doc, f);
+  eq(r.unknownObject.map((x) => x.group.object), ['Person']);
+  eq(r.foreign.length, 2, 'Plain now names Person, so its Contact field is foreign too');
+});
+
 // ---------------------------------------------------------------- report
 
 console.log(`\n  ${pass} passed${fails.length ? `, ${fails.length} FAILED` : ''}\n`);

@@ -743,6 +743,24 @@ body.present .gzoom{max-width:1360px}
 .sec-note:focus{outline:none;background:var(--accent-soft);font-style:normal;color:var(--ink)}
 .sec-note.none{color:var(--faint)}
 .sub{position:relative;border-top:1px solid var(--line-2);margin-top:5px;padding-top:10px}
+/* What a heading's blocks are about, and whether they repeat. */
+.grp{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px 10px;font-size:10.5px;
+  color:var(--faint);line-height:1.4}
+.grp-obj{color:var(--dim);font-weight:600}
+.grp-rep{display:inline-flex;align-items:center;gap:5px;color:var(--dim)}
+.grp-rep svg{flex:none}
+.grp-rep .k{font-weight:600}
+.grp-rep .t{padding:1px 4px;border-radius:4px}
+.grp-rep .t:hover{background:var(--hover)}
+.grp-rep .t:focus{outline:none;background:var(--accent-soft);color:var(--ink)}
+.grp-rep .t.none{color:var(--faint)}
+.grp-hint{border:0;background:none;font:inherit;color:var(--faint);cursor:pointer;padding:1px 5px;border-radius:4px}
+.grp-hint:hover{color:var(--ink);background:var(--hover)}
+/* Blocks that repeat as one: a hairline down their left edge ties them together. */
+.band.rep{box-shadow:inset 2px 0 0 var(--line-2)}
+.fscope{display:block;border:0;background:none;font:inherit;font-size:11px;color:var(--dim);cursor:pointer;
+  padding:2px 0 6px;text-align:left}
+.fscope:hover{color:var(--ink)}
 .sub-t{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--dim);text-align:center;padding:1px 4px;border-radius:4px}
 .sub-t:focus{outline:none;background:var(--accent-soft)}
@@ -1265,7 +1283,8 @@ import {
   designLinks, figmaEmbed, isFigma, setSourceTitle,
   commentsFor, commentList, openComments, addComment, setComment, resolveComment,
   removeComment, commentTarget, ensureRid, commentsInGuide, openCommentCount, orphanComments,
-  proseOf, setProse,
+  proseOf, setProse, groupChunk, ensureGroupChunk, metaOf, setGroupMeta, groupFindings,
+  belongsTo, setBelongsTo, objectRelations,
   LINK_TYPES, FORM_TYPES, CAPABILITIES, GUIDE_FIELDS,
   isFieldsFileName, fieldRef, splitFieldRef, fieldIndex, resolveField, valueList, valueMismatch,
   fieldUsage, setRowField, addFieldTo, addObject, blankFieldsFile, FIELD_KINDS,
@@ -2210,6 +2229,7 @@ const GLYPH = {
   right: 'M3.5 8h9M9 4.5L12.5 8 9 11.5',
   down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
   trash: 'M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9M6.5 7v4M9.5 7v4',
+  stack: 'M5 5.5h8.5v8H5zM2.5 3h8.5M2.5 3v8',
   copy: 'M5.5 5.5h8v8h-8zM2.5 10.5v-8h8',
   tick: 'M3 8.4l3.2 3.1L13 4.8',
   rule: 'M1.5 8h13',
@@ -3016,6 +3036,7 @@ function renderGuide(host) {
   // Clicking the page around the guide lets go of whatever was selected.
   if (!S.guide) { stage.appendChild(el('div', 'rail-empty', 'No guide selected.')); return; }
   const g = S.guide;
+  const gfind = S.fdoc ? groupFindings(S.doc, S.fdoc) : { mayRepeat: [] };
   const stacked = !host && guideStacked();
   const grid = el('div', 'guide' + (stacked ? ' stacked' : ''));
   const cells = [];
@@ -3082,17 +3103,22 @@ function renderGuide(host) {
     // The line of prose under a heading is part of the guide and editable like
     // everything else — but it is optional, so an empty one is not a permanent
     // placeholder on every section. Add it from the section menu.
-    const prose = sec.chunks.find((c) => c.kind === 'raw' && !/^\s*\|/m.test(c.src.join('\n')));
+    const prose = groupChunk(sec, null);
     const hasProse = !!(prose && proseOf(prose));
     if (hasProse || S.addProse === sec) {
       const pRow = gridRow(contentCls()); mine.push(pRow.band);
       pRow.host.appendChild(sectionProse(g, sec, prose));
     }
+    // What the heading's blocks are about, and whether they repeat — one line, or nothing.
+    let grp = { sub: null, ...metaOf(prose) };
+    let owned = prose;
+    const secLine = groupLine(sec, null, grp, gfind);
+    if (secLine) { const r = gridRow(contentCls()); mine.push(r.band); r.host.appendChild(secLine); }
 
 
     for (const chunk of sec.chunks) {
       if (chunk.kind === 'raw') {
-        if (chunk === prose) continue;
+        if (chunk === prose || chunk === owned) continue;
         const text = chunk.src.join('\n').trim();
         if (!text) continue;
         const row = gridRow(contentCls()); mine.push(row.band);
@@ -3161,6 +3187,16 @@ function renderGuide(host) {
           dragMarker(w, row, sec, chunk);
         }
         row.host.appendChild(w);
+        // A subsection owns the text right under it: its line of clarity, and
+        // its Object and Repeats lines.
+        owned = groupChunk(sec, chunk);
+        grp = { sub: chunk, ...metaOf(owned) };
+        if ((owned && proseOf(owned)) || S.addProse === chunk) {
+          const pr = gridRow(contentCls()); mine.push(pr.band);
+          pr.host.appendChild(sectionProse(g, sec, owned, chunk));
+        }
+        const subLine = groupLine(sec, chunk, grp, gfind);
+        if (subLine) { const r = gridRow(contentCls()); mine.push(r.band); r.host.appendChild(subLine); }
       } else if (chunk.kind === 'ref') {
         const row = gridRow(contentCls()); mine.push(row.band);
         const p = el('div', 'ref' + (chunk.target ? '' : ' unset'));
@@ -3184,7 +3220,8 @@ function renderGuide(host) {
       } else if (chunk.kind === 'table') {
         for (const rw of chunk.rows) {
           const row = gridRow(contentCls()); mine.push(row.band);
-          paintRow(row, g, sec, chunk, rw);
+          paintRow(row, g, sec, chunk, rw, grp);
+          if (grp.repeats !== null) row.band.classList.add('rep');
           if (!S.readOnly && !S.present) dropZone(row.c, { g, sec, table: chunk, row: rw });
         }
       }
@@ -3313,14 +3350,16 @@ function sectionTitle(g, sec) {
   return t;
 }
 
-function sectionProse(g, sec, chunk) {
-  const p = el('div', 'sec-note');
+function sectionProse(g, sec, chunk, sub) {
+  const p = el('div', 'sec-note' + (sub ? ' sub-note' : ''));
+  if (S.addProse === (sub || sec)) { p.dataset.fresh = '1'; S.addProse = null; }
   const cur = chunk ? proseOf(chunk) : '';
   if (cur) setLinked(p, cur, g);
   else blankable(p, '', 'Add a line of clarity — “likely a table”, “filters above the results”');
   editable(p, cur, (v) => {
     if (chunk) { setProse(chunk, sec, v); return; }
     if (!v) return;
+    if (sub) { setProse(ensureGroupChunk(sec, sub), sec, v); return; }
     const c = { kind: 'raw', src: ['', `*${v}*`, ''], dirty: true };
     sec.chunks.unshift(c);
     sec.dirty = true;
@@ -3330,14 +3369,15 @@ function sectionProse(g, sec, chunk) {
 
 /** Everything a section can do, from one button that is always in the same place. */
 function sectionMenu(anchor, g, sec) {
-  const prose = sec.chunks.find((c) => c.kind === 'raw' && !/^\s*\|/m.test(c.src.join('\n')));
+  const prose = groupChunk(sec, null);
   const items = [];
   if (!(prose && proseOf(prose))) {
     items.push({ glyph: 'plus', label: 'Add a line of clarity', fn: () => {
       S.addProse = sec; render();
-      focusSoon('.guide .sec-note');
+      focusSoon('.guide .sec-note[data-fresh="1"]');
     } });
   }
+  items.push(...groupMenuItems(anchor, sec, null), { sep: true });
   // The Sources block, if there is one, always stays last — it is not a
   // section to reorder against, so it is left out of "how many are there".
   const list = g.sections.filter((s) => s.kind !== 'sources');
@@ -3362,6 +3402,88 @@ function sectionMenu(anchor, g, sec) {
 }
 
 /**
+ * The line under a heading that says what its blocks are about and whether
+ * they repeat. Grey and small, like everything that describes rather than is
+ * content. Absent when the heading says neither — so a guide that never uses
+ * it looks exactly as it did.
+ */
+function groupLine(sec, sub, grp, gfind) {
+  const may = grp.repeats === null && !S.readOnly && !S.present
+    ? gfind.mayRepeat.find((x) => x.group.sec === sec && x.group.sub === sub) : null;
+  if (!grp.object && grp.repeats === null && !may) return null;
+  const line = el('div', 'grp');
+  if (grp.object) {
+    const o = el('span', 'grp-obj', grp.object);
+    const r = S.fdoc ? objectRelations(S.fdoc).get(grp.object.toLowerCase()) : null;
+    o.title = r ? `${grp.object}: ${r.many ? 'many' : 'one'} per ${r.parent}, in the fields file` : 'The object these blocks are about';
+    line.appendChild(o);
+  }
+  if (grp.repeats !== null) {
+    const rp = el('span', 'grp-rep');
+    rp.appendChild(icon('stack', 12));
+    rp.appendChild(el('span', 'k', 'Repeats'));
+    const t = el('span', 't');
+    if (S.newRep === (sub || sec)) { t.classList.add('fresh'); S.newRep = null; }
+    blankable(t, grp.repeats, S.readOnly ? '' : 'how many, in what order');
+    editable(t, grp.repeats, (v) => setGroupMeta(sec, sub, 'repeats', v));
+    rp.appendChild(t);
+    line.appendChild(rp);
+  } else if (may) {
+    const b = el('button', 'grp-hint', `${may.object} is many per ${may.parent} · mark as repeating`);
+    b.title = 'From the fields file. Say how many and in what order once it is marked.';
+    b.onclick = (e) => { e.stopPropagation(); startRepeating(sec, sub); };
+    line.appendChild(b);
+  }
+  return line;
+}
+
+function startRepeating(sec, sub) {
+  setGroupMeta(sec, sub, 'repeats', '');
+  S.newRep = sub || sec;
+  mark(); render();
+  focusSoon('.grp-rep .t.fresh');
+}
+
+/** Object and Repeats, for a section's menu or a subsection's. */
+function groupMenuItems(anchor, sec, sub) {
+  const grp = metaOf(groupChunk(sec, sub));
+  return [
+    { glyph: 'circle', label: grp.object ? `Object: ${grp.object}` : 'Say which object', hint: 'What these blocks are about',
+      fn: () => setTimeout(() => objectMenu(anchor, sec, sub, grp.object), 0) },
+    grp.repeats === null
+      ? { glyph: 'stack', label: 'Repeats', hint: 'One of these per contact, per attempt', fn: () => startRepeating(sec, sub) }
+      : { glyph: 'stack', label: 'Stop repeating', fn: () => { setGroupMeta(sec, sub, 'repeats', null); mark(); render(); } }
+  ];
+}
+
+async function objectMenu(anchor, sec, sub, cur) {
+  const set = (v) => { setGroupMeta(sec, sub, 'object', v); mark(); render(); };
+  if (!S.fdoc) {
+    const v = await askText({ title: 'Which object?', body: 'What these blocks are about: Customer, Contact, Interaction.',
+      placeholder: 'Object', value: cur, action: 'Set' });
+    if (v) set(v);
+    return;
+  }
+  const items = guides(S.fdoc).map((o) => ({ glyph: o.name === cur ? 'tick' : 'circle', label: o.name,
+    disabled: o.name === cur, fn: () => set(o.name) }));
+  if (cur) items.push({ sep: true }, { glyph: 'minus', label: 'No object', fn: () => set(null) });
+  openMenu(anchor, items);
+}
+
+/** In the Fields view: what an object belongs to, and whether there is one or many of it. */
+function belongsMenu(anchor, g) {
+  const cur = belongsTo(g);
+  const set = (v) => { setBelongsTo(g, v); markFields(); render(); };
+  const items = guides(S.fdoc).filter((o) => o !== g).map((o) => ({ glyph: cur && cur.parent === o.name ? 'tick' : 'circle',
+    label: o.name, fn: () => setTimeout(() => openMenu(anchor, [
+      { glyph: 'stack', label: `Many per ${o.name}`, fn: () => set(`${o.name} (many)`) },
+      { glyph: 'circle', label: `One per ${o.name}`, fn: () => set(`${o.name} (one)`) }
+    ]), 0) }));
+  if (cur) items.push({ sep: true }, { glyph: 'minus', label: 'Belongs to nothing', fn: () => set('') });
+  openMenu(anchor, items);
+}
+
+/**
  * Everything a subsection heading or a reference card can do. Moving either
  * one is a single step — past exactly one row, or past a neighbouring marker
  * if there is no row between them — the same step a drag would land on if you
@@ -3370,7 +3492,18 @@ function sectionMenu(anchor, g, sec) {
  */
 function markerMenu(anchor, sec, chunk, kind) {
   const { canUp, canDown } = markerStep(sec, chunk);
-  openMenu(anchor, [
+  const own = [];
+  if (kind === 'subsection') {
+    const pc = groupChunk(sec, chunk);
+    if (!(pc && proseOf(pc))) {
+      own.push({ glyph: 'plus', label: 'Add a line of clarity', fn: () => {
+        S.addProse = chunk; render();
+        focusSoon('.guide .sec-note[data-fresh="1"]');
+      } });
+    }
+    own.push(...groupMenuItems(anchor, sec, chunk), { sep: true });
+  }
+  openMenu(anchor, [...own,
     { glyph: 'up', label: 'Move up', disabled: !canUp,
       fn: () => { if (moveMarker(sec, chunk, -1)) { mark(); render(); } } },
     { glyph: 'down', label: 'Move down', disabled: !canDown,
@@ -3689,8 +3822,8 @@ function panelComments(body) {
  * without touching it. The controls that act on a row appear in the row's own
  * space when you select it, so they never sit on top of what you are reading.
  */
-function paintRow(row, g, sec, table, rw) {
-  const ctx = { g, sec, table, rw };
+function paintRow(row, g, sec, table, rw, group) {
+  const ctx = { g, sec, table, rw, group };
   const chosen = rw === S.sel;
   if (chosen) [row.l, row.c, row.r].forEach((n) => n.classList.add('rowsel'));
 
@@ -3812,6 +3945,18 @@ function paintRow(row, g, sec, table, rw) {
       n.innerHTML = off.map((x) => '<b>' + esc(x) + '</b>').join(', ')
         + (off.length === 1 ? ' is not a value of ' : ' are not values of ') + esc(fhit.ref)
         + ' (' + esc(fhit.row.values) + ').';
+      row.host.appendChild(n);
+    }
+  }
+  if (!S.present && group && group.object) {
+    const off = rowFieldRefs(rw).filter((r) => {
+      const o = splitFieldRef(r).object;
+      return o && o.toLowerCase() !== group.object.toLowerCase();
+    });
+    if (off.length) {
+      const n = el('div', 'flag');
+      n.innerHTML = off.map((x) => '<b>' + esc(x) + '</b>').join(', ')
+        + ` belong${off.length === 1 ? 's' : ''} to ${esc(splitFieldRef(off[0]).object)}; this group is about ${esc(group.object)}.`;
       row.host.appendChild(n);
     }
   }
@@ -4289,6 +4434,16 @@ function openFieldPicker(anchor, ctx) {
     return;
   }
 
+  // In a group that names its object, its fields come first; the rest are one press away.
+  const scope = ctx.group && ctx.group.object;
+  let showAll = !scope;
+  if (scope) {
+    const tg = el('button', 'fscope');
+    const say = () => { tg.textContent = showAll ? `All fields · only ${scope}` : `${scope} fields · show all`; };
+    say();
+    tg.onclick = (e) => { e.stopPropagation(); showAll = !showAll; say(); paint(); search.focus(); };
+    pop.appendChild(tg);
+  }
   const search = el('input');
   search.type = 'text';
   search.placeholder = 'Search fields, or type Object.Label';
@@ -4322,7 +4477,8 @@ function openFieldPicker(anchor, ctx) {
     list.innerHTML = '';
     const q = search.value.trim();
     const ql = q.toLowerCase();
-    const all = [...fieldIndex(S.fdoc).values()];
+    const every = [...fieldIndex(S.fdoc).values()];
+    const all = showAll || q.includes('.') ? every : every.filter((f) => f.object.toLowerCase() === scope.toLowerCase());
     const label = (rw.content.text || '').trim().toLowerCase();
     const hits = all.filter((f) => !ql || f.ref.toLowerCase().includes(ql)
       || (f.row.backend || '').toLowerCase().includes(ql) || (f.row.definition || '').toLowerCase().includes(ql))
@@ -6160,6 +6316,14 @@ function renderFields() {
     const h = el('div', 'fobj');
     h.appendChild(el('h2', 'fobj-n', g.name));
     h.appendChild(el('span', 'fobj-c', `${rows.length} field${rows.length === 1 ? '' : 's'}`));
+    const rel = belongsTo(g);
+    if (rel) h.appendChild(el('span', 'fobj-c', `${rel.many ? 'many' : 'one'} per ${rel.parent}`));
+    if (edit) {
+      const bt = el('button', 'btn quiet', 'Belongs to');
+      bt.title = 'What this object belongs to, and whether there is one or many of it';
+      bt.onclick = (e) => { e.stopPropagation(); belongsMenu(bt, g); };
+      h.appendChild(bt);
+    }
     if (edit) {
       const add = el('button', 'btn quiet', '+ Field');
       add.onclick = async () => {

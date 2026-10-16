@@ -84,6 +84,7 @@ if (!P.isFieldsFileName(path.basename(file))) {
     const fdoc = P.parseDocument(fs.readFileSync(path.join(dir, ff), 'utf8'));
     const u = P.fieldUsage(doc, fdoc);
     const linked = [...u.used.values()].flat();
+    const gf = P.groupFindings(doc, fdoc);
     fields = {
       file: ff,
       fields: u.index.size,
@@ -92,7 +93,10 @@ if (!P.isFieldsFileName(path.basename(file))) {
       unknownFields: u.unresolved.map((x) => ({ guide: x.guide.name, block: P.renderContentCell(x.row.content), ref: x.ref })),
       valueMismatches: linked.filter((x) => x.mismatch.length)
         .map((x) => ({ guide: x.guide.name, block: P.renderContentCell(x.row.content), ref: x.row.field, values: x.mismatch })),
-      unusedFields: [...u.index.values()].filter((f) => !u.used.has(f.ref.toLowerCase())).map((f) => f.ref)
+      unusedFields: [...u.index.values()].filter((f) => !u.used.has(f.ref.toLowerCase())).map((f) => f.ref),
+      foreignFields: gf.foreign.map((x) => ({ guide: x.guide.name, group: x.group.title, object: x.group.object, block: P.renderContentCell(x.row.content), ref: x.ref })),
+      groupsThatMayRepeat: gf.mayRepeat.map((x) => ({ guide: x.guide.name, group: x.group.title, object: x.object, parent: x.parent })),
+      unknownGroupObjects: gf.unknownObject.map((x) => ({ guide: x.guide.name, group: x.group.title, object: x.group.object }))
     };
   }
 }
@@ -152,6 +156,9 @@ if (fields) {
   console.log(`  Fields (${fields.file}): ${fields.fields} defined · ${fields.linked} blocks linked · ${fields.unlinked} not linked`);
   say('Blocks pointing at a field that does not exist:', fields.unknownFields, (x) => `${x.guide} · ${x.block} → ${x.ref}`);
   say('Values a block shows that its field does not allow:', fields.valueMismatches, (x) => `${x.guide} · ${x.block} (${x.ref}): ${x.values.join(', ')}`);
+  say('Blocks whose field belongs to another object than their group:', fields.foreignFields, (x) => `${x.guide} › ${x.group} (${x.object}) · ${x.block} → ${x.ref}`);
+  say('Groups naming an object the fields file does not have:', fields.unknownGroupObjects, (x) => `${x.guide} › ${x.group}: ${x.object}`);
+  say('Groups of a many-per object that do not say they repeat:', fields.groupsThatMayRepeat, (x) => `${x.guide} › ${x.group}: ${x.object}, many per ${x.parent}`);
 }
 say('Visual answers where functionality belongs:', report.lint,
   (l) => `${l.guide} · ${l.where}  "${l.word}"${l.ask ? ` — ${l.ask}` : ''}`);

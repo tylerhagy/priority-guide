@@ -2918,6 +2918,115 @@ if (process.env.SHOTS) {
   await p5.close();
 }
 
+// ------------------------------------------------------- groups: object, repeats, belongs to
+{
+  const G = ['# Priority Guides — Groups', '', '## Opp', '', '**User goal:** call', '',
+    '### Who to reach', '', '*Stays put*', '',
+    '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
+    '| Customer name | e.g John Smith |  |  |  |  | Customer.Customer name |', '',
+    '#### Contacts', '', '*One per person*', '', '**Object:** Contact', '**Repeats:** account holder first', '',
+    '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
+    '| Name | e.g John Smith |  |  |  |  | Contact.Name |',
+    '| Mailing address |  |  |  |  |  | Customer.Mailing address |', '',
+    '#### Plain', '',
+    '| Content | Real data | Do | Link | Form | Note | Field |', '| --- | --- | --- | --- | --- | --- | --- |',
+    '| Phone | (614) 555-0134 |  |  |  |  | Contact.Phone |', '', '## Sources', '', ''].join('\n');
+  const F = ['# Fields — Groups', '', '## Customer', '', '### Fields', '',
+    '| Label | Backend | Kind | Values | Definition | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Customer name | ?? | stored |  |  |  |', '| Mailing address | ?? | stored |  |  |  |', '',
+    '## Contact', '', '**Notes:** A person we can reach', '**Belongs to:** Customer (many)', '', '### Fields', '',
+    '| Label | Backend | Kind | Values | Definition | Note |', '| --- | --- | --- | --- | --- | --- |',
+    '| Name | ?? | stored |  |  |  |', '| Phone | ?? | stored |  |  |  |', '', '## Sources', '', ''].join('\n');
+  const p6 = await browser.newPage({ viewport: { width: 1500, height: 950 } });
+  const errs6 = [];
+  p6.on('pageerror', (e) => errs6.push(e.message));
+  await p6.addInitScript(([g, f]) => {
+    const store = { 'Priority Guides — Groups.md': g, 'Fields — Groups.md': f };
+    const fh = (name) => ({ kind: 'file', name, getFile: async () => ({ text: async () => store[name] }),
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      createWritable: async () => ({ write: async (t) => { store[name] = t; }, close: async () => {} }) });
+    window.showDirectoryPicker = async () => ({ kind: 'directory', name: 'Groups',
+      queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+      getFileHandle: async (n) => { if (!(n in store)) store[n] = ''; return fh(n); },
+      entries: async function* () { for (const n of Object.keys(store)) yield [n, fh(n)]; } });
+    window.__store = store;
+  }, [G, F]);
+  await p6.goto(`http://localhost:${PORT}/`);
+  await p6.click('.hello .btn.primary');
+  await p6.waitForSelector('#stage .item', { timeout: 8000 });
+  await p6.waitForTimeout(300);
+  const file6 = (n) => p6.evaluate((k) => window.__store[k], n);
+  const save6 = async () => { await p6.keyboard.down('Meta'); await p6.keyboard.press('s'); await p6.keyboard.up('Meta'); await p6.waitForTimeout(500); };
+
+  ok('groups: a subsection says its object and that it repeats, on one line',
+    (await p6.$$eval('#stage .grp', (n) => n.map((x) => x.textContent))).some((t) => t.includes('Contact') && t.includes('Repeats') && t.includes('account holder first')));
+  ok('groups: the subsection keeps its line of clarity, not shown as stray text',
+    (await p6.$$eval('#stage .sec-note.sub-note', (n) => n.map((x) => x.textContent))).includes('One per person')
+    && (await p6.$$eval('#stage .rawblock', (n) => n.length)) === 0);
+  eq('groups: the repeating blocks are tied together', await p6.$$eval('#stage .band.rep', (n) => n.length), 2);
+  ok('groups: a field from another object is flagged',
+    (await p6.$$eval('#stage .flag', (n) => n.map((x) => x.textContent).join(' '))).includes('belongs to Customer; this group is about Contact'));
+  ok('groups: a group of a many-per object is offered repeating',
+    (await p6.$$eval('#stage .grp-hint', (n) => n.map((x) => x.textContent))).some((t) => t.includes('Contact is many per Customer')));
+
+  await p6.click('#stage .grp-hint');
+  await p6.waitForTimeout(250);
+  await p6.keyboard.type('one per number');
+  await p6.keyboard.press('Enter');
+  await p6.waitForTimeout(250);
+  await save6();
+  ok('groups: marking it writes one Repeats line under its heading',
+    (await file6('Priority Guides — Groups.md')).includes('#### Plain\n\n**Repeats:** one per number\n\n| Content'));
+
+  // Object from the subsection menu.
+  const subs = await p6.$$('#stage .submore');
+  await subs[1].click();
+  await p6.waitForSelector('.pop.menu');
+  await p6.click('.pop.menu button:has-text("Say which object")');
+  await p6.waitForSelector('.pop.menu button:has-text("Contact")');
+  await p6.click('.pop.menu button:has-text("Contact")');
+  await p6.waitForTimeout(250);
+  await save6();
+  ok('groups: the object is set from the menu, before Repeats',
+    (await file6('Priority Guides — Groups.md')).includes('#### Plain\n\n**Object:** Contact\n**Repeats:** one per number\n'));
+
+  // The field picker starts with the group's object.
+  const phone = p6.locator('#stage .item', { hasText: 'Phone' }).first();
+  await phone.click({ position: { x: 20, y: 10 } });
+  await p6.waitForSelector('#stage .rowstrip');
+  await p6.click('#stage .rowstrip .sbtn:has-text("Field")');
+  await p6.waitForSelector('.fieldpop .refopt');
+  await p6.fill('.fieldpop input', '');
+  await p6.waitForTimeout(150);
+  const names6 = () => p6.$$eval('.fieldpop .refopt:not(.add) .n', (n) => n.map((x) => x.textContent).filter((t) => t.includes(' › ')));
+  const pick6 = await names6();
+  ok('groups: the picker shows only the group object\'s fields', pick6.length > 0 && pick6.every((t) => t.startsWith('Contact')),
+    JSON.stringify(pick6) + ' ' + (await p6.$eval('.fieldpop', (n) => n.textContent.slice(0, 200))));
+  await p6.click('.fieldpop .fscope');
+  await p6.waitForTimeout(150);
+  ok('groups: and every field one press away', (await names6()).some((t) => t.startsWith('Customer')));
+  await p6.keyboard.press('Escape');
+
+  // Belongs to, in the Fields view.
+  await p6.keyboard.press('Escape');
+  await p6.click('#tabs button:has-text("Fields")');
+  await p6.waitForSelector('.fobj');
+  ok('fields: an object says what it belongs to',
+    (await p6.$$eval('.fobj', (n) => n.map((x) => x.textContent))).some((t) => t.includes('many per Customer')));
+  const cust = p6.locator('.fobj', { hasText: 'Customer' }).first();
+  await cust.locator('button:has-text("Belongs to")').click();
+  await p6.waitForSelector('.pop.menu button:has-text("Contact")');
+  await p6.click('.pop.menu button:has-text("Contact")');
+  await p6.waitForSelector('.pop.menu button:has-text("One per Contact")');
+  await p6.click('.pop.menu button:has-text("One per Contact")');
+  await p6.waitForTimeout(250);
+  await save6();
+  ok('fields: Belongs to is written into the object\'s header',
+    (await file6('Fields — Groups.md')).includes('## Customer\n\n**Belongs to:** Contact (one)\n\n### Fields'));
+  ok('groups: no errors on the way', errs6.length === 0, errs6.slice(0, 3).join(' | '));
+  await p6.close();
+}
+
 // ------------------------------------------------------- the single-file build
 /*
  * The app needs the File System Access API, and file:// is a secure context in

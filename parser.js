@@ -1265,11 +1265,20 @@ export function addRow(table, section, fields = {}) {
  * lines it occupies and leaves the blank lines around it alone.
  */
 export function proseOf(chunk) {
-  return (chunk.src || []).map((l) => norm(l)).filter(Boolean).join(' ').replace(/^\*+|\*+$/g, '').trim();
+  return (chunk.src || []).filter((l) => !isGroupMetaLine(l)).map((l) => norm(l)).filter(Boolean)
+    .join(' ').replace(/^\*+|\*+$/g, '').trim();
 }
 
 export function setProse(chunk, section, text) {
   const t = norm(text);
+  // The Object and Repeats lines share the chunk; the prose is everything else.
+  const meta = chunk.src.filter(isGroupMetaLine);
+  if (meta.length) {
+    chunk.src = ['', ...(t ? [`*${t}*`, ''] : []), ...meta, ''];
+    chunk.dirty = true;
+    if (section) section.dirty = true;
+    return chunk;
+  }
   const src = chunk.src;
   let a = src.findIndex((l) => norm(l) !== '');
   let b = src.length - 1;
@@ -1280,6 +1289,225 @@ export function setProse(chunk, section, text) {
   chunk.dirty = true;
   if (section) section.dirty = true;
   return chunk;
+}
+
+/**
+ * Groups — what a heading holds, said in one line.
+ *
+ * A `###` section, or a `####` subsection, can say which object its blocks are
+ * about and whether it repeats — one per contact, one per attempt:
+ *
+ *   #### Contacts
+ *
+ *   *One per person the agent can reach*
+ *
+ *   **Object:** Contact
+ *   **Repeats:** account holder first, 1 to ??
+ *
+ * Both lines are optional and live in the text right under the heading — the
+ * same raw chunk as its line of clarity — so a file without them reads exactly
+ * as it always did. A section's lines cover its blocks up to its first
+ * subsection; a subsection's cover its own. Nothing is inherited: a group says
+ * what it is, or it says nothing.
+ */
+const GROUP_META_RE = /^\s*\*\*(object|repeats):?\*\*:?\s*(.*)$/i;
+
+export function isGroupMetaLine(line) { return GROUP_META_RE.test(line || ''); }
+
+/** `{ object, repeats }` from a group's chunk. `repeats` is null when the group does not repeat. */
+export function metaOf(chunk) {
+  const out = { object: '', repeats: null };
+  for (const l of (chunk && chunk.src) || []) {
+    const m = GROUP_META_RE.exec(l);
+    if (!m) continue;
+    if (lower(m[1]) === 'object') out.object = norm(m[2]);
+    else out.repeats = norm(m[2]);
+  }
+  return out;
+}
+
+/** The raw chunk that belongs to a heading: a section's first one before any subsection, or the one right after a subsection. */
+export function groupChunk(sec, sub) {
+  if (!sec || !sec.chunks) return null;
+  if (sub) {
+    const i = sec.chunks.indexOf(sub);
+    const next = i > -1 ? sec.chunks[i + 1] : null;
+    return next && next.kind === 'raw' && !/^\s*\|/m.test(next.src.join('\n')) ? next : null;
+  }
+  for (const c of sec.chunks) {
+    if (c.kind === 'sub') return null;
+    if (c.kind === 'raw' && !/^\s*\|/m.test(c.src.join('\n'))) return c;
+  }
+  return null;
+}
+
+/** The group's chunk, made if it has none, so a line can be written into it. */
+export function ensureGroupChunk(sec, sub) {
+  const have = groupChunk(sec, sub);
+  if (have) return have;
+  const c = { kind: 'raw', src: ['', ''], dirty: true, made: true };
+  if (sub) sec.chunks.splice(sec.chunks.indexOf(sub) + 1, 0, c);
+  else sec.chunks.unshift(c);
+  sec.dirty = true;
+  return c;
+}
+
+/**
+ * Write, change or remove one of the two lines. `value` null removes it; any
+ * string, even empty, writes it. Lines go after the line of clarity, Object
+ * before Repeats, so the order reads the same in every file.
+ */
+export function setGroupMeta(sec, sub, key, value) {
+  const k = lower(key) === 'object' ? 'Object' : 'Repeats';
+  const chunk = value === null ? groupChunk(sec, sub) : ensureGroupChunk(sec, sub);
+  if (!chunk) return null;
+  const src = chunk.src;
+  const at = src.findIndex((l) => { const m = GROUP_META_RE.exec(l); return m && lower(m[1]) === lower(k); });
+  const line = value === null ? null : `**${k}:** ${norm(value)}`.replace(/\s+$/, '');
+  if (at > -1) {
+    if (line === null) src.splice(at, 1); else src[at] = line;
+  } else if (line !== null) {
+    let end = src.length;
+    while (end > 0 && norm(src[end - 1]) === '') end--;
+    // Object before Repeats; both after the line of clarity.
+    let pos = end;
+    if (k === 'Object') {
+      const rep = src.findIndex((l) => { const m = GROUP_META_RE.exec(l); return m && lower(m[1]) === 'repeats'; });
+      if (rep > -1) pos = rep;
+    }
+    const before = pos > 0 ? src[pos - 1] : '';
+    const pad = pos > 0 && norm(before) && !isGroupMetaLine(before) ? [''] : [];
+    src.splice(pos, 0, ...pad, line);
+    if (!src.length || norm(src[src.length - 1]) !== '') src.push('');
+    if (norm(src[0]) !== '') src.unshift('');
+  }
+  // Removing both lines leaves no trace: a chunk made for them goes, and one
+  // that was only the blank line under the heading goes back to being that.
+  if (!src.some((l) => norm(l))) {
+    if (chunk.made) {
+      const i = sec.chunks.indexOf(chunk);
+      if (i > -1) sec.chunks.splice(i, 1);
+    } else chunk.src = [''];
+  }
+  chunk.dirty = true;
+  sec.dirty = true;
+  return chunk;
+}
+
+/**
+ * Every group in a guide, in order, with the tables it holds. A section is one
+ * group up to its first subsection; each subsection is another.
+ */
+export function groupsOf(guide) {
+  const out = [];
+  for (const sec of guide.sections || []) {
+    if (sec.kind !== 'section') continue;
+    let cur = { sec, sub: null, title: sec.title, tables: [], ...metaOf(groupChunk(sec, null)) };
+    out.push(cur);
+    for (const c of sec.chunks) {
+      if (c.kind === 'sub') {
+        cur = { sec, sub: c, title: c.title, tables: [], ...metaOf(groupChunk(sec, c)) };
+        out.push(cur);
+      } else if (c.kind === 'table') cur.tables.push(c);
+    }
+  }
+  return out;
+}
+
+/** The group a table sits in. */
+export function groupOf(guide, table) {
+  return groupsOf(guide).find((gr) => gr.tables.includes(table)) || null;
+}
+
+/**
+ * How objects relate, from the fields file: an object's `**Belongs to:**`
+ * line — `Customer (many)` or `Customer (one)`. A bare name means one.
+ */
+const BELONGS_RE = /^\s*\*\*belongs to:?\*\*:?\s*(.*)$/i;
+
+export function belongsTo(objectGuide) {
+  for (const l of (objectGuide && objectGuide.headerSrc) || []) {
+    const m = BELONGS_RE.exec(l);
+    if (!m) continue;
+    const v = norm(m[1]);
+    if (!v) return null;
+    const mm = /^(.*?)\s*\((many|one)\)\s*$/i.exec(v);
+    return mm ? { parent: norm(mm[1]), many: lower(mm[2]) === 'many', text: v } : { parent: v, many: false, text: v };
+  }
+  return null;
+}
+
+export function setBelongsTo(objectGuide, value) {
+  const src = objectGuide.headerSrc;
+  const at = src.findIndex((l) => BELONGS_RE.test(l));
+  const v = norm(value);
+  if (!v) {
+    if (at > -1) {
+      src.splice(at, 1);
+      if (at > 0 && norm(src[at - 1]) === '' && at < src.length && norm(src[at]) === '') src.splice(at, 1);
+    }
+  }
+  else if (at > -1) src[at] = `**Belongs to:** ${v}`;
+  else {
+    // After the **Notes:** line if there is one, else where the header's text starts.
+    const notes = src.findIndex((l) => /^\s*\*\*notes:?\*\*/i.test(l));
+    const first = src.findIndex((l) => norm(l) !== '');
+    const pos = notes > -1 ? notes + 1 : (first === -1 ? src.length : first);
+    src.splice(pos, 0, `**Belongs to:** ${v}`);
+    if (pos === 0) src.unshift('');
+    if (norm(src[src.length - 1]) !== '') src.push('');
+  }
+  objectGuide.dirty = true;
+  return belongsTo(objectGuide);
+}
+
+/** Every object's relation, keyed by lower-cased object name. */
+export function objectRelations(fdoc) {
+  const out = new Map();
+  if (!fdoc) return out;
+  for (const g of guides(fdoc)) {
+    const b = belongsTo(g);
+    if (b) out.set(lower(g.name), { object: g.name, ...b });
+  }
+  return out;
+}
+
+/**
+ * What the groups in a guides file disagree with in the fields file. Findings
+ * only, never verdicts:
+ *  - a block in a group whose field belongs to another object;
+ *  - a group whose blocks all come from an object that is many-per-parent,
+ *    which says nothing about repeating — a suggestion, nothing more;
+ *  - a group naming an object the fields file does not have.
+ */
+export function groupFindings(doc, fdoc) {
+  const objects = new Set(fdoc ? guides(fdoc).map((g) => lower(g.name)) : []);
+  const rel = objectRelations(fdoc);
+  const foreign = [];
+  const mayRepeat = [];
+  const unknownObject = [];
+  for (const g of guides(doc)) {
+    for (const gr of groupsOf(g)) {
+      if (gr.object && fdoc && !objects.has(lower(gr.object))) unknownObject.push({ guide: g, group: gr });
+      const seen = new Set();
+      for (const table of gr.tables) {
+        for (const row of table.rows) {
+          for (const ref of rowFieldRefs(row)) {
+            const { object } = splitFieldRef(ref);
+            if (!object) continue;
+            seen.add(lower(object));
+            if (gr.object && lower(object) !== lower(gr.object)) foreign.push({ guide: g, group: gr, row, ref, object });
+          }
+        }
+      }
+      const only = seen.size === 1 ? [...seen][0] : (gr.object ? lower(gr.object) : '');
+      const r = only && rel.get(only);
+      if (gr.repeats === null && r && r.many && (!gr.object || lower(gr.object) === only)) {
+        mayRepeat.push({ guide: g, group: gr, object: r.object, parent: r.parent });
+      }
+    }
+  }
+  return { foreign, mayRepeat, unknownObject };
 }
 
 /** Any edit to a row re-renders that one line and nothing else. */
