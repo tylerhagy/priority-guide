@@ -1157,6 +1157,10 @@ button.tp:hover{box-shadow:inset 0 0 0 1px currentColor}
 .fchips-l{font-size:10.5px;color:var(--faint)}
 .specline{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-top:4px;font-size:11px;line-height:1.4}
 .specline .said{color:var(--dim)}
+.specline{gap:3px 12px}
+.specline .pair{display:inline-flex;gap:4px;align-items:baseline}
+.specline .pair .k{color:var(--faint)}
+.specline .pair .v{color:var(--dim)}
 .specform{flex-basis:100%;margin-top:6px;padding:8px 6px 4px;border-top:1px dashed var(--line);display:grid;grid-template-columns:1fr;gap:5px}
 .spec-h{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
 .spec-h button{margin-left:auto;font-size:11px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--accent-ink)}
@@ -4012,7 +4016,12 @@ function paintRow(row, g, sec, table, rw, group) {
   const lbl = el('div', 'lbl');
   const label = rw.content.text.trim();
   if (isUnknown(label)) lbl.innerHTML = '<span class="unk">?? not known</span>';
-  else blankable(lbl, label, visual ? 'What is the visual of?' : 'What is it called?');
+  else blankable(lbl, label, visual ? 'What is the visual of?'
+    : isControl(kind) ? `Its name, e.g. ${CONTROL_EXAMPLE[kind]}` : 'What is it called?');
+  // On a control the line is its name — what the guide calls it — not the text
+  // inside it. A search's placeholder is its own detail, labelled below.
+  if (isControl(kind)) lbl.title = `The name of this ${KIND_LABEL[kind].toLowerCase()}`
+    + (kind === 'search' ? '. What its empty box says is the Placeholder, below.' : '.');
   editable(lbl, label, (v) => {
     rw.content = { ...rw.content, text: v };
     touchRow(rw, table, sec);
@@ -4041,7 +4050,7 @@ function paintRow(row, g, sec, table, rw, group) {
   }
   if (frefs.length) {
     const chips = el('div', 'fchips');
-    if (kind === 'search') chips.appendChild(el('span', 'fchips-l', 'Searches'));
+    if (CHIPS_SAY[kind]) chips.appendChild(el('span', 'fchips-l', CHIPS_SAY[kind]));
     for (const r of frefs) chips.appendChild(fieldChip(ctx, r, S.fdoc ? resolveField(S.fdoc, r) : null));
     inner.appendChild(chips);
   }
@@ -4182,6 +4191,8 @@ const CHART_GLYPH = {
 const KIND_LABEL = { text: 'Content', visual: 'Visual', chart: 'Data visual', divider: 'Divider',
   search: 'Search', filter: 'Filter', sort: 'Sort', action: 'Action' };
 const KIND_GLYPH = { search: 'search', filter: 'filter', sort: 'sort', action: 'trigger' };
+const CONTROL_EXAMPLE = { search: 'Find an opportunity', filter: 'Utility', sort: 'Sort the list', action: 'Export the list' };
+const CHIPS_SAY = { search: 'Searches', filter: 'Filters by', sort: 'Sorts by' };
 
 /**
  * What you can do to the row you selected, in the row, in reading order, with
@@ -4454,18 +4465,24 @@ function specLine(rw, fhit) {
   const line = el('div', 'specline');
   const kind = rw.content.kind;
   const hasValues = !!(fhit && fhit.row.values && !isUnknown(fhit.row.values));
+  // Each answer with its question's name, so "applied" or "0" says what it is.
   const said = [];
   for (const q of specQuestions(rw)) {
     const v = getSpec(rw, q.key);
     if (!v || isUnknown(v)) continue;
-    if (q.key === 'min chars') { said.push(`after ${v} characters`); continue; }
-    if (q.type === 'choice' && (v === 'yes' || v === 'no')) { if (v === 'yes') said.push(q.label.toLowerCase()); continue; }
-    if (q.key === 'placeholder') { said.push(`“${v}”`); continue; }
-    if (q.type === 'text' && v.length > 40) continue;
-    said.push(v);
+    if (q.type === 'choice' && (v === 'yes' || v === 'no')) { if (v === 'yes') said.push([q.label, '']); continue; }
+    if (q.key === 'placeholder') { said.push([q.label, `“${v}”`]); continue; }
+    if (q.key === 'min chars') { said.push([q.label, `${v} characters`]); continue; }
+    if (q.type === 'text' && v.length > 40) { said.push([q.label, v.slice(0, 38) + '…']); continue; }
+    said.push([q.label, v]);
   }
-  if (kind === 'filter' && !getSpec(rw, 'options') && hasValues) said.push('options from the field');
-  if (said.length) line.appendChild(el('span', 'said', said.join(' · ')));
+  if (kind === 'filter' && !getSpec(rw, 'options') && hasValues) said.push(['Options', 'from the field']);
+  for (const [k, v] of said) {
+    const pair = el('span', 'pair');
+    pair.appendChild(el('span', 'k', k));
+    if (v) pair.appendChild(el('span', 'v', v));
+    line.appendChild(pair);
+  }
   return line;
 }
 

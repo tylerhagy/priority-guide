@@ -2786,6 +2786,9 @@ if (process.env.SHOTS) {
   await p3.waitForTimeout(150);
   ok('controls: an answer shows on the block straight away',
     (await p3.$eval('#stage .item:has(.kbadge.search) .specline', (n) => n.textContent)).includes('“Find a customer”'));
+  ok('controls: and says which question it answers',
+    (await p3.$$eval('#stage .item:has(.kbadge.search) .specline .pair', (n) => n.map((x) => [x.querySelector('.k').textContent, (x.querySelector('.v') || {}).textContent])))
+      .some(([k, v]) => k === 'Placeholder' && v === '“Find a customer”'));
   // Two fields for one search.
   await p3.click('#stage .specform .spec-h button');
   await p3.waitForSelector('.fieldpop');
